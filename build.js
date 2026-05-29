@@ -140,6 +140,12 @@ function extractHero(md, eyebrow) {
   return { heroHtml, body: lines.slice(consumed).join('\n') };
 }
 
+// 3d) Style a chronological list under a "时间线 / Timeline" heading as a vertical timeline.
+function markTimeline(html) {
+  return html.replace(/(<h[23][^>]*>[^<]*(?:时间线|Timeline)[^<]*<\/h[23]>\s*)<(ul|ol)>/g,
+    (m, head, tag) => head + '<' + tag + ' class="timeline">');
+}
+
 function renderDoc(md, title, outFile, eyebrow, opts) {
   opts = opts || {};
   const lang = opts.lang || 'zh-CN';
@@ -149,6 +155,7 @@ function renderDoc(md, title, outFile, eyebrow, opts) {
     : '';
   const hero = extractHero(md, eyebrow || '');
   const r = addTocAndIds(decorateCallouts(foldLongCode(highlightCode(renderWithMath(hero.body)))));
+  const bodyHtml = markTimeline(r.html);
   const cls = [];
   if (/class="cite-note"/.test(r.html)) cls.push('has-sn');
   if (!r.tocHtml) cls.push('no-toc');
@@ -160,7 +167,7 @@ function renderDoc(md, title, outFile, eyebrow, opts) {
     .replace('{{BODYCLASS}}', () => cls.join(' '))
     .replace('{{HERO}}', () => hero.heroHtml)
     .replace('{{TOC}}', () => r.tocHtml)
-    .replace('{{CONTENT}}', () => r.html);
+    .replace('{{CONTENT}}', () => bodyHtml);
   fs.writeFileSync(path.join(OUT, outFile), html);
 }
 

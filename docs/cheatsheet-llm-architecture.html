@@ -73,6 +73,11 @@
   .code-fold>summary::before{content:"▸ 展开代码 · "}
   .code-fold[open]>summary::before{content:"▾ 收起代码 · "}
   .code-fold pre{margin:.3em 0}
+  /* 时间线: "时间线/Timeline" 标题后的列表自动套用 (build.js markTimeline) */
+  ul.timeline,ol.timeline{list-style:none;padding-left:1.2em;border-left:2px solid var(--border);margin:1.1em 0}
+  .timeline li{position:relative;margin:.55em 0;padding-left:.7em}
+  .timeline li::before{content:"";position:absolute;left:-1.33em;top:.5em;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+  .timeline li strong{color:var(--primary)}
   /* ARIS 式 hero 页头: eyebrow 小标签 + 大标题 + 副标题 + 双线 (标题从正文 H1 提升至此) */
   .hero{max-width:1080px;margin:1.1rem auto .2rem;padding:0 1.1rem}
   body.no-toc .hero{max-width:820px}

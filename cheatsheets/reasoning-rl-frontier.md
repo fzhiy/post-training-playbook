@@ -144,3 +144,25 @@ ByteDance 2025 开源配方,针对长链推理 RL 的四个改动:
   **追问:** 除了解耦 clip bound，是否可以从 trust region 的角度出发（如用 KL 约束代替 hard clip），来更优雅地解决这个问题？这在长 CoT 场景下的计算代价如何？
 
 </details>
+
+## 时间线 / Timeline
+
+- **2017-07** — PPO (Schulman et al., arXiv:1707.06347)：引入 clipped surrogate objective + GAE 优势估计，奠定后续 LLM RL 的基线框架（actor + critic + ref + RM 四模型）。
+- **2024-01** — Self-Rewarding LM (Yuan et al., arXiv:2401.10020)：模型充当自身 judge，用 LLM-as-a-Judge 产偏好数据并迭代优化，减少人工标注依赖；引入自我偏好放大的风险。
+- **2024-01** — SPIN (Chen et al., arXiv:2401.01335)：Self-Play 微调，用模型旧输出做负样本对抗式优化；ICML 2024 收录。
+- **2024-02** — GRPO / DeepSeekMath (Shao et al., arXiv:2402.03300)：去掉 critic，对每个 prompt 采样一组 G 个回答，用组内相对奖励（z-score 标准化）替代 value baseline，保留对 ref 的 KL 惩罚；DeepSeek 系的核心算法。
+- **2024-02** — RLOO (Ahmadian et al., arXiv:2402.14740)：同为 critic-free，样本 i 的 baseline = 其余 G-1 个样本奖励均值（leave-one-out，无自相关偏置）；无 clip、纯 REINFORCE 梯度，RLHF 上与 PPO 竞争。
+- **2025-01** — DeepSeek-R1 / RLVR (Guo et al., arXiv:2501.12948)：用规则/验证器（数学 exact-match、代码单测）替代神经 RM，几乎消除 reward hacking；结合 GRPO + 长 CoT RL，涌现自我反思与回溯行为，开启 inference-time scaling 范式；Nature 2025 发表。
+- **2025-03** — DAPO (Yu et al., arXiv:2503.14476)：针对长 CoT RL 的四项改动——Clip-Higher（解耦上下裁剪边界，防熵塌缩）、Dynamic Sampling（丢弃全对/全错组）、Token-level loss（防长回答梯度稀释）、Overlong reward shaping（软惩罚超长回答）；ByteDance Seed + 清华 AIR 开源系统。
+- **2025-03** — Dr.GRPO (Liu et al., arXiv:2503.20783)：指出 GRPO 两处偏置——std 归一化放大题目难易不平衡、1/长度归一化偏好更长的错误回答；去掉两项归一化后估计更无偏，token 更省、回答不虚长。
+
+## §A 关键参考 / Key References
+
+1. **PPO** — Schulman et al., 2017, arXiv 预印本. [arXiv:1707.06347](https://arxiv.org/abs/1707.06347)
+2. **GRPO / DeepSeekMath** — Shao et al., 2024, 预印本. [arXiv:2402.03300](https://arxiv.org/abs/2402.03300)
+3. **RLOO** — Ahmadian et al., 2024, ACL 2024. [arXiv:2402.14740](https://arxiv.org/abs/2402.14740)
+4. **Self-Rewarding Language Models** — Yuan et al., 2024, 预印本 (Meta). [arXiv:2401.10020](https://arxiv.org/abs/2401.10020)
+5. **SPIN** — Chen et al., 2024, ICML 2024. [arXiv:2401.01335](https://arxiv.org/abs/2401.01335)
+6. **DeepSeek-R1** — Guo et al., 2025, Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948)
+7. **DAPO** — Yu et al., 2025, 预印本 (ByteDance Seed / Tsinghua AIR). [arXiv:2503.14476](https://arxiv.org/abs/2503.14476)
+8. **Dr.GRPO** — Liu et al., 2025, 预印本. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783)
