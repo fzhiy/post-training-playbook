@@ -433,7 +433,7 @@ $$
 调参 $\beta$ 本质上是在两个目标间权衡：
 
 $$
-\underbrace{\mathbb{E}[r(x,y)]}_{\text{奖励分数 ↑}} \quad \text{vs.} \quad \underbrace{\mathrm{KL}(\pi_\theta \| \pi_{\mathrm{ref}})}_{\text{偏离程度 ↑}}
+\underbrace{\mathbb{E}[r(x,y)]}_{\text{奖励分数}\uparrow} \quad \text{vs.} \quad \underbrace{\mathrm{KL}(\pi_\theta \| \pi_{\mathrm{ref}})}_{\text{偏离程度}\uparrow}
 $$
 
 | $\beta$ 值 | 效果 |
