@@ -809,3 +809,25 @@ Key decision points:
 > RM uncertainty can be incorporated as part of the exploration reward, encouraging the policy to generate responses that the RM finds "surprising" or "uncertain." Specifically, add an exploration term positively correlated with uncertainty to the final reward, but carefully balance it to avoid generating meaningless random outputs.
 
 </details>
+
+## §A Key Papers Timeline
+
+- **2017-06 · Deep RL from Human Preferences** — Christiano et al., NeurIPS 2017. [arXiv:1706.03741](https://arxiv.org/abs/1706.03741) — Establishes the RLHF foundation: trains a reward model from human pairwise trajectory comparisons and uses it to drive policy optimization via reinforcement learning.
+
+- **2019-09 · Fine-Tuning Language Models from Human Preferences** — Ziegler et al., arXiv preprint. [arXiv:1909.08593](https://arxiv.org/abs/1909.08593) — First systematic application of preference-based reward modeling (Bradley-Terry pairwise loss + KL penalty) to language model fine-tuning, establishing the modern RLHF pipeline blueprint.
+
+- **2020-09 · Learning to Summarize with Human Feedback** — Stiennon et al., NeurIPS 2020. [arXiv:2009.01325](https://arxiv.org/abs/2009.01325) — Validates the full RLHF loop on text summarization — pairwise preference annotation, RM training, PPO optimization — with outputs substantially preferred over supervised fine-tuning baselines.
+
+- **2022-03 · Training Language Models to Follow Instructions with Human Feedback (InstructGPT)** — Ouyang et al., NeurIPS 2022. [arXiv:2203.02155](https://arxiv.org/abs/2203.02155) — Scales RLHF to GPT-3-class models via a three-stage SFT → RM → PPO pipeline, with detailed treatment of preference data construction and margin-based quality filtering.
+
+- **2022-10 · Scaling Laws for Reward Model Overoptimization** — Gao et al., ICML 2023. [arXiv:2210.10760](https://arxiv.org/abs/2210.10760) — Quantifies the reward over-optimization dynamic: gold RM score rises then falls with KL distance, following a quadratic form for Best-of-N and a logarithmic form for RL, with coefficients that scale smoothly with RM size.
+
+- **2023-05 · Let's Verify Step by Step (PRM800K)** — Lightman et al., ICLR 2024. [arXiv:2305.20050](https://arxiv.org/abs/2305.20050) — Systematically compares Process Reward Models (PRM) against Outcome Reward Models (ORM) on mathematical reasoning, releases 800K step-level human labels, and demonstrates that per-step supervision substantially outperforms outcome-only supervision.
+
+- **2023-05 · Direct Preference Optimization (DPO)** — Rafailov et al., NeurIPS 2023. [arXiv:2305.18290](https://arxiv.org/abs/2305.18290) — Eliminates the explicit reward model in RLHF by reparameterizing the optimal policy as a closed-form function of preferences, reducing the problem to a simple binary cross-entropy loss without RM training or PPO sampling.
+
+- **2023-06 · Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena** — Zheng et al., NeurIPS 2023. [arXiv:2306.05685](https://arxiv.org/abs/2306.05685) — Systematically studies using strong LLMs as evaluators in place of humans, identifying position bias, verbosity bias, and self-preference bias, and introducing the MT-Bench and Chatbot Arena benchmarks.
+
+- **2023-07 · Llama 2: Open Foundation and Fine-Tuned Chat Models** — Touvron et al., arXiv preprint. [arXiv:2307.09288](https://arxiv.org/abs/2307.09288) — Large-scale open RLHF practice report detailing margin-based confidence filtering (significantly/slightly/negligibly better stratified weighting) as a core technique for preference data quality control.
+
+- **2024-03 · RewardBench: Evaluating Reward Models for Language Modeling** — Lambert et al., arXiv preprint. [arXiv:2403.13787](https://arxiv.org/abs/2403.13787) — Introduces a standardized RM evaluation benchmark spanning chat, hard chat, safety, and reasoning dimensions, using pairwise accuracy as the metric to enable systematic diagnosis and model selection.

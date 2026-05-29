@@ -1025,3 +1025,29 @@ Pitfalls in fair comparison: LoRA vs Adapter must account for inference latency 
    **Follow-up**: GaLore uses top-$r$ SVD for projection, and the top singular vectors of the gradient matrix may mainly encode high-frequency batch noise rather than stable optimization directions. Is it possible to replace exact SVD with randomized SVD or incremental PCA to reduce noise while lowering computational cost? How would this approximation propagate statistical estimation errors in optimizer state to final model quality?
 
 </details>
+
+## §A Key Papers Timeline
+
+- **2019-02 · Adapter (Parameter-Efficient Transfer Learning)** — Houlsby et al., ICML 2019. [arXiv:1902.00751](https://arxiv.org/abs/1902.00751) — Inserts small bottleneck MLP modules into each Transformer block while freezing the pretrained backbone, establishing the foundational PEFT paradigm that "lightweight inserted layers can match full fine-tuning."
+
+- **2021-01 · Prefix Tuning** — Li & Liang, ACL 2021. [arXiv:2101.00190](https://arxiv.org/abs/2101.00190) — Prepends learnable prefix vectors to the K and V of every attention layer (reparameterized via MLP for stability); achieves near full fine-tuning performance on generation tasks with only 0.1% of parameters.
+
+- **2021-04 · Prompt Tuning** — Lester et al., EMNLP 2021. [arXiv:2104.08691](https://arxiv.org/abs/2104.08691) — Appends learnable soft tokens only at the input embedding layer while freezing the entire model; shows that at sufficient scale, soft-prompt tuning matches full model tuning with minimal parameters.
+
+- **2021-06 · LoRA (Low-Rank Adaptation)** — Hu et al., ICLR 2022. [arXiv:2106.09685](https://arxiv.org/abs/2106.09685) — Hypothesizes that weight updates ΔW have low intrinsic rank and parameterizes them as ΔW = BA; adapters can be merged back into the base model for zero inference overhead, forming the basis for all subsequent LoRA variants.
+
+- **2022-05 · (IA)³ (Infused Adapter by Inhibiting and Amplifying Inner Activations)** — Liu et al., NeurIPS 2022. [arXiv:2205.05638](https://arxiv.org/abs/2205.05638) — Multiplies keys, values, and FFN outputs by learned per-layer scaling vectors; achieves extreme parameter efficiency (few thousand parameters per layer) suited for few-shot fine-tuning with mergeable zero-overhead inference.
+
+- **2023-03 · AdaLoRA (Adaptive Budget Allocation)** — Zhang et al., ICLR 2023. [arXiv:2303.10512](https://arxiv.org/abs/2303.10512) — Parameterizes ΔW in SVD form PΛQ and prunes singular value triplets by importance score (magnitude × gradient sensitivity), adaptively allocating higher rank to more critical layers under a fixed parameter budget.
+
+- **2023-05 · QLoRA (Quantized LoRA)** — Dettmers et al., NeurIPS 2023. [arXiv:2305.14314](https://arxiv.org/abs/2305.14314) — Quantizes the base model to 4-bit NF4 while keeping LoRA adapters in BF16, with Double Quantization and Paged Optimizer; first demonstrated fine-tuning a 65B model on a single GPU.
+
+- **2023-10 · VeRA (Vector-based Random Matrix Adaptation)** — Kopiczko et al., ICLR 2024. [arXiv:2310.11454](https://arxiv.org/abs/2310.11454) — Shares a single pair of frozen random matrices across all layers and trains only per-layer diagonal scaling vectors, compressing trainable parameters to ~1/k of LoRA for extreme parameter-efficiency scenarios.
+
+- **2024-02 · DoRA (Weight-Decomposed Low-Rank Adaptation)** — Liu et al., ICML 2024. [arXiv:2402.09353](https://arxiv.org/abs/2402.09353) — Decomposes weight updates into magnitude (learnable vector m) and direction (LoRA low-rank update), making gradient behavior closer to full fine-tuning with negligible extra parameters.
+
+- **2024-02 · LoRA+ (Decoupled Learning Rates for LoRA)** — Hayou et al., ICML 2024. [arXiv:2402.12354](https://arxiv.org/abs/2402.12354) — Uses muP scaling analysis to show B should receive a higher learning rate than A (recommended ratio λ∈[2,16]), correcting suboptimal optimization of standard LoRA in large-width networks.
+
+- **2024-03 · GaLore (Gradient Low-Rank Projection)** — Zhao et al., ICML 2024. [arXiv:2403.03507](https://arxiv.org/abs/2403.03507) — Projects gradients onto a low-rank subspace via SVD and maintains optimizer states only in that r-dimensional space (refreshed every T steps), enabling memory-efficient full-parameter pre-training without adapter constraints.
+
+- **2024-04 · PiSSA (Principal Singular Values and Singular Vectors Adaptation)** — Meng et al., NeurIPS 2024. [arXiv:2404.02948](https://arxiv.org/abs/2404.02948) — Initializes LoRA's A and B matrices with the top-r singular components of W₀, leaving the residual as the frozen part; starts optimization from the principal subspace of the pretrained weights for faster convergence than standard LoRA.

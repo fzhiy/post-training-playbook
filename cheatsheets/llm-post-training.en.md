@@ -1755,3 +1755,29 @@ Standard multi-turn RLHF implicitly makes a **stationary user assumption** — t
 > **Follow-up:** If you want to explicitly model dynamic user strategies, could a user simulator be jointly trained with the policy? What are the known failure modes of such a self-play framework?
 
 </details>
+
+## §A Key Papers Timeline
+
+- **2022-03 · InstructGPT** — Ouyang et al., NeurIPS 2022. [arXiv:2203.02155](https://arxiv.org/abs/2203.02155) — Establishes the canonical 3-stage RLHF pipeline (SFT → Bradley-Terry reward model → PPO with KL penalty) for aligning GPT-3 into an instruction-following assistant.
+
+- **2022-09 · WiSE-FT** — Wortsman et al., CVPR 2022. [arXiv:2109.01903](https://arxiv.org/abs/2109.01903) — Reduces alignment tax by linearly interpolating weights of the fine-tuned and base models in weight space, preserving pre-training robustness while retaining task performance.
+
+- **2022-12 · Constitutional AI (CAI / RLAIF)** — Bai et al., arXiv preprint. [arXiv:2212.08073](https://arxiv.org/abs/2212.08073) — Replaces human preference annotators with an LLM guided by explicit constitutional principles via a self-critique-revision loop, enabling scalable RLAIF without per-sample human labels.
+
+- **2023-05 · DPO** — Rafailov et al., NeurIPS 2023. [arXiv:2305.18290](https://arxiv.org/abs/2305.18290) — Derives a closed-form reparameterization of the KL-constrained RLHF objective that eliminates the explicit reward model, reducing preference alignment to a single supervised classification loss on (chosen, rejected) pairs.
+
+- **2023-10 · IPO** — Azar et al., AISTATS 2024. [arXiv:2310.12036](https://arxiv.org/abs/2310.12036) — Identifies that DPO's Bradley-Terry/logit mapping allows KL regularization to vanish under near-deterministic preferences; proposes ΨPO with Ψ = Identity, yielding a bounded squared-loss objective that preserves effective regularization.
+
+- **2024-02 · DeepSeekMath / GRPO** — Shao et al., arXiv preprint. [arXiv:2402.03300](https://arxiv.org/abs/2402.03300) — Introduces Group Relative Policy Optimization (GRPO), which removes the PPO critic by normalizing rewards within a sampled group for the same prompt, halving the number of models required and enabling stable RL from verifiable rewards.
+
+- **2024-02 · KTO** — Ethayarajh et al., ICML 2024. [arXiv:2402.01306](https://arxiv.org/abs/2402.01306) — Replaces paired (chosen, rejected) preference data with pointwise binary desirability labels, framing alignment as prospect-theoretic utility maximization with an asymmetric sigmoid loss and a KL-based reference point.
+
+- **2024-02 · DPOP (Smaug)** — Pal et al., arXiv preprint. [arXiv:2402.13228](https://arxiv.org/abs/2402.13228) — Shows that DPO can decrease the log-probability of chosen responses when chosen and rejected are near-identical; adds a max(0,·) penalty term to anchor chosen log-prob above the reference model.
+
+- **2024-03 · ORPO** — Hong et al., arXiv preprint. [arXiv:2403.07691](https://arxiv.org/abs/2403.07691) — Merges SFT and preference alignment into a single stage by appending a reference-free odds-ratio contrastive term to the cross-entropy loss, eliminating the need for a frozen reference model.
+
+- **2024-05 · SimPO** — Meng et al., NeurIPS 2024. [arXiv:2405.14734](https://arxiv.org/abs/2405.14734) — Aligns DPO's implicit reward with generation-time likelihood by using length-normalized average log-probability and adds an explicit target margin γ, removing the reference model and mitigating length bias.
+
+- **2024-10 · Likelihood Displacement** — Razin et al., ICLR 2025. [arXiv:2410.08847](https://arxiv.org/abs/2410.08847) — Proves that DPO shifts probability mass away from chosen responses when chosen and rejected share high hidden-embedding similarity (CHES score), potentially causing "unintentional unalignment"; proposes CHES-based data filtering as a remedy.
+
+- **2025-01 · DeepSeek-R1** — Guo et al., Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948) — Demonstrates that chain-of-thought reasoning ability can emerge from pure GRPO-based RL on a base model (R1-Zero), and that a cold-start SFT stage followed by two rounds of RL and rejection-sampling SFT yields a reasoning model competitive with OpenAI o1.

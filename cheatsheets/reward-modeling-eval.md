@@ -820,3 +820,25 @@ RM 质量的上限由偏好数据质量决定。以下是核心设计选择：
 > 可以将RM的不确定性作为探索奖励的一部分，鼓励策略生成RM”感到惊讶”或”不确定”的回答。具体地，在最终奖励中加入一个与不确定性正相关的探索项，但需仔细平衡以避免生成无意义的随机输出。
 
 </details>
+
+## §A 核心论文时间线 / Key Papers Timeline
+
+- **2017-06 · Deep RL from Human Preferences** — Christiano et al., NeurIPS 2017. [arXiv:1706.03741](https://arxiv.org/abs/1706.03741) — 奠定 RLHF 基础框架：用人类对轨迹对的偏好判断训练奖励模型，再以该奖励信号驱动强化学习策略优化。
+
+- **2019-09 · Fine-Tuning Language Models from Human Preferences** — Ziegler et al., arXiv preprint. [arXiv:1909.08593](https://arxiv.org/abs/1909.08593) — 首次将偏好奖励模型（Bradley-Terry 成对比较 + KL 惩罚）系统应用于语言模型微调，奠定现代 LLM RLHF 流程雏形。
+
+- **2020-09 · Learning to Summarize with Human Feedback** — Stiennon et al., NeurIPS 2020. [arXiv:2009.01325](https://arxiv.org/abs/2009.01325) — 在文本摘要任务上验证 RLHF 闭环：成对偏好标注 → RM 训练 → PPO 优化，输出质量显著优于纯监督微调基线。
+
+- **2022-03 · Training Language Models to Follow Instructions with Human Feedback (InstructGPT)** — Ouyang et al., NeurIPS 2022. [arXiv:2203.02155](https://arxiv.org/abs/2203.02155) — 将 RLHF 规模化至 GPT-3 级别，引入 SFT → RM → PPO 三阶段流程，并详细描述偏好数据构建与 margin 过滤实践。
+
+- **2022-10 · Scaling Laws for Reward Model Overoptimization** — Gao et al., ICML 2023. [arXiv:2210.10760](https://arxiv.org/abs/2210.10760) — 定量刻画奖励过度优化的幂律规律：gold RM 分数随 KL 距离先升后降，BoN 呈二次型、RL 呈对数型，系数随 RM 参数量平滑缩放。
+
+- **2023-05 · Let's Verify Step by Step (PRM800K)** — Lightman et al., ICLR 2024. [arXiv:2305.20050](https://arxiv.org/abs/2305.20050) — 系统比较过程奖励模型（PRM）与结果奖励模型（ORM）在数学推理上的差异，发布 80 万条步骤级标注，证明逐步监督显著优于仅监督最终答案。
+
+- **2023-05 · Direct Preference Optimization (DPO)** — Rafailov et al., NeurIPS 2023. [arXiv:2305.18290](https://arxiv.org/abs/2305.18290) — 将 RLHF 中的显式奖励模型消除：通过数学变换将最优策略直接参数化为偏好数据上的二元交叉熵目标，无需独立 RM 训练与 PPO 采样。
+
+- **2023-06 · Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena** — Zheng et al., NeurIPS 2023. [arXiv:2306.05685](https://arxiv.org/abs/2306.05685) — 系统研究以强 LLM 替代人类评估的范式，识别位置偏差、冗长偏差、自我偏好偏差等主要问题，并提出 MT-Bench 与 Chatbot Arena 两个配套基准。
+
+- **2023-07 · Llama 2: Open Foundation and Fine-Tuned Chat Models** — Touvron et al., arXiv preprint. [arXiv:2307.09288](https://arxiv.org/abs/2307.09288) — 大规模开源 RLHF 实践报告，详细描述 margin 置信度过滤（significantly/slightly/negligibly better 分层加权）在偏好数据构建中的应用。
+
+- **2024-03 · RewardBench: Evaluating Reward Models for Language Modeling** — Lambert et al., arXiv preprint. [arXiv:2403.13787](https://arxiv.org/abs/2403.13787) — 提出奖励模型标准化评测基准，覆盖对话、对话难例、安全性、推理四个维度，以成对比较准确率衡量 RM 能力，为模型选型与诊断提供统一框架。
