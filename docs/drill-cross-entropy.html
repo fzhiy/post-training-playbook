@@ -42,7 +42,9 @@
   tbody tr:nth-child(even){background:var(--bg-soft)}
   tbody tr:last-child td{border-bottom:none}
   blockquote{border-left:3px solid var(--border);margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
-  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif}
+  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .lang-toggle{flex:none;border:1px solid var(--border);border-radius:999px;padding:.12em .7em;color:var(--primary);font-size:.82rem;white-space:nowrap}
+  .lang-toggle:hover{background:var(--bg-soft);text-decoration:none}
   /* 提示框 (emoji 触发, 构建时包裹) */
   .callout{border-left:4px solid;border-radius:4px;padding:.6em 1em;margin:1.1em 0;font-size:.97em}
   .callout>:first-child{margin-top:0}

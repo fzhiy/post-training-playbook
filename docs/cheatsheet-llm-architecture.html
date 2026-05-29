@@ -42,7 +42,9 @@
   tbody tr:nth-child(even){background:var(--bg-soft)}
   tbody tr:last-child td{border-bottom:none}
   blockquote{border-left:3px solid var(--border);margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
-  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif}
+  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .lang-toggle{flex:none;border:1px solid var(--border);border-radius:999px;padding:.12em .7em;color:var(--primary);font-size:.82rem;white-space:nowrap}
+  .lang-toggle:hover{background:var(--bg-soft);text-decoration:none}
   /* 提示框 (emoji 触发, 构建时包裹) */
   .callout{border-left:4px solid;border-radius:4px;padding:.6em 1em;margin:1.1em 0;font-size:.97em}
   .callout>:first-child{margin-top:0}
@@ -130,7 +132,7 @@
 </style>
 </head>
 <body class="">
-<nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-llm-architecture-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">LLM Architecture 公开速查手册</h1><div class="hero-rule"></div></header>
 <div class="layout">
 <nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">Part 1 · 核心概念与公式推导</a></li><li class="lv3"><a href="#sec-1">1.1 Transformer 基本架构</a></li><li class="lv3"><a href="#sec-2">1.2 Self-Attention 计算</a></li><li class="lv3"><a href="#sec-3">1.3 Multi-Head Attention (MHA)</a></li><li class="lv3"><a href="#sec-4">1.4 GQA 与 MQA</a></li><li class="lv3"><a href="#sec-5">1.5 位置编码 (Positional Encoding)</a></li><li class="lv3"><a href="#sec-6">1.6 RoPE 长度外推</a></li><li class="lv3"><a href="#sec-7">1.7 KV Cache</a></li><li class="lv3"><a href="#sec-8">1.8 PagedAttention</a></li><li class="lv3"><a href="#sec-9">1.9 FlashAttention</a></li><li class="lv3"><a href="#sec-10">1.10 FFN 层</a></li><li class="lv3"><a href="#sec-11">1.11 MoE (Mixture of Experts)</a></li><li class="lv3"><a href="#sec-12">1.12 解码策略 (Decoding Strategies)</a></li><li class="lv3"><a href="#sec-13">1.13 Tokenization — BPE</a></li><li class="lv3"><a href="#sec-14">1.14 Scaling Laws</a></li><li class="lv2"><a href="#sec-15">Part 2 · PyTorch 代码片段</a></li><li class="lv3"><a href="#sec-16">2.1 Scaled Dot-Product Self-Attention</a></li><li class="lv3"><a href="#sec-17">2.2 Multi-Head Attention (from scratch)</a></li><li class="lv3"><a href="#sec-18">2.3 Grouped-Query Attention (GQA)</a></li><li class="lv3"><a href="#sec-19">2.4 Rotary Position Embedding (RoPE)</a></li><li class="lv3"><a href="#sec-20">2.5 KV Cache Autoregressive Inference</a></li><li class="lv3"><a href="#sec-21">2.6 Top-p (Nucleus) Sampling</a></li><li class="lv3"><a href="#sec-22">2.7 Causal Mask 生成</a></li><li class="lv3"><a href="#sec-23">2.8 Simple MoE Layer</a></li><li class="lv3"><a href="#sec-24">2.9 Transformer Block (Pre-LN Decoder-Only)</a></li><li class="lv2"><a href="#sec-25">Part 3 · 面试题集 (Interview Questions)</a></li><li class="lv3"><a href="#sec-26">L1 · 基础 (Foundational)</a></li><li class="lv3"><a href="#sec-27">L2 · 进阶 (Intermediate)</a></li><li class="lv3"><a href="#sec-28">L3 · 深度 (Advanced)</a></li><li class="lv2"><a href="#sec-29">更多 L3 深挖 / Extended L3</a></li></ul></nav>

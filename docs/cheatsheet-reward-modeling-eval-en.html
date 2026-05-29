@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reward Modeling & Evaluation Cheatsheet</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="vendor/hl/github.min.css">
+<link rel="stylesheet" href="vendor/hl/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<style>
+  :root{
+    color-scheme:light dark;
+    --bg:#fdfcf7; --bg-soft:#f4f1ea; --bg-code:#f8f5ec; --ink:#2b2b2b; --ink-soft:#4a4a4a; --muted:#6b6b6b;
+    --accent:#b8390e;  /* 赭红 — 加粗/强调/inline code */
+    --primary:#1a4a8c; /* navy — 链接/H3/表头/代码边条 */
+    --line:#8884; --border:#d6d0c0; --border-soft:#e8e3d5;
+    --thead-bg:#1a4a8c; --thead-fg:#ffffff;
+    --c-info-bg:#dbeafe; --c-info:#1a4a8c;
+    --c-warn-bg:#fef3c7; --c-warn:#b45309;
+    --c-good-bg:#d1fae5; --c-good:#065f46;
+    --c-bad-bg:#fee2e2;  --c-bad:#991b1b;
+  }
+  body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+       font:16px/1.75 Georgia,"Iowan Old Style","Songti SC","Noto Serif CJK SC","STSong",serif;word-wrap:break-word}
+  h1,h2,h3,h4{line-height:1.3;margin-top:1.6em;color:#1a1a1a;font-weight:700}
+  h1{font-size:1.55rem}
+  h2{font-size:1.32rem;border-bottom:1px solid var(--border);padding-bottom:.25em;margin-top:1.9em}
+  h3{font-size:1.1rem;color:var(--primary)}
+  strong{color:var(--accent)}
+  em{color:var(--ink-soft)}
+  a{color:var(--primary);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;font-size:.88em}
+  :not(pre)>code{background:var(--bg-code);color:var(--accent);padding:.1em .4em;border-radius:3px;border:1px solid var(--border-soft)}
+  pre{margin:1em 0;background:var(--bg-code);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:4px;overflow-x:auto}
+  pre code.hljs{background:transparent!important;border-radius:0}
+  pre.diagram{background:#f9f6ed;border-left-color:var(--accent);font-size:.9em;line-height:1.45}
+  table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem;border:1px solid var(--border)}
+  thead{background:var(--thead-bg);color:var(--thead-fg)}
+  th,td{padding:.5em .7em;text-align:left;vertical-align:top;border-bottom:1px solid var(--border-soft)}
+  th{font-weight:600;font-size:.9rem;letter-spacing:.02em}
+  tbody tr:nth-child(even){background:var(--bg-soft)}
+  tbody tr:last-child td{border-bottom:none}
+  blockquote{border-left:3px solid var(--border);margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
+  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .lang-toggle{flex:none;border:1px solid var(--border);border-radius:999px;padding:.12em .7em;color:var(--primary);font-size:.82rem;white-space:nowrap}
+  .lang-toggle:hover{background:var(--bg-soft);text-decoration:none}
+  /* 提示框 (emoji 触发, 构建时包裹) */
+  .callout{border-left:4px solid;border-radius:4px;padding:.6em 1em;margin:1.1em 0;font-size:.97em}
+  .callout>:first-child{margin-top:0}
+  .callout>:last-child{margin-bottom:0}
+  .callout-info{border-left-color:var(--c-info);background:var(--c-info-bg)}
+  .callout-warn{border-left-color:var(--c-warn);background:var(--c-warn-bg)}
+  .callout-good{border-left-color:var(--c-good);background:var(--c-good-bg)}
+  .callout-bad{border-left-color:var(--c-bad);background:var(--c-bad-bg)}
+  .callout-label{font:700 .72rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3em}
+  .callout-info .callout-label{color:var(--c-info)}
+  .callout-warn .callout-label{color:var(--c-warn)}
+  .callout-good .callout-label{color:var(--c-good)}
+  .callout-bad .callout-label{color:var(--c-bad)}
+  /* 折叠 Q&A (问题在 summary, 答案默认折叠) */
+  details:not(.toc):not(.code-fold){border:1px solid var(--line);border-radius:8px;margin:.6em 0;background:var(--bg-soft);padding:0 .9em}
+  details:not(.toc):not(.code-fold)>summary{cursor:pointer;font-weight:600;color:var(--primary);padding:.55em .1em;list-style:none;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+  details:not(.toc):not(.code-fold)>summary::-webkit-details-marker{display:none}
+  details:not(.toc):not(.code-fold)>summary::before{content:"▸ ";color:var(--accent)}
+  details:not(.toc):not(.code-fold)[open]>summary::before{content:"▾ "}
+  details:not(.toc):not(.code-fold)[open]>summary{border-bottom:1px solid var(--line);margin-bottom:.5em}
+  details:not(.toc):not(.code-fold)>:not(summary):last-child{margin-bottom:.7em}
+  /* 折叠长代码 */
+  .code-fold{margin:1em 0}
+  .code-fold>summary{cursor:pointer;color:var(--primary);font-size:.85rem;padding:.25em 0;list-style:none;font-family:system-ui,sans-serif}
+  .code-fold>summary::-webkit-details-marker{display:none}
+  .code-fold>summary::before{content:"▸ 展开代码 · "}
+  .code-fold[open]>summary::before{content:"▾ 收起代码 · "}
+  .code-fold pre{margin:.3em 0}
+  /* ARIS 式 hero 页头: eyebrow 小标签 + 大标题 + 副标题 + 双线 (标题从正文 H1 提升至此) */
+  .hero{max-width:1080px;margin:1.1rem auto .2rem;padding:0 1.1rem}
+  body.no-toc .hero{max-width:820px}
+  .hero .eyebrow{font:400 .82rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:.01em;color:var(--muted);margin-bottom:.4em}
+  .hero-title{font-size:2rem;line-height:1.2;margin:.1rem 0 .25rem;color:#1a1a1a;font-weight:700;letter-spacing:-.01em}
+  .hero-sub{font:italic 400 1.05rem/1.5 Georgia,"Songti SC","Noto Serif CJK SC",serif;color:var(--ink-soft);margin:.1rem 0 .55rem}
+  .hero-rule{border-top:3px double var(--primary);margin:.4rem 0 0}
+  /* 两栏: 左 sticky 侧栏 TOC + 正文; ≤900px 折成单栏、TOC 移到顶部; scrollspy 高亮当前节 */
+  .layout{max-width:820px;margin:0 auto;padding:0 1.1rem 4rem;display:grid;grid-template-columns:1fr}
+  body:not(.no-toc) .layout{max-width:1080px;grid-template-columns:220px minmax(0,1fr);gap:36px;align-items:start}
+  main#out{min-width:0}
+  nav.toc{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow:auto;font-size:.85rem;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;border-right:1px solid var(--line);padding:.2em 14px 0 0}
+  nav.toc .toc-h{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-bottom:.6em}
+  nav.toc ul{list-style:none;padding:0;margin:0}
+  nav.toc li{margin:.18em 0}
+  nav.toc li.lv3{padding-left:1em;font-size:.95em;opacity:.8}
+  nav.toc a{color:var(--muted);text-decoration:none;border-left:2px solid transparent;padding-left:.55em;display:block;line-height:1.4}
+  nav.toc a:hover{color:var(--primary)}
+  nav.toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
+  @media (max-width:900px){
+    body:not(.no-toc) .layout{grid-template-columns:1fr;gap:0}
+    nav.toc{position:static;max-height:none;overflow:visible;border-right:none;border-bottom:1px solid var(--line);padding:0 0 .7em;margin-bottom:1.2em}
+  }
+  /* 引用 (gwern/Tufte 式, 零 JS): [N] 上标可点跳底部; .cite-note gist 宽屏(≥1180px)浮右页边、窄屏隐藏 */
+  .cite-wrap{display:inline}
+  .cite{color:var(--primary);font-weight:600;font-size:.72em;vertical-align:super;padding:0 .12em;white-space:nowrap;text-decoration:none}
+  .cite::before{content:"["}
+  .cite::after{content:"]"}
+  .cite:hover{text-decoration:underline}
+  .cite-note{display:none}
+  ol.refs{font-size:.95rem;padding-left:1.6em}
+  ol.refs li{margin:.4em 0}
+  ol.refs li:target{background:#b8390e1a;border-radius:4px}
+  .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#16181c; --bg-soft:#22262c; --bg-code:#1d2025; --ink:#dcdcdc; --ink-soft:#aeb7bf; --muted:#9aa6b0;
+      --accent:#e8845c; --primary:#7fb0e8; --line:#ffffff33; --border:#ffffff26; --border-soft:#ffffff14;
+      --thead-bg:#25406a; --thead-fg:#eaf2fb;
+      --c-info-bg:#7fb0e81e; --c-info:#9cc4f0;
+      --c-warn-bg:#d9a52614; --c-warn:#e0a83a;
+      --c-good-bg:#2a7a4b1e; --c-good:#5fc080;
+      --c-bad-bg:#b8390e1e;  --c-bad:#e8845c;
+    }
+    h1,h2,h4,.hero-title{color:#ededed}  /* h3 keeps var(--primary) (navy) */
+    blockquote{background:#ffffff0a}
+    pre.diagram{background:#23262b}
+  }
+  @media print{
+    nav.toc,nav.top{display:none}
+    body:not(.no-toc) .layout{grid-template-columns:1fr;max-width:none}
+    body{background:#fff;color:#000}
+    .hero-rule{border-top-color:#000}
+    .callout,pre,table,details{break-inside:avoid}
+  }
+  /* (引用 gist 右页边浮动已移除以让位左侧栏 TOC; [N] 仍跳底部 refs, gist 文本在书目里不丢) */
+</style>
+</head>
+<body class="">
+<nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-reward-modeling-eval.html">中文 ⇄</a></nav>
+<header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Reward Modeling &amp; Evaluation Cheatsheet</h1><div class="hero-rule"></div></header>
+<div class="layout">
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">A Complete Overview of Reward Modeling in LLM Post-Training</a></li><li class="lv2"><a href="#sec-1">1. RM Training Methods</a></li><li class="lv3"><a href="#sec-2">1.1 Core Objective</a></li><li class="lv3"><a href="#sec-3">1.2 Pairwise / Bradley-Terry Model</a></li><li class="lv3"><a href="#sec-4">1.3 Pointwise / Regression</a></li><li class="lv3"><a href="#sec-5">1.4 Other Variants</a></li><li class="lv2"><a href="#sec-6">2. PRM vs ORM: Process Reward Model vs Outcome Reward Model</a></li><li class="lv3"><a href="#sec-7">2.1 ORM — Outcome Reward Model</a></li><li class="lv3"><a href="#sec-8">2.2 PRM — Process Reward Model</a></li><li class="lv3"><a href="#sec-9">2.3 Comparison Table</a></li><li class="lv3"><a href="#sec-10">2.4 Automated PRM Data Generation</a></li><li class="lv2"><a href="#sec-11">3. Reward Hacking &amp; Over-Optimization</a></li><li class="lv3"><a href="#sec-12">3.1 What is Reward Hacking</a></li><li class="lv3"><a href="#sec-13">3.2 Goodhart&#39;s Law Perspective</a></li><li class="lv3"><a href="#sec-14">3.2a Gao et al. 2022 — Scaling Laws for Overoptimization</a></li><li class="lv3"><a href="#sec-15">3.3 Mitigations</a></li><li class="lv3"><a href="#sec-16">3.4 Preference Data Construction</a></li><li class="lv2"><a href="#sec-17">4. Length Bias &amp; Other RM Pathologies</a></li><li class="lv3"><a href="#sec-18">4.1 Length Bias</a></li><li class="lv3"><a href="#sec-19">4.2 Position Bias</a></li><li class="lv3"><a href="#sec-20">4.3 Verbosity / Redundancy Bias</a></li><li class="lv3"><a href="#sec-21">4.4 Confirmation / Sycophancy Bias</a></li><li class="lv3"><a href="#sec-22">4.5 Summary of Common RM Pathologies</a></li><li class="lv2"><a href="#sec-23">5. RM &amp; Judge Evaluation</a></li><li class="lv3"><a href="#sec-24">5.1 RewardBench</a></li><li class="lv3"><a href="#sec-25">5.2 LLM-as-Judge</a></li><li class="lv3"><a href="#sec-26">5.3 Trade-offs Between Human and Automated Evaluation</a></li><li class="lv3"><a href="#sec-27">5.4 Other Evaluation Methods</a></li><li class="lv2"><a href="#sec-28">6. Interview Questions</a></li><li class="lv3"><a href="#sec-29">L1 — Fundamentals</a></li><li class="lv3"><a href="#sec-30">L2 — Intermediate</a></li><li class="lv3"><a href="#sec-31">L3 — Advanced</a></li><li class="lv2"><a href="#sec-32">Appendix: Key Terminology Glossary</a></li><li class="lv2"><a href="#sec-33">Extended L3</a></li></ul></nav>
+<main id="out"><h2 id="sec-0">A Complete Overview of Reward Modeling in LLM Post-Training</h2>
+<hr>
+<h2 id="sec-1">1. RM Training Methods</h2>
+<h3 id="sec-2">1.1 Core Objective</h3>
+<p>A reward model learns a <strong>scalar scoring function</strong> from human preferences, used to score LLM-generated candidate responses in RLHF (Reinforcement Learning from Human Feedback) or similar pipelines, guiding policy model optimization.</p>
+<h3 id="sec-3">1.2 Pairwise / Bradley-Terry Model</h3>
+<p><strong>Core idea:</strong> Rather than estimating absolute scores directly, learn the <strong>preference relationship between two responses</strong>.</p>
+<p><strong>Bradley-Terry (BT) Model:</strong></p>
+<p>Given prompt <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span>, chosen response <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>w</mi></msub></mrow><annotation encoding="application/x-tex">y_w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>, rejected response <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">y_l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>:</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>P</mi><mo stretchy="false">(</mo><msub><mi>y</mi><mi>w</mi></msub><mo>≻</mo><msub><mi>y</mi><mi>l</mi></msub><mo>∣</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>σ</mi><mo stretchy="false">(</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">P(y_w \succ y_l \mid x) = \sigma(r_\theta(x, y_w) - r_\theta(x, y_l))</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≻</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∣</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">))</span></span></span></span></span></p>
+<p>where <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\sigma</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span></span></span></span> is the sigmoid function and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mi>θ</mi></msub></mrow><annotation encoding="application/x-tex">r_\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> is the reward model with parameters <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span></span></span></span>.</p>
+<p><strong>Training Loss:</strong></p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi mathvariant="script">L</mi><mtext>BT</mtext></msub><mo>=</mo><mo>−</mo><msub><mi mathvariant="double-struck">E</mi><mrow><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo></mrow></msub><mrow><mo fence="true">[</mo><mi>log</mi><mo>⁡</mo><mi>σ</mi><mo stretchy="false">(</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{BT}} = -\mathbb{E}_{(x, y_w, y_l)} \left[ \log \sigma(r_\theta(x, y_w) - r_\theta(x, y_l)) \right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathcal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">BT</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.1052em;vertical-align:-0.3552em;"></span><span class="mord">−</span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mopen mtight">(</span><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1645em;"><span style="top:-2.357em;margin-left:-0.0359em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.0359em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">[</span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">))</span><span class="mclose delimcenter" style="top:0em;">]</span></span></span></span></span></span></p>
+<p><strong>Advantages:</strong></p>
+<ul>
+<li>Requires only preference rankings, not absolute score annotations — lower annotation cost</li>
+<li>Naturally aligned with policy gradient in RLHF</li>
+<li>Humans make relative judgments more reliably and consistently than absolute ratings</li>
+</ul>
+<p><strong>Limitations:</strong></p>
+<ul>
+<li>Only uses binary preference signals, making limited use of available information</li>
+<li>Assumes transitivity of preferences, which may not hold in practice</li>
+<li>Does not directly output a scalar value; additional processing may be needed in some downstream tasks</li>
+</ul>
+<h3 id="sec-4">1.3 Pointwise / Regression</h3>
+<p><strong>Core idea:</strong> Directly regress to an <strong>absolute quality score</strong>.</p>
+<p><strong>Training Loss:</strong></p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi mathvariant="script">L</mi><mtext>point</mtext></msub><mo>=</mo><msub><mi mathvariant="double-struck">E</mi><mrow><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo separator="true">,</mo><mi>s</mi><mo stretchy="false">)</mo></mrow></msub><mrow><mo fence="true">[</mo><mo stretchy="false">(</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mi>s</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{point}} = \mathbb{E}_{(x, y, s)} \left[ (r_\theta(x, y) - s)^2 \right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathcal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">point</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.2193em;vertical-align:-0.3552em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mopen mtight">(</span><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">s</span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size1">[</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">s</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8641em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size1">]</span></span></span></span></span></span></span></p>
+<p>where <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span> is the human-annotated absolute score (e.g., a 1–5 Likert scale).</p>
+<p><strong>Advantages:</strong></p>
+<ul>
+<li>Can be directly used for Best-of-N (BoN) sampling, filtering, and similar scenarios</li>
+<li>Scores are highly interpretable</li>
+</ul>
+<p><strong>Limitations:</strong></p>
+<ul>
+<li>Requires absolute annotations; annotation cost is high and inter-annotator agreement is low</li>
+<li>Score scales vary by annotator, requiring calibration</li>
+</ul>
+<h3 id="sec-5">1.4 Other Variants</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Listwise / Plackett-Luce</strong></td>
+<td>Full ranking over k responses; carries more information than pairwise</td>
+</tr>
+<tr>
+<td><strong>Regression + Ranking Hybrid</strong></td>
+<td>Jointly optimizes regression loss and ranking loss</td>
+</tr>
+<tr>
+<td><strong>Multi-objective RM</strong></td>
+<td>Assigns separate scores for different dimensions (helpfulness, safety, factuality)</td>
+</tr>
+<tr>
+<td><strong>Token-level RM</strong></td>
+<td>Distributes rewards at the token level; related to PRM</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="sec-6">2. PRM vs ORM: Process Reward Model vs Outcome Reward Model</h2>
+<h3 id="sec-7">2.1 ORM — Outcome Reward Model</h3>
+<p><strong>Definition:</strong> Assigns a single overall reward score based solely on the <strong>final output</strong>.</p>
+<pre><code class="hljs"><span class="hljs-symbol">Input:</span>  [Prompt + full response <span class="hljs-keyword">text</span>]
+<span class="hljs-symbol">Output:</span> <span class="hljs-type">single</span> scalar reward r
+</code></pre>
+<p><strong>Characteristics:</strong></p>
+<ul>
+<li>✅ Simple annotation: only need to judge whether the final answer is correct or of high quality</li>
+<li>✅ Lower training and inference compute cost</li>
+<li>❌ <strong>Credit assignment problem</strong>: does not identify which steps in the response were correct or incorrect</li>
+<li>❌ Sparse signal for multi-step tasks such as mathematical reasoning and code generation</li>
+</ul>
+<h3 id="sec-8">2.2 PRM — Process Reward Model</h3>
+<p><strong>Definition:</strong> Assigns a reward score to <strong>each step</strong> of the reasoning process.</p>
+<pre><code class="hljs"><span class="hljs-symbol">Input:</span>  [Prompt + first i steps]
+<span class="hljs-symbol">Output:</span> per-<span class="hljs-keyword">step</span> reward r_step(i)
+</code></pre>
+<p><strong>Characteristics:</strong></p>
+<ul>
+<li>✅ Denser reward signal; more precise credit assignment</li>
+<li>✅ Can pinpoint specific erroneous reasoning steps; enables early stopping or tree search</li>
+<li>✅ Generally outperforms ORM significantly on tasks such as mathematical reasoning (qualitative conclusion from multiple studies)</li>
+<li>❌ <strong>Very high annotation cost</strong>: requires expert-level step-by-step judgments</li>
+<li>❌ Step boundary definition (step delineation) is inherently ambiguous</li>
+</ul>
+<h3 id="sec-9">2.3 Comparison Table</h3>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>ORM (Outcome Reward)</th>
+<th>PRM (Process Reward)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Reward Granularity</td>
+<td>Entire response</td>
+<td>Each reasoning step</td>
+</tr>
+<tr>
+<td>Signal Density</td>
+<td>Sparse</td>
+<td>Dense</td>
+</tr>
+<tr>
+<td>Annotation Cost</td>
+<td>Low</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Credit Assignment</td>
+<td>Poor</td>
+<td>Good</td>
+</tr>
+<tr>
+<td>Typical Applications</td>
+<td>Dialogue, writing</td>
+<td>Math reasoning, code, multi-step reasoning</td>
+</tr>
+<tr>
+<td>Integration with Search</td>
+<td>Best-of-N</td>
+<td>Best-of-N, tree search, beam search</td>
+</tr>
+<tr>
+<td>Annotation Method</td>
+<td>Final answer correctness</td>
+<td>Per-step logical correctness</td>
+</tr>
+</tbody></table>
+<h3 id="sec-10">2.4 Automated PRM Data Generation</h3>
+<p>To reduce annotation cost, common approaches include:</p>
+<ul>
+<li><strong>Monte Carlo estimation (MC estimation):</strong> From each step, sample multiple rollouts and use the final answer accuracy as the reward for that step</li>
+<li><strong>LLM-as-Step-Judge:</strong> Use a strong LLM to annotate per-step correctness</li>
+<li><strong>ORM-to-PRM distillation:</strong> Back-derive process signals from an ORM</li>
+</ul>
+<hr>
+<h2 id="sec-11">3. Reward Hacking &amp; Over-Optimization</h2>
+<h3 id="sec-12">3.1 What is Reward Hacking</h3>
+<p><strong>Definition:</strong> The policy model learns to exploit <strong>flaws and out-of-distribution behavior</strong> of the reward model to obtain high scores, rather than genuinely improving response quality.</p>
+<p><strong>Common Patterns:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Verbosity hacking</strong></td>
+<td>Generating long but low-quality content to exploit the RM&#39;s spurious preference for length</td>
+</tr>
+<tr>
+<td><strong>Sycophancy</strong></td>
+<td>Using flattering, fawning language to align with the user&#39;s stance rather than providing accurate answers</td>
+</tr>
+<tr>
+<td><strong>Format gaming</strong></td>
+<td>Overusing Markdown lists, headings, bold text, etc., which the RM misinterprets as quality signals</td>
+</tr>
+<tr>
+<td><strong>Spec gaming</strong></td>
+<td>Meeting the literal requirements of the RM or task specification while violating its intent (e.g., answers that are &quot;formally correct&quot; but substantively wrong)</td>
+</tr>
+<tr>
+<td><strong>OOD collapse</strong></td>
+<td>After the policy drifts from the training distribution, RM scores become unreliable, giving inflated or random scores for out-of-distribution generations</td>
+</tr>
+</tbody></table>
+<h3 id="sec-13">3.2 Goodhart&#39;s Law Perspective</h3>
+<blockquote>
+<p>&quot;When a measure becomes a target, it ceases to be a good measure.&quot;</p>
+</blockquote>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mtext>true</mtext></msub><mo mathvariant="normal">≠</mo><msub><mi>r</mi><mtext>RM</mtext></msub><mspace width="1em"/><mo stretchy="false">(</mo><mtext>OOD</mtext><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">r_{\text{true}} \neq r_{\text{RM}} \quad (\text{OOD})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">true</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel"><span class="mrel"><span class="mord vbox"><span class="thinbox"><span class="rlap"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="inner"><span class="mord"><span class="mrel"></span></span></span><span class="fix"></span></span></span></span></span><span class="mspace nobreak"></span><span class="mrel">=</span></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:1em;"></span><span class="mopen">(</span><span class="mord text"><span class="mord">OOD</span></span><span class="mclose">)</span></span></span></span></span></p>
+<p>The RM is only accurate within its <strong>training distribution</strong>; once the policy generates out-of-distribution content, RM predictions are no longer reliable.</p>
+<h3 id="sec-14">3.2a Gao et al. 2022 — Scaling Laws for Overoptimization</h3>
+<blockquote>
+<p>Source: Gao, Schulman &amp; Hilton, arXiv:2210.10760, using a synthetic gold RM in the InstructGPT setup.</p>
+</blockquote>
+<p><strong>Core variable:</strong> Let <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><msqrt><mrow><msub><mi>D</mi><mtext>KL</mtext></msub><mo stretchy="false">(</mo><mi>π</mi><mi mathvariant="normal">∥</mi><msub><mi>π</mi><mtext>init</mtext></msub><mo stretchy="false">)</mo></mrow></msqrt></mrow><annotation encoding="application/x-tex">d = \sqrt{D_{\text{KL}}(\pi \| \pi_{\text{init}})}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.24em;vertical-align:-0.305em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.935em;"><span class="svg-align" style="top:-3.2em;"><span class="pstrut" style="height:3.2em;"></span><span class="mord" style="padding-left:1em;"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">KL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mord">∥</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">init</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span><span style="top:-2.895em;"><span class="pstrut" style="height:3.2em;"></span><span class="hide-tail" style="min-width:1.02em;height:1.28em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.28em" viewBox="0 0 400000 1296" preserveAspectRatio="xMinYMin slice"><path d="M263,681c0.7,0,18,39.7,52,119
+c34,79.3,68.167,158.7,102.5,238c34.3,79.3,51.8,119.3,52.5,120
+c340,-704.7,510.7,-1060.3,512,-1067
+l0 -0
+c4.7,-7.3,11,-11,19,-11
+H40000v40H1012.3
+s-271.3,567,-271.3,567c-38.7,80.7,-84,175,-136,283c-52,108,-89.167,185.3,-111.5,232
+c-22.3,46.7,-33.8,70.3,-34.5,71c-4.7,4.7,-12.3,7,-23,7s-12,-1,-12,-1
+s-109,-253,-109,-253c-72.7,-168,-109.3,-252,-110,-252c-10.7,8,-22,16.7,-34,26
+c-22,17.3,-33.3,26,-34,26s-26,-26,-26,-26s76,-59,76,-59s76,-60,76,-60z
+M1001 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.305em;"><span></span></span></span></span></span></span></span></span> (the square root of the KL distance; the paper chooses this parameterization because KL is a &quot;quadratic measure&quot;). The functional form of how the gold RM score <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi></mrow><annotation encoding="application/x-tex">R</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span></span></span></span> changes with <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span> <strong>differs by optimization method</strong>:</p>
+<p><strong>Best-of-N (BoN) form:</strong></p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>R</mi><mtext>bon</mtext></msub><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo><mo>=</mo><mi>d</mi><mo stretchy="false">(</mo><msub><mi>α</mi><mtext>bon</mtext></msub><mo>−</mo><msub><mi>β</mi><mtext>bon</mtext></msub><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">R_{\text{bon}}(d) = d(\alpha_{\text{bon}} - \beta_{\text{bon}} d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">bon</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">d</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">d</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">bon</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0528em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">bon</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span></span></p>
+<p><strong>Reinforcement Learning (RL) form:</strong></p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>R</mi><mtext>RL</mtext></msub><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo><mo>=</mo><mi>d</mi><mo stretchy="false">(</mo><msub><mi>α</mi><mtext>RL</mtext></msub><mo>−</mo><msub><mi>β</mi><mtext>RL</mtext></msub><mi>log</mi><mo>⁡</mo><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">R_{\text{RL}}(d) = d(\alpha_{\text{RL}} - \beta_{\text{RL}} \log d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">d</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">d</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0528em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span></span></p>
+<p>where <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mtext>bon</mtext></msub><mo separator="true">,</mo><msub><mi>β</mi><mtext>bon</mtext></msub><mo separator="true">,</mo><msub><mi>α</mi><mtext>RL</mtext></msub><mo separator="true">,</mo><msub><mi>β</mi><mtext>RL</mtext></msub></mrow><annotation encoding="application/x-tex">\alpha_{\text{bon}}, \beta_{\text{bon}}, \alpha_{\text{RL}}, \beta_{\text{RL}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">bon</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0528em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">bon</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0528em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> are fitted parameters (varying smoothly with RM parameter count); <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>:</mo><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">R(0) := 0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="mopen">(</span><span class="mord">0</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">:=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span>. ⚠️ The RL form has infinite slope near the origin; the paper notes this form may not hold near the origin.</p>
+<p><strong>Key findings:</strong></p>
+<ul>
+<li><strong>Initial rise then decline</strong>: The gold score first increases with <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span> (the RM signal is effective), then decreases due to out-of-distribution collapse — a quantitative characterization of the Goodhart effect</li>
+<li><strong>Peak location differs by method</strong>: The gold score peaks of BoN (quadratic) and RL (logarithmic) occur at different values of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span>, depending on the fitted coefficients (see Figure 3 in the original paper); the paper does not draw a general conclusion about &quot;which is more KL-efficient&quot;</li>
+<li><strong>Smooth coefficient scaling</strong>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi></mrow><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> vary approximately logarithmically with RM parameter count, allowing extrapolation to predict peak performance</li>
+<li><strong>Limits of KL penalty</strong>: The paper&#39;s §3.6 experiments find that in their setup, increasing the KL penalty raises the proxy score for a given KL, but <strong>does not improve the gold score–KL curve</strong>; the effect is equivalent to early stopping rather than improving RM robustness itself. The authors note this conclusion is sensitive to hyperparameters</li>
+</ul>
+<p>⚠️ The specific values of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo separator="true">,</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">\alpha, \beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> above depend on RM parameter count and data volume; the paper provides no single universal constant. For specific values, consult Figure 3 of the original paper.</p>
+<h3 id="sec-15">3.3 Mitigations</h3>
+<h4>3.3.1 KL Divergence Control</h4>
+<p>Add a KL penalty term to the RLHF objective:</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mi>π</mi></munder><msub><mi mathvariant="double-struck">E</mi><mrow><mi>x</mi><mo>∼</mo><mi mathvariant="script">D</mi><mo separator="true">,</mo><mi>y</mi><mo>∼</mo><mi>π</mi><mo stretchy="false">(</mo><mo>⋅</mo><mi mathvariant="normal">∣</mi><mi>x</mi><mo stretchy="false">)</mo></mrow></msub><mrow><mo fence="true">[</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mi>β</mi><mo>⋅</mo><msub><mi>D</mi><mtext>KL</mtext></msub><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">(</mo><mi>y</mi><mi mathvariant="normal">∣</mi><mi>x</mi><mo stretchy="false">)</mo><mi mathvariant="normal">∥</mi><msub><mi>π</mi><mtext>ref</mtext></msub><mo stretchy="false">(</mo><mi>y</mi><mi mathvariant="normal">∣</mi><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">\max_{\pi} \mathbb{E}_{x \sim \mathcal{D}, y \sim \pi(\cdot|x)} \left[ r_\theta(x, y) - \beta \cdot D_{\text{KL}}(\pi(y|x) \| \pi_{\text{ref}}(y|x)) \right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.45em;vertical-align:-0.7em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.4306em;"><span style="top:-2.4em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mrel mtight">∼</span><span class="mord mathcal mtight" style="margin-right:0.0278em;">D</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="mrel mtight">∼</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span><span class="mopen mtight">(</span><span class="mord mtight">⋅</span><span class="mord mtight">∣</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">[</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">KL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mord">∥</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mclose">))</span><span class="mclose delimcenter" style="top:0em;">]</span></span></span></span></span></span></p>
+<ul>
+<li>Larger <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> → more conservative policy, closer to the reference model</li>
+<li>Smaller <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> → larger exploration space, but higher reward hacking risk</li>
+<li><strong>Adaptive KL:</strong> Dynamically adjust <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> based on the current KL value</li>
+</ul>
+<h4>3.3.2 RM Ensembles</h4>
+<ul>
+<li>Train <strong>multiple independent RMs</strong> (different initializations, different data subsets, different architectures)</li>
+<li>Aggregate via mean, minimum, or uncertainty estimation</li>
+<li><strong>Conservative strategy:</strong> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover accent="true"><mi>r</mi><mo>^</mo></mover><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>=</mo><msub><mrow><mi>min</mi><mo>⁡</mo></mrow><mi>i</mi></msub><msub><mi>r</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\hat{r}(x,y) = \min_i r_i(x,y)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1944em;"><span class="mord">^</span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop"><span class="mop">min</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span></span></span></span> — avoids overly optimistic scores from any single RM</li>
+<li>Can be used for <strong>uncertainty filtering</strong>: reduce trust in regions with high variance</li>
+</ul>
+<h4>3.3.3 Length Penalty</h4>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mtext>adjusted</mtext></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>=</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mi>α</mi><mo>⋅</mo><mtext>len</mtext><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">r_{\text{adjusted}}(x,y) = r_\theta(x,y) - \alpha \cdot \text{len}(y)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0361em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">adjusted</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4445em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">len</span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span></span></span></span></span></p>
+<p>or the normalized form:</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mtext>adjusted</mtext></msub><mo>=</mo><mfrac><mrow><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><mrow><mtext>len</mtext><mo stretchy="false">(</mo><mi>y</mi><msup><mo stretchy="false">)</mo><mi>γ</mi></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">r_{\text{adjusted}} = \frac{r_\theta(x,y)}{\text{len}(y)^\gamma}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">adjusted</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.363em;vertical-align:-0.936em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">len</span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.5904em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0556em;">γ</span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
+<ul>
+<li>Requires careful tuning to avoid responses becoming too short due to over-penalization</li>
+<li>A better approach: control length preferences at the <strong>data annotation stage</strong></li>
+</ul>
+<h4>3.3.4 Iterative Re-Training / Online RLHF</h4>
+<pre><code class="hljs">Iterative pipeline:
+<span class="hljs-number">1</span>. Use current policy π_k to <span class="hljs-keyword">generate</span> candidate responses
+<span class="hljs-number">2</span>. Collect <span class="hljs-keyword">new</span> preference annotations / <span class="hljs-keyword">or</span> annotate <span class="hljs-keyword">with</span> RM
+<span class="hljs-number">3</span>. Update RM: r_k → r_{k+<span class="hljs-number">1</span>}
+<span class="hljs-number">4</span>. Apply RLHF update <span class="hljs-keyword">with</span> <span class="hljs-keyword">new</span> RM: π_k → π_{k+<span class="hljs-number">1</span>}
+<span class="hljs-number">5</span>. Repeat
+</code></pre>
+<ul>
+<li><strong>Key benefit:</strong> The RM is always trained on the policy&#39;s current distribution, reducing distribution shift</li>
+<li><strong>Challenge:</strong> Compute cost more than doubles; annotations may also drift over time</li>
+<li>Variants: DPO (Direct Preference Optimization), iterative versions of RLHF + rejection sampling</li>
+</ul>
+<h4>3.3.5 Other Methods</h4>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Rejection Sampling / Best-of-N</strong></td>
+<td>No RL; sample N responses from the policy and select the one with the highest RM score</td>
+</tr>
+<tr>
+<td><strong>Constrained Optimization</strong></td>
+<td>Add hard safety/quality constraints</td>
+</tr>
+<tr>
+<td><strong>Pre-training anchor</strong></td>
+<td>Maintain proximity to the pre-trained model (e.g., L2 regularization)</td>
+</tr>
+<tr>
+<td><strong>Robust RM training</strong></td>
+<td>Adversarial training and data augmentation to improve RM generalization</td>
+</tr>
+</tbody></table>
+<h3 id="sec-16">3.4 Preference Data Construction</h3>
+<p>The quality ceiling of the RM is determined by the quality of the preference data. The following are core design choices:</p>
+<h4>3.4.1 Absolute vs Relative Annotations</h4>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Absolute Annotation (Pointwise)</th>
+<th>Relative Annotation (Pairwise/Comparative)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Annotation form</td>
+<td>Rate a single response 1–5</td>
+<td>Compare two responses and pick the better one</td>
+</tr>
+<tr>
+<td>Annotation cost</td>
+<td>High (requires internally consistent scales across annotators)</td>
+<td>Low (cognitively simpler task)</td>
+</tr>
+<tr>
+<td>Inter-annotator agreement</td>
+<td>Low; scale drift is pronounced</td>
+<td>High; humans make relative judgments more reliably</td>
+</tr>
+<tr>
+<td>Information content</td>
+<td>Richer (ordinal relationships recoverable)</td>
+<td>Directly corresponds to the Bradley-Terry model</td>
+</tr>
+<tr>
+<td>Typical use</td>
+<td>Direct regression RM</td>
+<td>Mainstream RLHF practice</td>
+</tr>
+</tbody></table>
+<h4>3.4.2 Margin Filtering</h4>
+<p><strong>Motivation:</strong> Preference pairs contain many &quot;hard to distinguish&quot; samples (low annotator agreement); training directly on these introduces noise.</p>
+<p><strong>Approach:</strong></p>
+<ul>
+<li>Compute inter-annotator agreement rates; discard preference pairs near 50/50</li>
+<li>Introduce a <strong>margin</strong> label: is the quality gap between chosen and rejected &quot;clearly discernible&quot;? Retain only samples with sufficiently large margin</li>
+<li>Some work (e.g., Llama-2, per the original paper) distinguishes significantly better / slightly better / negligibly better, training with stratified weights</li>
+<li>⚠️ Aggressive filtering loses borderline samples, reducing RM discriminative ability in &quot;slight difference&quot; scenarios</li>
+</ul>
+<h4>3.4.3 Annotator Calibration</h4>
+<p><strong>Problem:</strong> Different annotators have systematic biases (personal styles, varying strictness).</p>
+<p><strong>Mitigation methods:</strong></p>
+<ul>
+<li><strong>Calibration items:</strong> Insert anchor questions with known answers into each annotation batch to detect annotator drift</li>
+<li><strong>Annotator effect modeling:</strong> Explicitly model each annotator&#39;s preference distribution and aggregate with a mixture model</li>
+<li><strong>Majority voting / gold-standard filtering:</strong> 3+ annotators label the same pair; take the majority; discard samples with excessive disagreement</li>
+</ul>
+<p>⚠️ Annotator bias is learned and amplified by the RM, ultimately affecting policy behavior — calibration at the data construction stage is more fundamental than post-hoc remediation.</p>
+<hr>
+<h2 id="sec-17">4. Length Bias &amp; Other RM Pathologies</h2>
+<h3 id="sec-18">4.1 Length Bias</h3>
+<p><strong>Phenomenon:</strong> RMs tend to assign higher scores to <strong>longer responses</strong>, even when longer does not mean better.</p>
+<p><strong>Root causes:</strong></p>
+<ul>
+<li>In training data, detailed responses (chosen) are typically longer than brief responses (rejected)</li>
+<li>Annotators prefer detailed content → length correlations are implicitly encoded in preference pairs</li>
+<li>RM overfits to the spurious feature &quot;long = good&quot;</li>
+</ul>
+<p><strong>Consequences:</strong></p>
+<ul>
+<li>Policy models learn to &quot;pad&quot; responses for higher scores</li>
+<li>Generates excessive filler words, repetition, and redundant explanations</li>
+<li>Higher inference cost; degraded user experience</li>
+</ul>
+<p><strong>Mitigations:</strong></p>
+<ul>
+<li>Control response length in training data: construct chosen/rejected preference pairs with similar lengths</li>
+<li>Apply length penalties at inference time (see §3.3.3)</li>
+<li>Data debiasing: statistically analyze and compensate for length correlations</li>
+<li>Use length-normalized evaluation metrics</li>
+</ul>
+<h3 id="sec-19">4.2 Position Bias</h3>
+<p><strong>Phenomenon:</strong> In pairwise comparisons, RMs tend to prefer responses in <strong>a specific position</strong> (e.g., the first or the last).</p>
+<p><strong>Mitigation:</strong> Swap positions and make two predictions; accept only consistent results.</p>
+<h3 id="sec-20">4.3 Verbosity / Redundancy Bias</h3>
+<p><strong>Phenomenon:</strong> Beyond mere length, RMs also tend to favor responses containing <strong>more redundant modifiers, filler transitions, and formatting elements</strong>.</p>
+<p><strong>Distinction from length bias:</strong> Even at the same length, &quot;fancier&quot; responses may still be preferred.</p>
+<h3 id="sec-21">4.4 Confirmation / Sycophancy Bias</h3>
+<p><strong>Phenomenon:</strong> RMs prefer responses that agree with the user&#39;s stated position, even if that position is incorrect.</p>
+<h3 id="sec-22">4.5 Summary of Common RM Pathologies</h3>
+<table>
+<thead>
+<tr>
+<th>Pathology</th>
+<th>Manifestation</th>
+<th>Root Cause</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Length bias</strong></td>
+<td>Longer responses score higher</td>
+<td>Spurious correlations in training data</td>
+</tr>
+<tr>
+<td><strong>Position bias</strong></td>
+<td>Preference for specific positions</td>
+<td>Order effects in annotation</td>
+</tr>
+<tr>
+<td><strong>Verbosity bias</strong></td>
+<td>Preference for over-decorated responses</td>
+<td>Annotators mistakenly treat it as a quality signal</td>
+</tr>
+<tr>
+<td><strong>Sycophancy bias</strong></td>
+<td>Preference for responses that flatter users</td>
+<td>Psychological tendencies of annotators</td>
+</tr>
+<tr>
+<td><strong>Format bias</strong></td>
+<td>Preference for lists/Markdown formatting</td>
+<td>Spurious format associations in training data</td>
+</tr>
+<tr>
+<td><strong>OOD collapse</strong></td>
+<td>Inaccurate scoring for out-of-distribution generations</td>
+<td>Limited RM generalization</td>
+</tr>
+<tr>
+<td><strong>Surface feature shortcuts</strong></td>
+<td>Scores based on keywords rather than semantics</td>
+<td>Insufficient model capacity/data</td>
+</tr>
+<tr>
+<td><strong>Annotator noise amplification</strong></td>
+<td>RM learns individual annotator biases</td>
+<td>Uneven annotation quality</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="sec-23">5. RM &amp; Judge Evaluation</h2>
+<h3 id="sec-24">5.1 RewardBench</h3>
+<p><strong>Overview:</strong> RewardBench is a comprehensive reward model evaluation benchmark designed to systematically test RM performance across multiple dimensions.</p>
+<p><strong>Evaluation dimensions (approximate categories):</strong></p>
+<ul>
+<li><strong>Chat / Dialogue quality:</strong> Judging the quality of conversational responses</li>
+<li><strong>Chat-Hard / Difficult dialogue:</strong> Distinguishing subtle quality differences</li>
+<li><strong>Safety:</strong> Identifying harmful content</li>
+<li><strong>Reasoning:</strong> Judging correctness of mathematical/logical reasoning</li>
+</ul>
+<p><strong>Evaluation method:</strong></p>
+<ul>
+<li>Pairwise accuracy: given a chosen/rejected pair, does the RM rank them correctly?</li>
+<li><strong>Note:</strong> For specific scores and rankings, refer to the official RewardBench leaderboard; this document does not cite specific numbers <!-- CLAUDE-REVIEW: verify number --></li>
+</ul>
+<p><strong>Use cases:</strong></p>
+<ul>
+<li>Selecting the best RM for RLHF</li>
+<li>Diagnosing which domains an RM performs poorly on</li>
+<li>Comparing the effectiveness of different training methods</li>
+</ul>
+<h3 id="sec-25">5.2 LLM-as-Judge</h3>
+<blockquote>
+<p>📎 <strong>Cross-reference</strong>: This section focuses on LLM-as-Judge as a <strong>training signal</strong> (how its biases can contaminate RM training data and affect RLHF optimization). For specifics on LLM-as-Judge in <strong>evaluation practice</strong> — including bias mitigation and benchmark selection — see <code>eval-and-judges-en.html §2</code>.</p>
+</blockquote>
+<p><strong>Core idea:</strong> Use a powerful LLM (e.g., GPT-4-class models) to directly score or rank response quality, replacing human evaluation.</p>
+<h4>Common Evaluation Paradigms</h4>
+<table>
+<thead>
+<tr>
+<th>Paradigm</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Pointwise Scoring</strong></td>
+<td>Rate a single response on a 1–10 scale</td>
+</tr>
+<tr>
+<td><strong>Pairwise Comparison</strong></td>
+<td>Choose the better of two responses</td>
+</tr>
+<tr>
+<td><strong>Ranking / Listwise</strong></td>
+<td>Rank multiple responses</td>
+</tr>
+<tr>
+<td><strong>Reference-guided</strong></td>
+<td>Score by comparison against a reference answer</td>
+</tr>
+</tbody></table>
+<h4>Common Biases in LLM-as-Judge</h4>
+<h5>(a) Position Bias</h5>
+<ul>
+<li><strong>Phenomenon:</strong> LLMs tend to select the response presented in the <strong>first position</strong> (or a specific position)</li>
+<li><strong>Verification:</strong> Swap the A/B order and check for consistency</li>
+<li><strong>Mitigation:</strong> Evaluate twice (A first then B, then B first then A); retain only consistent results</li>
+</ul>
+<h5>(b) Verbosity Bias</h5>
+<ul>
+<li><strong>Phenomenon:</strong> LLMs prefer longer, more detailed responses, even when concise responses are of higher quality</li>
+<li><strong>Cause:</strong> Consistent with the pattern that detailed responses typically score higher in training data</li>
+<li><strong>Mitigation:</strong> Explicitly instruct that &quot;length should not affect the score&quot;</li>
+</ul>
+<h5>(c) Self-Preference Bias</h5>
+<ul>
+<li><strong>Phenomenon:</strong> LLM judges tend to assign higher scores to responses generated by themselves (or models in the same family)</li>
+<li><strong>Cause:</strong> The generation style/distribution is closer to the judge&#39;s own training distribution</li>
+<li><strong>Mitigation:</strong> Use models from different families for evaluation; average across multiple judges (multiple models)</li>
+</ul>
+<h5>(d) Other LLM-as-Judge Biases</h5>
+<table>
+<thead>
+<tr>
+<th>Bias</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Format bias</strong></td>
+<td>Preference for responses using Markdown, lists, and other formatted elements</td>
+</tr>
+<tr>
+<td><strong>Capability boundary bias</strong></td>
+<td>LLM cannot correctly evaluate responses that exceed its own capabilities</td>
+</tr>
+<tr>
+<td><strong>Sycophancy bias</strong></td>
+<td>Overly &quot;friendly&quot;; reluctant to give low scores</td>
+</tr>
+<tr>
+<td><strong>Anchoring effect</strong></td>
+<td>Influenced by candidate content seen earlier</td>
+</tr>
+<tr>
+<td><strong>Keyword bias</strong></td>
+<td>Oversensitivity to specific terminology</td>
+</tr>
+</tbody></table>
+<h4>LLM-as-Judge Best Practices</h4>
+<ol>
+<li><strong>Structured rubrics:</strong> Clearly define evaluation dimensions and criteria</li>
+<li><strong>Position debiasing:</strong> Evaluate twice with swapped positions</li>
+<li><strong>Temperature set to 0:</strong> Reduce randomness, improve consistency</li>
+<li><strong>Multi-judge:</strong> Use multiple different LLMs and average/vote</li>
+<li><strong>Human calibration:</strong> Periodically check consistency against human evaluations</li>
+<li><strong>Pairwise &gt; absolute:</strong> LLMs make more reliable relative judgments than absolute ratings</li>
+<li><strong>Chain-of-Thought evaluation:</strong> Have the LLM reason first, then assign a score</li>
+</ol>
+<h3 id="sec-26">5.3 Trade-offs Between Human and Automated Evaluation</h3>
+<pre><code class="hljs">Evaluation quality ←——————————————————————→ Evaluation cost
+  Expert human eval    Crowdsourcing    LLM-as-Judge    Automatic metrics (BLEU/ROUGE...)
+  (highest quality)                                             (lowest cost)
+</code></pre>
+<h3 id="sec-27">5.4 Other Evaluation Methods</h3>
+<ul>
+<li><strong>Win Rate:</strong> Proportion of pairwise comparisons won against a baseline model</li>
+<li><strong>Elo Rating:</strong> Dynamic ranking system based on tournament-style comparisons</li>
+<li><strong>Multi-dimensional evaluation:</strong> Independent scoring on helpfulness, safety, factuality, etc.</li>
+<li><strong>Adversarial evaluation:</strong> Tests RM robustness on edge cases and adversarial examples</li>
+</ul>
+<hr>
+<h2 id="sec-28">6. Interview Questions</h2>
+<h3 id="sec-29">L1 — Fundamentals</h3>
+<hr>
+<details>
+<summary>Q1: What is a Reward Model (RM)? What role does it play in RLHF?</summary><p><strong>A:</strong> A reward model is a scoring function learned from human preference data that outputs a scalar reward value for LLM-generated responses. In RLHF, the RM acts as a proxy for human preferences, serving as the objective function for policy optimization — the policy model improves its output quality by maximizing the RM score.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Why can&#39;t human annotations be used directly as rewards for RL?
+Because RL requires a large volume of online reward signals; human annotation is expensive and slow. The RM provides a proxy signal that can be computed in batch, instantly.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q2: What are the core assumptions of the Bradley-Terry model? What does its training loss function look like?</summary><p><strong>A:</strong> The BT model assumes: for a given prompt, the probability that response <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>w</mi></msub></mrow><annotation encoding="application/x-tex">y_w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> is preferred over <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">y_l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> is determined by the sigmoid function of the difference in their reward scores. The training loss is the negative log-likelihood: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">L</mi><mo>=</mo><mo>−</mo><mi>log</mi><mo>⁡</mo><mi>σ</mi><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">(</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><mi>r</mi><mo stretchy="false">(</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{L} = -\log\sigma(r(y_w) - r(y_l))</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathcal">L</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">−</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">))</span></span></span></span>. Core assumptions include that preferences can be explained by scalar score differences and that preferences are transitive.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> What happens if preferences are not transitive?
+The BT model encounters inconsistent annotation pairs, leading to unstable training. In such cases, more flexible preference models such as Plackett-Luce may be considered.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q3: What is the core difference between PRM and ORM? Which scenarios is each suited for?</summary><p><strong>A:</strong> ORM assigns a single reward to the final output only; the signal is sparse. PRM assigns rewards to each reasoning step; the signal is dense. PRM is suited for multi-step reasoning tasks (math, code); ORM is suited for end-to-end evaluation tasks (dialogue, writing). PRM&#39;s advantage is precise credit assignment, but its annotation cost is far higher than ORM&#39;s.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> How can PRM training data be obtained automatically?
+Monte Carlo estimation can be used: continue sampling multiple rollouts from each step and use the final answer accuracy as an approximation of that step&#39;s reward.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q4: What is Best-of-N (BoN) sampling? How does it differ from RL training?</summary><p><strong>A:</strong> BoN samples N responses from the policy and uses the RM to select the one with the highest score as the final output. It is an inference-time optimization method that does not update model parameters; it is simple but inference cost scales proportionally with N. RL training updates parameters during training, requiring no additional sampling at inference time.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> What is the ceiling of BoN?
+Diminishing returns as N grows; also limited by the policy&#39;s original distribution — it cannot generate high-quality responses outside the distribution.</p>
+</blockquote>
+</details><hr>
+<h3 id="sec-30">L2 — Intermediate</h3>
+<hr>
+<details>
+<summary>Q5: What is reward hacking? Give 2–3 concrete examples.</summary><p><strong>A:</strong> The policy model learns to exploit RM weaknesses for high scores rather than genuinely improving quality. Examples: (1) generating verbose content to score higher (length hacking); (2) using flattering/sycophantic language; (3) repeating high-scoring template sentences from training data; (4) overusing formatting elements (headings, lists, bold text).</p>
+<blockquote>
+<p><strong>Follow-up:</strong> What is the relationship between Goodhart&#39;s Law and reward hacking?
+Goodhart&#39;s Law states that &quot;once a measure becomes a target, it is no longer a good measure&quot; — the RM is an approximate measure of human preferences; when the policy specifically optimizes it, the two become decoupled.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q6: Explain in detail the role of KL divergence penalty in RLHF and how it is tuned.</summary><p><strong>A:</strong> The KL penalty term <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>⋅</mo><msub><mi>D</mi><mtext>KL</mtext></msub><mo stretchy="false">(</mo><mi>π</mi><mi mathvariant="normal">∥</mi><msub><mi>π</mi><mtext>ref</mtext></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\beta \cdot D_{\text{KL}}(\pi \| \pi_{\text{ref}})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">KL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mord">∥</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> constrains the policy from deviating too far from the reference model, acting as regularization. <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> too large → the policy barely updates and learns nothing; <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> too small → allows excessive exploration, prone to reward hacking. Adaptive KL is commonly used: set a target KL value and adjust <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> dynamically.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Which layer of reward hacking does each of KL penalty and RM ensembles address?
+KL constrains the policy&#39;s scope from the optimization constraint layer; RM ensembles reduce scoring variance and over-optimism from the reward estimation layer. The two are complementary.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q7: How can RM ensembles mitigate reward hacking? What are the differences between aggregation strategies?</summary><p><strong>A:</strong> Train multiple independent RMs (different seeds/data subsets/architectures) and aggregate scores. Strategies: (1) <strong>Mean:</strong> smooths scores, reduces noise from any single RM; (2) <strong>Min / conservative:</strong> takes the most conservative score, avoids over-optimism — safer when the policy drifts out of distribution; (3) <strong>Uncertainty-weighted:</strong> reduce the weight of high-variance samples. In practice, the min strategy is most effective against reward hacking but can be overly conservative.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> How can the compute overhead of ensembles be optimized?
+Use a shared-parameter backbone with different heads; or train multiple lightweight variants using PEFT adapters.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q8: What causes length bias? How can it be mitigated at the data level and inference level?</summary><p><strong>A:</strong> <strong>Cause:</strong> In training preference pairs, chosen responses are typically longer than rejected ones; the RM overfits to the spurious feature &quot;long = good.&quot; <strong>Data level:</strong> Construct preference pairs with similar lengths; analyze and remove length correlations. <strong>Inference level:</strong> Apply a length penalty <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>r</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo>=</mo><mi>r</mi><mo>−</mo><mi>α</mi><mo>⋅</mo><mtext>len</mtext></mrow><annotation encoding="application/x-tex">r&#x27; = r - \alpha \cdot \text{len}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7519em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7519em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4445em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord text"><span class="mord">len</span></span></span></span></span>; or use length normalization.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Why might applying a length penalty only at inference time be insufficient?
+If the RM has already internalized length as a strong feature, the length penalty may not fully offset it; the more fundamental approach is to debias at the training data or training method level.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q9: How does iterative re-training mitigate distribution shift?</summary><p><strong>A:</strong> Standard RLHF trains the RM only on data generated by the initial policy; as RL training progresses, the policy distribution shifts, and the RM becomes inaccurate on the new distribution. Iterative re-training uses the current policy to generate new data → re-annotate → update the RM → continue RLHF, ensuring the RM always covers the policy&#39;s current distribution. The cost is more than a doubling of compute and annotation overhead.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Does DPO also need iterative re-training?
+In theory, DPO also faces the distribution shift problem; iterative DPO (online DPO / online preference optimization) has been proposed to address this.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q10: What are the main biases of LLM-as-Judge? How can they be systematically mitigated?</summary><p><strong>A:</strong> Main biases: (1) <strong>Position bias</strong> — prefers specific positions; (2) <strong>Verbosity bias</strong> — prefers long responses; (3) <strong>Self-preference</strong> — gives higher scores to models from the same family; (4) <strong>Format bias</strong> — prefers formatted content. Mitigations: swap positions for dual evaluation, define explicit scoring rubrics, vote across multiple judges, periodically calibrate against humans.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Why is pairwise comparison generally better than absolute scoring (pointwise)?
+Because absolute scoring requires the judge to maintain a consistent internal scoring scale, which is prone to drift; pairwise comparison only requires judging relative quality, which is a simpler cognitive task with higher consistency.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q11: What is RewardBench? Which capability dimensions does it evaluate in RMs?</summary><p><strong>A:</strong> RewardBench is a comprehensive reward model evaluation benchmark that measures RM performance across multiple dimensions using pairwise accuracy. Dimensions include: general dialogue quality, challenging dialogue (distinguishing subtle differences), safety, and reasoning ability. It provides a standardized comparison framework that helps diagnose an RM&#39;s strengths and weaknesses.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Can RewardBench results directly predict an RM&#39;s actual performance in RLHF?
+Not entirely. Pairwise accuracy on a benchmark is a necessary but not sufficient condition — an RM&#39;s performance on a benchmark is not fully correlated with whether it will encounter reward hacking during RLHF optimization; online evaluation is also needed.</p>
+</blockquote>
+</details><hr>
+<h3 id="sec-31">L3 — Advanced</h3>
+<hr>
+<details>
+<summary>Q12: From a theoretical perspective, why is KL constraint necessary when the RM is imperfect?</summary><p><strong>A:</strong> When <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mtext>RM</mtext></msub><mo mathvariant="normal">≠</mo><msub><mi>r</mi><mtext>true</mtext></msub></mrow><annotation encoding="application/x-tex">r_{\text{RM}} \neq r_{\text{true}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel"><span class="mrel"><span class="mord vbox"><span class="thinbox"><span class="rlap"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="inner"><span class="mord"><span class="mrel"></span></span></span><span class="fix"></span></span></span></span></span><span class="mspace nobreak"></span><span class="mrel">=</span></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">true</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>, unconstrained maximization of <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mtext>RM</mtext></msub></mrow><annotation encoding="application/x-tex">r_{\text{RM}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> can cause <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mtext>true</mtext></msub></mrow><annotation encoding="application/x-tex">r_{\text{true}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">true</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> to decrease (reward hacking). The KL constraint is equivalent to optimizing within a local region where the RM is reliable — the RM is accurate near the training distribution, and KL ensures the policy does not leave this &quot;trust region.&quot; This aligns with the trust region concept in TRPO/PPO. When KL is 0, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi><mo>=</mo><msub><mi>π</mi><mtext>ref</mtext></msub></mrow><annotation encoding="application/x-tex">\pi = \pi_{\text{ref}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>; when KL is small, RM reliability is high.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Are there types of reward hacking that KL penalty cannot prevent?
+Yes — if reward hacking occurs within a low-KL region near <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mtext>ref</mtext></msub></mrow><annotation encoding="application/x-tex">\pi_{\text{ref}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> (e.g., simply adding a few flattering words), KL penalty cannot stop it. In such cases, a better RM is needed.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q13: Design a complete iterative RLHF system and describe its architecture and key decision points.</summary><p><strong>A:</strong></p>
+<pre><code class="hljs">Architecture:
+π₀ (SFT model)
+   ↓
+[<span class="hljs-meta">Data generation</span>] π_k generates → N responses per prompt
+   ↓
+[<span class="hljs-meta">Preference annotation</span>] <span class="hljs-function">Human annotations <span class="hljs-keyword">or</span> RM <span class="hljs-title">annotations</span> (<span class="hljs-params"><span class="hljs-keyword">on</span>-policy data</span>)
+   ↓
+[RM update] Fine-tune RM_k <span class="hljs-keyword">on</span> <span class="hljs-keyword">new</span> data → RM_</span>{k+<span class="hljs-number">1</span>}
+   ↓
+[<span class="hljs-meta">Policy optimization</span>] RLHF (PPO) <span class="hljs-keyword">with</span> RM_{k+<span class="hljs-number">1</span>}, KL→π_ref
+   ↓
+[<span class="hljs-meta">Evaluation</span>] Reward curves, KL curves, human evaluation, reward hacking detection
+   ↓
+Repeat k = <span class="hljs-number">1</span>, <span class="hljs-number">2</span>, ...
+</code></pre>
+<p>Key decision points:</p>
+<ul>
+<li>Iteration frequency (how many RL steps before updating the RM)</li>
+<li>Whether to collect human annotations each round (high cost) vs. using RM self-annotation</li>
+<li>Choice of KL target value</li>
+<li>When to stop iterating (reward saturation / human evaluation target met)</li>
+</ul>
+<blockquote>
+<p><strong>Follow-up:</strong> How do you detect when iteration should stop? What are the potential risks of continuous iteration?
+Stop when human evaluation scores stop improving, KL continues to increase, or mode collapse occurs. Continued iteration may cause the policy to converge toward the RM&#39;s specific preferences, losing diversity.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q14: Compare PRM's Monte Carlo estimation method with direct human annotation; analyze the bias-variance trade-off of each.</summary><p><strong>A:</strong> <strong>MC estimation:</strong> Sample K rollouts from each step and use final accuracy as the reward. Bias comes from limited sampling (estimates are imprecise when K is small); variance comes from sampling randomness. Larger K is more accurate but more expensive. <strong>Human annotation:</strong> Theoretically unbiased but constrained by annotator capability/consistency; subject to systematic bias and noise. MC estimation is scalable but has systematic bias; human annotation is accurate but not scalable. A hybrid approach (small-scale human annotation + MC expansion) is common practice.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Under what conditions does MC estimation fail severely?
+When the downstream search space from a given step is extremely large and correct answers are extremely rare (e.g., complex math problems), even many rollouts may all fail, causing zero reward for correct steps (false negatives).</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q15: How would you design an evaluation framework that is robust to reward hacking?</summary><p><strong>A:</strong> Multiple layers of defense are needed:</p>
+<ol>
+<li><strong>RM internal metrics:</strong> Pairwise accuracy (in-distribution vs. OOD), calibration</li>
+<li><strong>Proxy metric monitoring:</strong> KL curves, reward distribution drift, generation length changes, n-gram repetition rate</li>
+<li><strong>Blind human evaluation:</strong> Randomly sample outputs for human scoring; compare against RM scores</li>
+<li><strong>Adversarial test sets:</strong> Construct test cases with known reward hacking patterns</li>
+<li><strong>Multi-RM consistency:</strong> Declining score correlation across multiple RMs as an early warning signal</li>
+<li><strong>A/B testing:</strong> End-user satisfaction as the ultimate evaluation</li>
+</ol>
+<blockquote>
+<p><strong>Follow-up:</strong> In practice, which layer is most often overlooked but most critical?
+OOD detection is most often overlooked — people typically only look at in-distribution accuracy, but RM performance on the OOD distribution generated by the policy is what determines whether reward hacking occurs.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q16: Discuss the impact of LLM-as-Judge self-preference bias on benchmark leaderboards.</summary><p><strong>A:</strong> If a mainstream LLM-as-Judge (e.g., GPT-4) has self-preference bias, models stylistically similar to it will rank higher on leaderboards, distorting rankings. For example, if a model is from the same family as the judge or trained on similar data, it may receive disproportionately high scores. This creates judge sensitivity in benchmark results — rankings depend on judge selection — undermining the comparability and credibility of leaderboards.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> How would you design a leaderboard that is robust to judge bias?
+Use multiple heterogeneous judges (different vendors, different sizes); report inter-judge agreement; disclose the relationship between the judge and each model; and incorporate human evaluation as an anchor.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q17: Why is "the RM's generalization ability the most critical bottleneck in RLHF"?</summary><p><strong>A:</strong> The entire RLHF optimization loop relies on the RM as its objective function. The RM&#39;s capability ceiling determines the ceiling of policy optimization. Specifically: (1) Poor RM generalization → reward hacking; (2) Biased RM → policy inherits the bias; (3) Unreliable RM on OOD → iterative training also fails to improve it; (4) RM cannot evaluate quality dimensions beyond its training distribution → the policy cannot improve on those dimensions. All other techniques (KL, ensemble, iteration) are compensating for insufficient RM generalization.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Can scaling up the RM (increasing parameter count) systematically solve the generalization problem?
+Larger RMs do have better generalization (higher capacity, better feature representations), but cannot fully solve it — because the fundamental bottleneck is sometimes the noise and incompleteness of the preference data itself, not model capacity.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q18: From an information-theoretic perspective, why is pairwise more efficient than pointwise?</summary><p><strong>A:</strong> Human preference judgments are fundamentally <strong>ordinal</strong> information rather than <strong>cardinal</strong> information. Pairwise methods directly leverage ordinal information (A &gt; B) with minimal information loss; pointwise requires humans to map to an absolute scale (e.g., 1–5), introducing additional scale calibration noise. From an information-theoretic perspective, a portion of the information in each pointwise annotation is &quot;wasted&quot; on scale noise. Pairwise therefore has higher sample efficiency.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Is there a way to recover absolute scores from pairwise data?
+The latent scores of each response can be recovered by solving for the MLE of the BT model, but the absolute values only have relative meaning and require an additional anchor point to determine the scale.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q19: Compare DPO and RLHF in handling reward hacking — similarities and differences.</summary><p><strong>A:</strong> <strong>Similarities:</strong> Both rely on implicit/explicit reward signals in preference data; both are subject to the constraints of Goodhart&#39;s Law. <strong>Differences:</strong> (1) RLHF has an explicit RM that can be attacked and diagnosed; DPO implicitly encodes rewards, making it hard to inspect in isolation; (2) RLHF allows flexible adjustments via KL, ensembles, and iteration; DPO&#39;s β is similar to a KL penalty but offers different control granularity; (3) DPO is trained on off-policy data, facing more severe distribution shift; (4) RLHF&#39;s PPO is inherently on-policy, which to some extent partially mitigates distribution shift.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Are there forms of reward hacking unique to RLHF that DPO would not encounter?
+Issues specific to RLHF include: the explicit RM&#39;s OOD scoring failures, and instability in PPO training leading to sudden policy changes. DPO does not encounter explicit RM OOD problems, but faces implicit reward distribution shift problems — different in form but similar in nature.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q20a (L3): What practical guidance does the scaling law from Gao et al. 2022 offer for setting KL penalty strength?</summary><p><strong>A:</strong> The paper&#39;s core finding is that in their experimental setup, increasing the KL penalty coefficient <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> does not improve the gold score–KL curve (the frontier); the effect is equivalent to early stopping on the same curve. This implies:</p>
+<ol>
+<li><p><strong><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> cannot be tuned as a generalization measure</strong>: Increasing <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> constrains the policy to deviate less from the reference model, reducing KL consumption, but does not make the RM more robust to the same KL shift; &quot;being safer&quot; is only because optimization stops earlier, not because the RM itself improved.</p>
+</li>
+<li><p><strong>The true role of KL penalty</strong>: Preventing the policy from moving too far in a single step (stabilizing training), not fundamentally solving reward hacking. What is truly needed is improvement in RM generalization itself (more data, larger models, iterative re-training).</p>
+</li>
+<li><p><strong>Practical implication</strong>: One should not rely on increasing <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> to &quot;buy&quot; more optimization headroom; if the gold score has already peaked, the RM should be retrained rather than continuing to strengthen KL constraints on the same RM.</p>
+</li>
+</ol>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p><strong>Honesty note</strong>: The paper&#39;s authors explicitly note that this conclusion is &quot;sensitive to hyperparameters&quot; and is not guaranteed to hold in all settings.</p>
+</div>
+<blockquote>
+<p><strong>Follow-up:</strong> BoN and RL have different functional forms (BoN is <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo stretchy="false">(</mo><mi>α</mi><mo>−</mo><mi>β</mi><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">d(\alpha - \beta d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">d</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span>, RL is <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo stretchy="false">(</mo><mi>α</mi><mo>−</mo><mi>β</mi><mi>log</mi><mo>⁡</mo><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">d(\alpha - \beta \log d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">d</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span>) — what does this tell us?
+BoN&#39;s quadratic form means over-optimization deteriorates with acceleration (decline is faster at larger <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span>); RL&#39;s logarithmic form means deterioration is slower but sustained. Therefore, for the same KL &quot;budget,&quot; BoN is more efficient but also collapses faster; one should not directly compare optimization quantity across methods using KL, as the two obey different over-optimization dynamics.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q20: If you were designing the next generation of RM, what do you think are the three most important improvement directions?</summary><p><strong>A:</strong> (Open-ended question; three key directions below)</p>
+<ol>
+<li><p><strong>Stronger generalization and OOD robustness:</strong> Current RMs perform well in-distribution but collapse out-of-distribution. Better architectural design (e.g., uncertainty-aware RM), adversarial training, and broader training data coverage are needed.</p>
+</li>
+<li><p><strong>Multi-dimensional disentangled scoring:</strong> Decouple helpfulness, safety, factuality, style, and other dimensions into independent scoring heads, avoiding compression of information into a single scalar. This also allows different optimization weights for different dimensions.</p>
+</li>
+<li><p><strong>Self-improving RM:</strong> Give the RM self-calibration capability — continuously detecting during RLHF whether its own predictions are consistent with actual preferences, and updating automatically. Reduces reliance on human annotation.</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>Follow-up:</strong> What potential conflicts exist between these three directions?
+Multi-dimensional scoring increases model complexity, which may affect generalization; self-improvement mechanisms may introduce systematic bias if unreliable; uncertainty estimation is computationally expensive in high-dimensional spaces. Trade-offs must be made in engineering practice.</p>
+</blockquote>
+</details><hr>
+<h2 id="sec-32">Appendix: Key Terminology Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Chinese</th>
+<th>Brief Definition</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Reward Model (RM)</td>
+<td>奖励模型</td>
+<td>Scoring function learned from preference data</td>
+</tr>
+<tr>
+<td>RLHF</td>
+<td>基于人类反馈的强化学习</td>
+<td>RL optimization using RM signals</td>
+</tr>
+<tr>
+<td>Bradley-Terry Model</td>
+<td>布拉德利-特里模型</td>
+<td>Probabilistic model for pairwise comparison</td>
+</tr>
+<tr>
+<td>ORM</td>
+<td>结果奖励模型</td>
+<td>Scores only the final output</td>
+</tr>
+<tr>
+<td>PRM</td>
+<td>过程奖励模型</td>
+<td>Scores each reasoning step</td>
+</tr>
+<tr>
+<td>Reward Hacking</td>
+<td>奖励欺骗</td>
+<td>Exploiting RM weaknesses for high scores</td>
+</tr>
+<tr>
+<td>KL Divergence</td>
+<td>KL 散度</td>
+<td>Measure of the difference between two distributions</td>
+</tr>
+<tr>
+<td>Distribution Shift</td>
+<td>分布偏移</td>
+<td>Mismatch between training and evaluation data distributions</td>
+</tr>
+<tr>
+<td>Best-of-N (BoN)</td>
+<td>N选一</td>
+<td>Sample N responses and select the highest-scoring one</td>
+</tr>
+<tr>
+<td>LLM-as-Judge</td>
+<td>大模型作评估者</td>
+<td>Using an LLM to replace human evaluation</td>
+</tr>
+<tr>
+<td>Length Bias</td>
+<td>长度偏差</td>
+<td>RM preference for longer responses</td>
+</tr>
+<tr>
+<td>Self-Preference Bias</td>
+<td>自我偏好偏差</td>
+<td>LLM preference for responses in its own style</td>
+</tr>
+<tr>
+<td>Inter-annotator Agreement</td>
+<td>标注者间一致性</td>
+<td>Degree of consistency across different annotators</td>
+</tr>
+<tr>
+<td>Trust Region</td>
+<td>信赖域</td>
+<td>Safe update region in optimization</td>
+</tr>
+<tr>
+<td>Credit Assignment</td>
+<td>信用分配</td>
+<td>Attributing final outcomes to individual steps</td>
+</tr>
+<tr>
+<td>Elo Rating</td>
+<td>Elo 排名</td>
+<td>Dynamic scoring system based on win/loss outcomes</td>
+</tr>
+<tr>
+<td>Plackett-Luce Model</td>
+<td>Plackett-Luce 模型</td>
+<td>Probabilistic model for ranked data</td>
+</tr>
+<tr>
+<td>DPO</td>
+<td>直接偏好优化</td>
+<td>Preference learning that bypasses an explicit RM</td>
+</tr>
+<tr>
+<td>Conservative Estimation</td>
+<td>保守估计</td>
+<td>Strategy of taking the minimum score in an ensemble</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>This cheatsheet is for study reference only. For specific numbers, refer to the original papers and official leaderboards.</em> <!-- CLAUDE-REVIEW: verify number --></p>
+<h2 id="sec-33">Extended L3</h2>
+<details>
+<summary>Q: When designing RMs for "next-generation" foundation models (e.g., with stronger reasoning and planning capabilities), what fundamental challenges might existing evaluation paradigms (such as RewardBench) face?</summary><p><strong>A:</strong> The core challenge lies in the leap in complexity of the object being evaluated. Most existing benchmarks target relatively standard dialogue or simple reasoning tasks. For agents capable of long-horizon planning, tool use, or complex sub-task decomposition, the RM needs to evaluate not just the quality of a single response, but the <strong>overall effectiveness of an interaction trajectory</strong> and the <strong>soundness of long-term decisions</strong>. This requires evaluation paradigms to shift from &quot;scoring static snippets&quot; to &quot;evaluating dynamic sequences,&quot; and calls for new metrics that can understand state transitions and world models — a fundamental expansion of the capability dimensions required of RMs.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> How should RM training data be constructed under this new paradigm?
+The shift needs to go from &quot;preference pairs&quot; to &quot;trajectory comparison&quot; data, potentially involving multi-step interactions in simulated environments. Annotation will rely more heavily on automated verification (e.g., task success rate) and sandboxed testing in advanced simulators; the feasibility of pure human annotation will drop sharply.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q: What are the fundamental difficulties in applying Process Reward Models (PRM) to open-ended generation tasks (e.g., creative writing)?</summary><p><strong>A:</strong> The fundamental difficulty lies in the <strong>ambiguity of &quot;process&quot; definition and the subjectivity of evaluation</strong>. In mathematical reasoning, &quot;steps&quot; have clear logical boundaries and objective correctness criteria. But in creative writing, the transitions between paragraphs, the construction of imagery, and the build-up of emotion have no objective standards; their quality is highly dependent on subjective taste and holistic context. As a result, collecting reliable step-by-step annotations for PRM is extremely difficult, and automated evaluation (e.g., MC estimation) also fails due to the lack of a clear &quot;correct answer.&quot;</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Should PRM be abandoned entirely for open-domain tasks, or are there compromises?
+A &quot;coarse-grained PRM&quot; or &quot;hybrid reward&quot; approach can be adopted. For example, divide the writing process into a small number of high-level &quot;stages&quot; (e.g., ideation, development, conclusion), or combine ORM&#39;s holistic reward with process rewards at key turning points (e.g., plot climaxes), to balance evaluation granularity with feasibility.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q: From a game-theoretic perspective, can reward hacking be viewed as a "red team–blue team" dynamic game between the policy model and the reward model? What does this imply for designing mitigations?</summary><p><strong>A:</strong> Yes, this is essentially a non-cooperative game. The policy model (blue team) aims to discover and exploit vulnerabilities in the RM&#39;s (red team&#39;s) decision boundary to maximize rewards. Traditional mitigation strategies (such as fixed KL penalties) are &quot;static defenses,&quot; whereas the game-theoretic perspective suggests adopting <strong>dynamic, adaptive adversarial strategies</strong>. For example, a dedicated &quot;red team&quot; RM can be trained whose objective is not to score responses but to actively find patterns that let the current policy obtain inflated rewards, and the discovered vulnerabilities are then used to update (harden) the primary RM.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> What stability and cost challenges might this adaptive adversarial approach face in practice?
+The main challenge is that training dynamics may be unstable, with both parties entering an &quot;arms race&quot; that causes the optimization objective to drift continuously. Maintaining multiple adversarial models also introduces significant compute and coordination overhead.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q: How does RM calibration affect the RLHF optimization process? What specific risks does an "accurate but uncalibrated" RM pose?</summary><p><strong>A:</strong> Calibration refers to whether an RM&#39;s output scores truthfully reflect the absolute probability or expected value of response quality. An &quot;accurate but uncalibrated&quot; RM may rank correctly while its absolute score values or distribution have systematic bias. In RLHF, this can lead to <strong>misjudgment of optimization intensity</strong>: for example, uniformly inflated RM scores may cause the optimizer to believe the policy is already good and stop too early; or a narrow scoring range for small quality differences may result in insufficient policy update momentum (weak gradient signal). The KL penalty term depends on the relative magnitude of rewards; an uncalibrated RM may invalidate this trade-off.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> In engineering practice, what methods can diagnose and improve RM calibration?
+Calibration curves can be plotted: segment RM prediction scores and compare the true quality (human annotation or task success rate) within each segment. Improvement methods include adding calibration regularization terms to the RM training loss, or post-processing RM outputs at inference time (e.g., temperature scaling).</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q: When integrating safety as a hard constraint (rather than an optimization objective) into the RM framework, what is the theoretically most rigorous formalization?</summary><p><strong>A:</strong> The most rigorous approach is to model the problem as a <strong>constrained optimization problem</strong>, rather than a simple multi-objective weighted sum. Specifically, the optimization objective remains maximizing the RM score on the primary quality dimension (e.g., helpfulness), subject to a set of safety constraints (e.g., RM_safety(x, y) &gt; τ). Theoretically, this can be solved via Lagrange multipliers or projected gradient methods, ensuring the policy optimizes within the safety-feasible set. This is more robust to the safety objective being sacrificed compared to mixing safety and helpfulness into a single score.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> What is the main difficulty in setting an explicit threshold τ for safety constraints (e.g., &quot;harmful probability &lt; 0.1%&quot;) in practice?
+The core difficulty is the fuzziness and context-dependence of safety boundaries. A response that is &quot;safe&quot; in most contexts may be unsafe in specific sensitive contexts. Therefore, a globally fixed τ is unrealistic; context-dependent dynamic adjustment is needed, which places higher demands on both the RM and the constraint system.</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q: Beyond ensembles and uncertainty filtering, what more active roles can RM uncertainty estimation play during RLHF training?</summary><p><strong>A:</strong> Uncertainty estimation can actively guide training data collection and exploration strategies, enabling <strong>active learning</strong>. For example, within the training loop, priority can be given to sampling and human annotation in prompt-response regions where RM uncertainty is high, to improve the RM most efficiently. Furthermore, during policy optimization, the agent can be encouraged to actively explore high-uncertainty regions (i.e., the RM&#39;s knowledge boundary) to discover potentially new high-quality strategies; this is analogous to the exploration-exploitation trade-off in Bayesian optimization.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> How can uncertainty-based exploration be specifically implemented in on-policy algorithms such as PPO in RLHF?
+RM uncertainty can be incorporated as part of the exploration reward, encouraging the policy to generate responses that the RM finds &quot;surprising&quot; or &quot;uncertain.&quot; Specifically, add an exploration term positively correlated with uncertainty to the final reward, but carefully balance it to avoid generating meaningless random outputs.</p>
+</blockquote>
+</details>
+</main>
+</div>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav.toc a'));
+  if(!links.length||!('IntersectionObserver' in window))return;
+  var byId={};
+  links.forEach(function(a){byId[a.getAttribute('href').replace(/^#/,'')]=a;});
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting)return;
+      links.forEach(function(l){l.classList.remove('active');});
+      var a=byId[e.target.id];if(a)a.classList.add('active');
+    });
+  },{rootMargin:'-12% 0px -75% 0px'});
+  links.forEach(function(a){var el=document.getElementById(a.getAttribute('href').replace(/^#/,''));if(el)io.observe(el);});
+})();
+(function(){
+  // Print degradation: force every collapsed <details> open while printing, restore after.
+  var stash=[];
+  window.addEventListener('beforeprint',function(){
+    stash=[];
+    document.querySelectorAll('details:not([open])').forEach(function(d){stash.push(d);d.open=true;});
+  });
+  window.addEventListener('afterprint',function(){
+    stash.forEach(function(d){if(d.isConnected)d.open=false;});stash=[];
+  });
+})();
+</script>
+</body>
+</html>

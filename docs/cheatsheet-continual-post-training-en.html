@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>📍 学习路径 / Roadmap</title>
+<title>Continual / Lifelong Post-training (production-validated methods only)</title>
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="vendor/hl/github.min.css">
 <link rel="stylesheet" href="vendor/hl/github-dark.min.css" media="(prefers-color-scheme: dark)">
@@ -132,56 +132,57 @@
 </style>
 </head>
 <body class="">
-<nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-00-roadmap-en.html">EN ⇄</a></nav>
-<header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">📍 学习路径 / Roadmap</h1><div class="hero-rule"></div></header>
+<nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-continual-post-training.html">中文 ⇄</a></nav>
+<header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Continual / Lifelong Post-training (production-validated methods only)</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1 · 打基础 / Foundations</a></li><li class="lv2"><a href="#sec-1">2 · LLM 架构 / Architecture</a></li><li class="lv2"><a href="#sec-2">3 · PEFT</a></li><li class="lv2"><a href="#sec-3">4 · Post-training 主线 / Core</a></li><li class="lv2"><a href="#sec-4">5 · 推理-RL 前沿 / Frontier</a></li><li class="lv2"><a href="#sec-5">6 · 工程 &amp; 收尾 / Systems</a></li><li class="lv2"><a href="#sec-6">7 · 持续 / 终身 / Continual</a></li><li class="lv2"><a href="#sec-7">8 · 长程 / Agentic / Long-horizon</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. What &quot;Continual&quot; Looks Like in Production</a></li><li class="lv2"><a href="#sec-1">2. ✅ Production-Validated Toolbox</a></li><li class="lv3"><a href="#sec-2">2.1 Data Replay / Rehearsal — the workhorse</a></li><li class="lv3"><a href="#sec-3">2.2 Low Learning Rate + Few Epochs + PEFT</a></li><li class="lv3"><a href="#sec-4">2.3 KL Regularization Against the Base</a></li><li class="lv3"><a href="#sec-5">2.4 Model Merging / Weight Averaging</a></li><li class="lv3"><a href="#sec-6">2.5 Distillation Consolidation</a></li><li class="lv2"><a href="#sec-7">3. ❌ Not Production-Validated (Academic — Not Industry Standard)</a></li><li class="lv2"><a href="#sec-8">4. Honestly Leveraging Your CL Background</a></li><li class="lv2"><a href="#sec-9">Stratified Interview Follow-ups</a></li><li class="lv3"><a href="#sec-10">L1 Basics</a></li><li class="lv3"><a href="#sec-11">L2 Intermediate</a></li><li class="lv3"><a href="#sec-12">L3 Deep Dive</a></li></ul></nav>
 <main id="out"><blockquote>
-<p>建议按此顺序过 playbook。每个主题:先读 <strong>cheatsheet</strong> 理解 → 做对应 <strong>drill</strong> 手撕 → 用页内 L1/L2/L3 自测。链接直达各页。</p>
+<p>Models are <strong>iteratively updated</strong> (new data / new capabilities / new alignment rounds) → catastrophic forgetting and capability regression are real problems at scale.
+⚠️ This page <strong>only covers methods validated in large-scale production</strong>; classical academic CL algorithms are listed separately and explicitly marked &quot;not production-validated&quot; — do not cite them as industry-standard answers in interviews.</p>
 </blockquote>
-<h2 id="sec-0">1 · 打基础 / Foundations</h2>
+<h2 id="sec-0">1. What &quot;Continual&quot; Looks Like in Production</h2>
+<p>Not the textbook online-streaming continual learning setup, but: <strong>periodic retraining from a base / checkpoint with adjusted data mixing ratios</strong>. Goal = add new capabilities / new alignment while not degrading existing capabilities (avoid alignment tax / regression).</p>
+<h2 id="sec-1">2. ✅ Production-Validated Toolbox</h2>
+<h3 id="sec-2">2.1 Data Replay / Rehearsal — the workhorse</h3>
+<p>Mix a certain proportion of <strong>old / general data</strong> (instruction data mixing ratio) during continual fine-tuning. The simplest and most effective anti-forgetting measure; the engineering focus is on ratio, deduplication, and quality filtering.</p>
+<h3 id="sec-3">2.2 Low Learning Rate + Few Epochs + PEFT</h3>
+<p>Small-step fine-tuning limits weight drift; LoRA / adapters enable <strong>cheap incremental adaptation + change isolation</strong> (a bad adapter can simply be discarded).</p>
+<h3 id="sec-4">2.3 KL Regularization Against the Base</h3>
+<p>The RLHF term <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mtext> </mtext><mrow><mi mathvariant="normal">K</mi><mi mathvariant="normal">L</mi></mrow><mo stretchy="false">(</mo><msub><mi>π</mi><mi>θ</mi></msub><mtext> </mtext><mi mathvariant="normal">∥</mi><mtext> </mtext><msub><mi>π</mi><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">f</mi></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\beta\,\mathrm{KL}(\pi_\theta\,\|\,\pi_{\mathrm{ref}})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathrm">KL</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">∥</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathrm mtight" style="margin-right:0.0778em;">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> is fundamentally about <strong>anchoring the policy near the base</strong> to prevent drift and forgetting.</p>
+<h3 id="sec-5">2.4 Model Merging / Weight Averaging</h3>
 <ul>
-<li><a href="cheatsheet-ml-dl-fundamentals.html">ml-dl-fundamentals</a> — 优化器 / 正则 / 归一化 / 反向传播</li>
-<li><a href="cheatsheet-math-and-stats.html">math-and-stats</a> — 概率 / 线代(SVD→低秩)/ KL / 信息论</li>
-<li>手撕:<a href="drill-cross-entropy.html">cross-entropy</a> · <a href="drill-adamw.html">adamw</a></li>
+<li><strong>Model soups</strong> (averaging multiple fine-tuned checkpoints), <strong>task arithmetic</strong> (task-vector addition/subtraction), <strong>EMA</strong>, <strong>WiSE-FT</strong>.</li>
+<li>Averaging / soup is well-validated; <strong>TIES / DARE</strong> are newer and require your own validation before production use.</li>
 </ul>
-<h2 id="sec-1">2 · LLM 架构 / Architecture</h2>
+<h3 id="sec-6">2.5 Distillation Consolidation</h3>
+<p><strong>Distill</strong> multiple experts / updated teachers into a single model to consolidate capabilities and compress multiple iterative rounds.</p>
+<h2 id="sec-7">3. ❌ Not Production-Validated (Academic — Not Industry Standard)</h2>
 <ul>
-<li><a href="cheatsheet-llm-architecture.html">llm-architecture</a> — Transformer / attention 变体 / 位置编码 / KV cache / MoE</li>
-<li>手撕:<a href="drill-attention.html">attention</a> · <a href="drill-rope.html">rope</a> · <a href="drill-kv-cache.html">kv-cache</a> · <a href="drill-gqa-mqa.html">gqa-mqa</a> · <a href="drill-swiglu-ffn.html">swiglu-ffn</a> · <a href="drill-rmsnorm.html">rmsnorm</a> · <a href="drill-sampling.html">sampling</a></li>
+<li>Regularization-based: <strong>EWC, SI, MAS</strong>; gradient-projection-based: <strong>GEM / A-GEM</strong>; architecture-based: <strong>PackNet, progressive networks</strong>.</li>
+<li>These are <strong>essentially unused</strong> in LLM-scale production — high cost/complexity, worse results than plain replay + merging + PEFT + KL.</li>
+<li>Interview framing: you may mention &quot;academically there&#39;s EWC etc.&quot;, but honestly add &quot;<strong>the production mainstream is replay / merging / PEFT / KL</strong>&quot;.</li>
 </ul>
-<h2 id="sec-2">3 · PEFT</h2>
+<h2 id="sec-8">4. Honestly Leveraging Your CL Background</h2>
+<p>Fed-TaLoRA (federated continual fine-tuning), Continual Agent → <strong>transferable insights</strong> (forgetting metrics, retention perspective, aggregation consistency).</p>
 <ul>
-<li><a href="cheatsheet-peft-methods.html">peft-methods</a> — LoRA / DoRA / 秩谱预算 / 合并推理</li>
-<li>手撕:<a href="drill-lora-forward.html">lora-forward</a> · <a href="drill-dora-forward.html">dora-forward</a></li>
+<li>✅ Honest framing: &quot;I study continual learning, so I understand why simpler replay / merging suffices in production, and where its limits lie.&quot;</li>
+<li>❌ Don&#39;t claim &quot;I&#39;ve done production-level continual post-training.&quot;</li>
 </ul>
-<h2 id="sec-3">4 · Post-training 主线 / Core</h2>
+<h2 id="sec-9">Stratified Interview Follow-ups</h2>
+<h3 id="sec-10">L1 Basics</h3>
 <ul>
-<li><a href="cheatsheet-llm-post-training.html">llm-post-training</a> — SFT / RM / RLHF / PPO / DPO 全流程</li>
-<li><a href="cheatsheet-reward-modeling-eval.html">reward-modeling-eval</a> — RM 训练 / PRM-ORM / reward hacking / 评测</li>
-<li><a href="cheatsheet-eval-and-judges.html">eval-and-judges</a> — 评测三类 / LLM-as-judge / 评测偏置 / 基准与数据污染</li>
-<li>手撕:<a href="drill-sft-loss-mask.html">sft-loss-mask</a> · <a href="drill-sequence-packing.html">sequence-packing</a> · <a href="drill-dpo-loss.html">dpo-loss</a> · <a href="drill-simpo-loss.html">simpo-loss</a> · <a href="drill-ppo-clip.html">ppo-clip</a> · <a href="drill-gae.html">gae</a> · <a href="drill-reward-margin.html">reward-margin</a></li>
+<li>Why does continual fine-tuning cause forgetting? What is the simplest effective anti-forgetting method (replay)? Why does LoRA help reduce forgetting?</li>
 </ul>
-<h2 id="sec-4">5 · 推理-RL 前沿 / Frontier</h2>
+<h3 id="sec-11">L2 Intermediate</h3>
 <ul>
-<li><a href="cheatsheet-reasoning-rl-frontier.html">reasoning-rl-frontier</a> — PPO→GRPO→DAPO·Dr.GRPO / RLVR / long-CoT</li>
-<li>手撕:<a href="drill-grpo.html">grpo</a> · <a href="drill-rloo.html">rloo</a></li>
+<li>How do you set the data mixing ratio for replay? Why does KL regularization prevent forgetting? Why does model soup / weight averaging work, and what are the prerequisites (same initialization / mode connectivity)?</li>
 </ul>
-<h2 id="sec-5">6 · 工程 &amp; 收尾 / Systems</h2>
+<h3 id="sec-12">L3 Deep Dive</h3>
 <ul>
-<li><a href="cheatsheet-ml-system-design.html">ml-system-design</a> — 微调流水线 / RLHF 分布式 / 评测体系</li>
-<li><a href="cheatsheet-coding-and-algorithms.html">coding-and-algorithms</a> — 算法题型 + ML 实现题</li>
+<li>Why are classical CL algorithms (EWC etc.) unpopular in LLM production? What are the assumptions and failure modes of task arithmetic?</li>
+<li>In a multi-round pipeline of continual SFT → DPO → RL, at which step is forgetting most severe, and how do you mitigate it?</li>
+<li>How do &quot;continual alignment&quot; and &quot;retraining&quot; trade off in terms of cost / effectiveness? When is true incremental learning worth it over full retraining?</li>
 </ul>
-<h2 id="sec-6">7 · 持续 / 终身 / Continual</h2>
-<ul>
-<li><a href="cheatsheet-continual-post-training.html">continual-post-training</a> — 灾难性遗忘 / replay / 模型合并 / KL · 只收生产验证方法</li>
-</ul>
-<h2 id="sec-7">8 · 长程 / Agentic / Long-horizon</h2>
-<ul>
-<li><a href="cheatsheet-long-horizon-agents.html">long-horizon-agents</a> — computer use / agent 工程 / 难度带奖励 / 自进化(生产 vs 前沿)</li>
-</ul>
-<hr>
-<p><strong>复习法</strong>:每题复习后标 ✅ 熟练 / ⚠️ 模糊 / ❌ 不会;之后只重刷 ⚠️/❌。面试前用首页搜索框直接跳到薄弱主题。</p>
 </main>
 </div>
 <script>

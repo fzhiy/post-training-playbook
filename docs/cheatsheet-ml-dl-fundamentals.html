@@ -42,7 +42,9 @@
   tbody tr:nth-child(even){background:var(--bg-soft)}
   tbody tr:last-child td{border-bottom:none}
   blockquote{border-left:3px solid var(--border);margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
-  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif}
+  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .lang-toggle{flex:none;border:1px solid var(--border);border-radius:999px;padding:.12em .7em;color:var(--primary);font-size:.82rem;white-space:nowrap}
+  .lang-toggle:hover{background:var(--bg-soft);text-decoration:none}
   /* 提示框 (emoji 触发, 构建时包裹) */
   .callout{border-left:4px solid;border-radius:4px;padding:.6em 1em;margin:1.1em 0;font-size:.97em}
   .callout>:first-child{margin-top:0}
@@ -130,7 +132,7 @@
 </style>
 </head>
 <body class="">
-<nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-ml-dl-fundamentals-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">ML / DL Fundamentals 公开速查手册</h1><p class="hero-sub">ML / DL Fundamentals — Public Cheat Sheet</p><div class="hero-rule"></div></header>
 <div class="layout">
 <nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">第一部分：概念与公式推导</a></li><li class="lv2"><a href="#sec-1">Part 1: Concepts &amp; Formula Derivations</a></li><li class="lv3"><a href="#sec-2">1.1 优化器 Optimizers</a></li><li class="lv3"><a href="#sec-3">1.2 学习率调度 Learning Rate Scheduling</a></li><li class="lv3"><a href="#sec-4">1.3 正则化 Regularization</a></li><li class="lv3"><a href="#sec-5">1.4 归一化 Normalization</a></li><li class="lv3"><a href="#sec-6">1.5 参数初始化 Weight Initialization</a></li><li class="lv3"><a href="#sec-7">1.6 反向传播 Backpropagation</a></li><li class="lv3"><a href="#sec-8">1.7 损失函数 Loss Functions</a></li><li class="lv3"><a href="#sec-9">1.8 混合精度训练 Mixed Precision Training</a></li><li class="lv3"><a href="#sec-10">1.9 偏差-方差分解 Bias-Variance Decomposition</a></li><li class="lv3"><a href="#sec-11">1.10 Batch Size 与梯度累积 Gradient Accumulation</a></li><li class="lv2"><a href="#sec-12">第二部分：PyTorch 代码片段</a></li><li class="lv2"><a href="#sec-13">Part 2: PyTorch Snippets (From Scratch)</a></li><li class="lv3"><a href="#sec-14">2.1 SGD + Momentum</a></li><li class="lv3"><a href="#sec-15">2.2 Adam</a></li><li class="lv3"><a href="#sec-16">2.3 AdamW（Decoupled Weight Decay）</a></li><li class="lv3"><a href="#sec-17">2.4 Cosine Annealing LR Schedule</a></li><li class="lv3"><a href="#sec-18">2.5 Layer Normalization from Scratch</a></li><li class="lv3"><a href="#sec-19">2.6 RMSNorm</a></li><li class="lv3"><a href="#sec-20">2.7 Gradient Clipping by Norm</a></li><li class="lv3"><a href="#sec-21">2.8 Mixed Precision Training (AMP)</a></li><li class="lv3"><a href="#sec-22">2.9 Gradient Checkpointing</a></li><li class="lv3"><a href="#sec-23">2.10 Focal Loss</a></li><li class="lv3"><a href="#sec-24">2.11 GELU 与 SwiGLU</a></li><li class="lv3"><a href="#sec-25">2.12 Knowledge Distillation Loss</a></li><li class="lv3"><a href="#sec-26">2.13 LR Finder（学习率搜索器）</a></li><li class="lv3"><a href="#sec-27">2.14 Gradient Accumulation</a></li><li class="lv2"><a href="#sec-28">第三部分：面试题集（25 题）</a></li><li class="lv2"><a href="#sec-29">Part 3: Interview Questions (25 Questions)</a></li><li class="lv3"><a href="#sec-30">L1 — 基础题 Basic</a></li><li class="lv3"><a href="#sec-31">L2 — 中等题 Intermediate</a></li><li class="lv3"><a href="#sec-32">L3 — 深度题 Deep</a></li><li class="lv2"><a href="#sec-33">更多 L3 深挖 / Extended L3</a></li></ul></nav>

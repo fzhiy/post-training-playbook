@@ -140,7 +140,13 @@ function extractHero(md, eyebrow) {
   return { heroHtml, body: lines.slice(consumed).join('\n') };
 }
 
-function renderDoc(md, title, outFile, eyebrow) {
+function renderDoc(md, title, outFile, eyebrow, opts) {
+  opts = opts || {};
+  const lang = opts.lang || 'zh-CN';
+  const backLabel = lang === 'en' ? '← Study Index' : '← 复习索引 / Study Index';
+  const altLink = opts.altHref
+    ? '<a class="lang-toggle" href="' + opts.altHref + '">' + opts.altLabel + '</a>'
+    : '';
   const hero = extractHero(md, eyebrow || '');
   const r = addTocAndIds(decorateCallouts(foldLongCode(highlightCode(renderWithMath(hero.body)))));
   const cls = [];
@@ -148,6 +154,9 @@ function renderDoc(md, title, outFile, eyebrow) {
   if (!r.tocHtml) cls.push('no-toc');
   const html = tpl
     .replace('{{TITLE}}', () => title)
+    .replace('{{LANG}}', () => lang)
+    .replace('{{BACK}}', () => backLabel)
+    .replace('{{ALT_LINK}}', () => altLink)
     .replace('{{BODYCLASS}}', () => cls.join(' '))
     .replace('{{HERO}}', () => hero.heroHtml)
     .replace('{{TOC}}', () => r.tocHtml)
@@ -156,12 +165,21 @@ function renderDoc(md, title, outFile, eyebrow) {
 }
 
 const items = [];
-for (const f of fs.readdirSync(path.join(ROOT, 'cheatsheets')).filter((f) => f.endsWith('.md')).sort()) {
+// CN cheatsheets are <slug>.md; an English sibling (if present) is <slug>.en.md.
+// Render the CN page (with an EN toggle when the sibling exists) + the EN page.
+for (const f of fs.readdirSync(path.join(ROOT, 'cheatsheets')).filter((f) => f.endsWith('.md') && !f.endsWith('.en.md')).sort()) {
   const slug = f.replace(/\.md$/, '');
-  const md = fs.readFileSync(path.join(ROOT, 'cheatsheets', f), 'utf8');
-  const out = 'cheatsheet-' + slug + '.html';
-  renderDoc(md, titleOf(md, slug), out, 'Cheatsheet · 题解');
-  items.push({ section: 'Cheatsheets 题解', title: titleOf(md, slug), href: out });
+  const cnMd = fs.readFileSync(path.join(ROOT, 'cheatsheets', f), 'utf8');
+  const enPath = path.join(ROOT, 'cheatsheets', slug + '.en.md');
+  const hasEn = fs.existsSync(enPath);
+  const cnOut = 'cheatsheet-' + slug + '.html';
+  const enOut = 'cheatsheet-' + slug + '-en.html';
+  renderDoc(cnMd, titleOf(cnMd, slug), cnOut, 'Cheatsheet · 题解', { lang: 'zh-CN', altHref: hasEn ? enOut : null, altLabel: 'EN ⇄' });
+  if (hasEn) {
+    const enMd = fs.readFileSync(enPath, 'utf8');
+    renderDoc(enMd, titleOf(enMd, slug), enOut, 'Cheatsheet', { lang: 'en', altHref: cnOut, altLabel: '中文 ⇄' });
+  }
+  items.push({ section: 'Cheatsheets 题解', title: titleOf(cnMd, slug), href: cnOut, enHref: hasEn ? enOut : null });
 }
 for (const d of fs.readdirSync(path.join(ROOT, 'drills')).sort()) {
   const rp = path.join(ROOT, 'drills', d, 'README.md');

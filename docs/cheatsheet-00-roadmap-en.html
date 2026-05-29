@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>📍 学习路径 / Roadmap</title>
+<title>📍 Learning Path / Roadmap</title>
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="vendor/hl/github.min.css">
 <link rel="stylesheet" href="vendor/hl/github-dark.min.css" media="(prefers-color-scheme: dark)">
@@ -132,56 +132,56 @@
 </style>
 </head>
 <body class="">
-<nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-00-roadmap-en.html">EN ⇄</a></nav>
-<header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">📍 学习路径 / Roadmap</h1><div class="hero-rule"></div></header>
+<nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-00-roadmap.html">中文 ⇄</a></nav>
+<header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">📍 Learning Path / Roadmap</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1 · 打基础 / Foundations</a></li><li class="lv2"><a href="#sec-1">2 · LLM 架构 / Architecture</a></li><li class="lv2"><a href="#sec-2">3 · PEFT</a></li><li class="lv2"><a href="#sec-3">4 · Post-training 主线 / Core</a></li><li class="lv2"><a href="#sec-4">5 · 推理-RL 前沿 / Frontier</a></li><li class="lv2"><a href="#sec-5">6 · 工程 &amp; 收尾 / Systems</a></li><li class="lv2"><a href="#sec-6">7 · 持续 / 终身 / Continual</a></li><li class="lv2"><a href="#sec-7">8 · 长程 / Agentic / Long-horizon</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1 · Foundations</a></li><li class="lv2"><a href="#sec-1">2 · LLM Architecture</a></li><li class="lv2"><a href="#sec-2">3 · PEFT</a></li><li class="lv2"><a href="#sec-3">4 · Post-training Core</a></li><li class="lv2"><a href="#sec-4">5 · Reasoning-RL Frontier</a></li><li class="lv2"><a href="#sec-5">6 · Systems &amp; Wrap-up</a></li><li class="lv2"><a href="#sec-6">7 · Continual / Lifelong</a></li><li class="lv2"><a href="#sec-7">8 · Long-horizon / Agentic</a></li></ul></nav>
 <main id="out"><blockquote>
-<p>建议按此顺序过 playbook。每个主题:先读 <strong>cheatsheet</strong> 理解 → 做对应 <strong>drill</strong> 手撕 → 用页内 L1/L2/L3 自测。链接直达各页。</p>
+<p>Recommended order for working through the playbook. For each topic: read the <strong>cheatsheet</strong> to build understanding → work through the corresponding <strong>drill</strong> → self-test with the in-page L1/L2/L3 questions. Links go directly to each page.</p>
 </blockquote>
-<h2 id="sec-0">1 · 打基础 / Foundations</h2>
+<h2 id="sec-0">1 · Foundations</h2>
 <ul>
-<li><a href="cheatsheet-ml-dl-fundamentals.html">ml-dl-fundamentals</a> — 优化器 / 正则 / 归一化 / 反向传播</li>
-<li><a href="cheatsheet-math-and-stats.html">math-and-stats</a> — 概率 / 线代(SVD→低秩)/ KL / 信息论</li>
-<li>手撕:<a href="drill-cross-entropy.html">cross-entropy</a> · <a href="drill-adamw.html">adamw</a></li>
+<li><a href="cheatsheet-ml-dl-fundamentals-en.html">ml-dl-fundamentals</a> — optimizers / regularization / normalization / backpropagation</li>
+<li><a href="cheatsheet-math-and-stats-en.html">math-and-stats</a> — probability / linear algebra (SVD → low-rank) / KL / information theory</li>
+<li>Drills: <a href="drill-cross-entropy.html">cross-entropy</a> · <a href="drill-adamw.html">adamw</a></li>
 </ul>
-<h2 id="sec-1">2 · LLM 架构 / Architecture</h2>
+<h2 id="sec-1">2 · LLM Architecture</h2>
 <ul>
-<li><a href="cheatsheet-llm-architecture.html">llm-architecture</a> — Transformer / attention 变体 / 位置编码 / KV cache / MoE</li>
-<li>手撕:<a href="drill-attention.html">attention</a> · <a href="drill-rope.html">rope</a> · <a href="drill-kv-cache.html">kv-cache</a> · <a href="drill-gqa-mqa.html">gqa-mqa</a> · <a href="drill-swiglu-ffn.html">swiglu-ffn</a> · <a href="drill-rmsnorm.html">rmsnorm</a> · <a href="drill-sampling.html">sampling</a></li>
+<li><a href="cheatsheet-llm-architecture-en.html">llm-architecture</a> — Transformer / attention variants / positional encoding / KV cache / MoE</li>
+<li>Drills: <a href="drill-attention.html">attention</a> · <a href="drill-rope.html">rope</a> · <a href="drill-kv-cache.html">kv-cache</a> · <a href="drill-gqa-mqa.html">gqa-mqa</a> · <a href="drill-swiglu-ffn.html">swiglu-ffn</a> · <a href="drill-rmsnorm.html">rmsnorm</a> · <a href="drill-sampling.html">sampling</a></li>
 </ul>
 <h2 id="sec-2">3 · PEFT</h2>
 <ul>
-<li><a href="cheatsheet-peft-methods.html">peft-methods</a> — LoRA / DoRA / 秩谱预算 / 合并推理</li>
-<li>手撕:<a href="drill-lora-forward.html">lora-forward</a> · <a href="drill-dora-forward.html">dora-forward</a></li>
+<li><a href="cheatsheet-peft-methods-en.html">peft-methods</a> — LoRA / DoRA / rank-spectrum budgeting / merge inference</li>
+<li>Drills: <a href="drill-lora-forward.html">lora-forward</a> · <a href="drill-dora-forward.html">dora-forward</a></li>
 </ul>
-<h2 id="sec-3">4 · Post-training 主线 / Core</h2>
+<h2 id="sec-3">4 · Post-training Core</h2>
 <ul>
-<li><a href="cheatsheet-llm-post-training.html">llm-post-training</a> — SFT / RM / RLHF / PPO / DPO 全流程</li>
-<li><a href="cheatsheet-reward-modeling-eval.html">reward-modeling-eval</a> — RM 训练 / PRM-ORM / reward hacking / 评测</li>
-<li><a href="cheatsheet-eval-and-judges.html">eval-and-judges</a> — 评测三类 / LLM-as-judge / 评测偏置 / 基准与数据污染</li>
-<li>手撕:<a href="drill-sft-loss-mask.html">sft-loss-mask</a> · <a href="drill-sequence-packing.html">sequence-packing</a> · <a href="drill-dpo-loss.html">dpo-loss</a> · <a href="drill-simpo-loss.html">simpo-loss</a> · <a href="drill-ppo-clip.html">ppo-clip</a> · <a href="drill-gae.html">gae</a> · <a href="drill-reward-margin.html">reward-margin</a></li>
+<li><a href="cheatsheet-llm-post-training-en.html">llm-post-training</a> — SFT / RM / RLHF / PPO / DPO full pipeline</li>
+<li><a href="cheatsheet-reward-modeling-eval-en.html">reward-modeling-eval</a> — RM training / PRM-ORM / reward hacking / evaluation</li>
+<li><a href="cheatsheet-eval-and-judges-en.html">eval-and-judges</a> — three evaluation categories / LLM-as-judge / evaluation bias / benchmarks and data contamination</li>
+<li>Drills: <a href="drill-sft-loss-mask.html">sft-loss-mask</a> · <a href="drill-sequence-packing.html">sequence-packing</a> · <a href="drill-dpo-loss.html">dpo-loss</a> · <a href="drill-simpo-loss.html">simpo-loss</a> · <a href="drill-ppo-clip.html">ppo-clip</a> · <a href="drill-gae.html">gae</a> · <a href="drill-reward-margin.html">reward-margin</a></li>
 </ul>
-<h2 id="sec-4">5 · 推理-RL 前沿 / Frontier</h2>
+<h2 id="sec-4">5 · Reasoning-RL Frontier</h2>
 <ul>
-<li><a href="cheatsheet-reasoning-rl-frontier.html">reasoning-rl-frontier</a> — PPO→GRPO→DAPO·Dr.GRPO / RLVR / long-CoT</li>
-<li>手撕:<a href="drill-grpo.html">grpo</a> · <a href="drill-rloo.html">rloo</a></li>
+<li><a href="cheatsheet-reasoning-rl-frontier-en.html">reasoning-rl-frontier</a> — PPO→GRPO→DAPO·Dr.GRPO / RLVR / long-CoT</li>
+<li>Drills: <a href="drill-grpo.html">grpo</a> · <a href="drill-rloo.html">rloo</a></li>
 </ul>
-<h2 id="sec-5">6 · 工程 &amp; 收尾 / Systems</h2>
+<h2 id="sec-5">6 · Systems &amp; Wrap-up</h2>
 <ul>
-<li><a href="cheatsheet-ml-system-design.html">ml-system-design</a> — 微调流水线 / RLHF 分布式 / 评测体系</li>
-<li><a href="cheatsheet-coding-and-algorithms.html">coding-and-algorithms</a> — 算法题型 + ML 实现题</li>
+<li><a href="cheatsheet-ml-system-design-en.html">ml-system-design</a> — fine-tuning pipelines / distributed RLHF / evaluation infrastructure</li>
+<li><a href="cheatsheet-coding-and-algorithms-en.html">coding-and-algorithms</a> — algorithm problem types + ML implementation problems</li>
 </ul>
-<h2 id="sec-6">7 · 持续 / 终身 / Continual</h2>
+<h2 id="sec-6">7 · Continual / Lifelong</h2>
 <ul>
-<li><a href="cheatsheet-continual-post-training.html">continual-post-training</a> — 灾难性遗忘 / replay / 模型合并 / KL · 只收生产验证方法</li>
+<li><a href="cheatsheet-continual-post-training-en.html">continual-post-training</a> — catastrophic forgetting / replay / model merging / KL · production-validated methods only</li>
 </ul>
-<h2 id="sec-7">8 · 长程 / Agentic / Long-horizon</h2>
+<h2 id="sec-7">8 · Long-horizon / Agentic</h2>
 <ul>
-<li><a href="cheatsheet-long-horizon-agents.html">long-horizon-agents</a> — computer use / agent 工程 / 难度带奖励 / 自进化(生产 vs 前沿)</li>
+<li><a href="cheatsheet-long-horizon-agents-en.html">long-horizon-agents</a> — computer use / agent engineering / difficulty-graded rewards / self-evolution (production vs. frontier)</li>
 </ul>
 <hr>
-<p><strong>复习法</strong>:每题复习后标 ✅ 熟练 / ⚠️ 模糊 / ❌ 不会;之后只重刷 ⚠️/❌。面试前用首页搜索框直接跳到薄弱主题。</p>
+<p><strong>Review method</strong>: after reviewing each item, mark it ✅ solid / ⚠️ fuzzy / ❌ unknown; then only re-drill ⚠️/❌. Before interviews, use the homepage search bar to jump directly to weak topics.</p>
 </main>
 </div>
 <script>

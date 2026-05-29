@@ -42,7 +42,9 @@
   tbody tr:nth-child(even){background:var(--bg-soft)}
   tbody tr:last-child td{border-bottom:none}
   blockquote{border-left:3px solid var(--border);margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
-  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif}
+  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .lang-toggle{flex:none;border:1px solid var(--border);border-radius:999px;padding:.12em .7em;color:var(--primary);font-size:.82rem;white-space:nowrap}
+  .lang-toggle:hover{background:var(--bg-soft);text-decoration:none}
   /* 提示框 (emoji 触发, 构建时包裹) */
   .callout{border-left:4px solid;border-radius:4px;padding:.6em 1em;margin:1.1em 0;font-size:.97em}
   .callout>:first-child{margin-top:0}
@@ -130,7 +132,7 @@
 </style>
 </head>
 <body class="">
-<nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-eval-and-judges-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">评测与 LLM-as-judge / Evaluation &amp; Judges</h1><div class="hero-rule"></div></header>
 <div class="layout">
 <nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. 三类评测 / Three families</a></li><li class="lv2"><a href="#sec-1">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv2"><a href="#sec-2">3. 数据污染 / Contamination</a></li><li class="lv3"><a href="#sec-3">3.1 污染类型</a></li><li class="lv3"><a href="#sec-4">3.2 检测方法</a></li><li class="lv3"><a href="#sec-5">3.3 n-gram 去重 (Deduplication)</a></li><li class="lv3"><a href="#sec-6">3.4 抗污染 benchmark 设计</a></li><li class="lv2"><a href="#sec-7">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-8">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-9">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-10">L1 基础</a></li><li class="lv3"><a href="#sec-11">L2 进阶</a></li><li class="lv3"><a href="#sec-12">L3 深挖</a></li><li class="lv2"><a href="#sec-13">更多 L3 深挖 / Extended L3</a></li></ul></nav>

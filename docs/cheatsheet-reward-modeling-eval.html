@@ -42,7 +42,9 @@
   tbody tr:nth-child(even){background:var(--bg-soft)}
   tbody tr:last-child td{border-bottom:none}
   blockquote{border-left:3px solid var(--border);margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
-  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif}
+  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .lang-toggle{flex:none;border:1px solid var(--border);border-radius:999px;padding:.12em .7em;color:var(--primary);font-size:.82rem;white-space:nowrap}
+  .lang-toggle:hover{background:var(--bg-soft);text-decoration:none}
   /* 提示框 (emoji 触发, 构建时包裹) */
   .callout{border-left:4px solid;border-radius:4px;padding:.6em 1em;margin:1.1em 0;font-size:.97em}
   .callout>:first-child{margin-top:0}
@@ -130,7 +132,7 @@
 </style>
 </head>
 <body class="">
-<nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-reward-modeling-eval-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">奖励模型 (Reward Modeling) 与评估 速查手册</h1><div class="hero-rule"></div></header>
 <div class="layout">
 <nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">LLM 后训练 (Post-Training) 中的奖励建模全景</a></li><li class="lv2"><a href="#sec-2">1. RM 训练方法 (RM Training)</a></li><li class="lv3"><a href="#sec-3">1.1 核心目标 (Core Objective)</a></li><li class="lv3"><a href="#sec-4">1.2 成对比较法 (Pairwise / Bradley-Terry Model)</a></li><li class="lv3"><a href="#sec-5">1.3 逐点评分法 (Pointwise / Regression)</a></li><li class="lv3"><a href="#sec-6">1.4 其他变体 (Other Variants)</a></li><li class="lv2"><a href="#sec-7">2. PRM vs ORM：过程奖励模型与结果奖励模型</a></li><li class="lv3"><a href="#sec-8">2.1 ORM — 结果奖励模型 (Outcome Reward Model)</a></li><li class="lv3"><a href="#sec-9">2.2 PRM — 过程奖励模型 (Process Reward Model)</a></li><li class="lv3"><a href="#sec-10">2.3 对比表 (Comparison Table)</a></li><li class="lv3"><a href="#sec-11">2.4 自动化 PRM 数据生成 (Automated PRM Data)</a></li><li class="lv2"><a href="#sec-12">3. 奖励欺骗与过度优化 (Reward Hacking &amp; Over-Optimization)</a></li><li class="lv3"><a href="#sec-13">3.1 什么是奖励欺骗 (Reward Hacking)</a></li><li class="lv3"><a href="#sec-14">3.2 Goodhart 定律视角</a></li><li class="lv3"><a href="#sec-15">3.2a Gao et al. 2022 — 过度优化幂律 (Scaling Laws for Overoptimization)</a></li><li class="lv3"><a href="#sec-16">3.3 缓解策略 (Mitigations)</a></li><li class="lv3"><a href="#sec-17">3.4 偏好数据构建 (Preference Data Construction)</a></li><li class="lv2"><a href="#sec-18">4. 长度偏差及其他 RM 病态现象 (Length Bias &amp; Other Pathologies)</a></li><li class="lv3"><a href="#sec-19">4.1 长度偏差 (Length Bias)</a></li><li class="lv3"><a href="#sec-20">4.2 位置偏差 (Position Bias)</a></li><li class="lv3"><a href="#sec-21">4.3 冗余偏差 (Verbosity / Redundancy Bias)</a></li><li class="lv3"><a href="#sec-22">4.4 确认偏差 (Confirmation / Sycophancy Bias)</a></li><li class="lv3"><a href="#sec-23">4.5 常见 RM 病态现象汇总</a></li><li class="lv2"><a href="#sec-24">5. RM / 评估者评估 (RM &amp; Judge Evaluation)</a></li><li class="lv3"><a href="#sec-25">5.1 RewardBench</a></li><li class="lv3"><a href="#sec-26">5.2 LLM-as-Judge (大模型作为评估者)</a></li><li class="lv3"><a href="#sec-27">5.3 人工评估与自动化评估的权衡</a></li><li class="lv3"><a href="#sec-28">5.4 其他评估方法</a></li><li class="lv2"><a href="#sec-29">6. 面试题 (Interview Questions)</a></li><li class="lv3"><a href="#sec-30">L1 — 基础 (Fundamentals)</a></li><li class="lv3"><a href="#sec-31">L2 — 中级 (Intermediate)</a></li><li class="lv3"><a href="#sec-32">L3 — 高级 (Advanced)</a></li><li class="lv2"><a href="#sec-33">附录：关键术语速查 (Glossary)</a></li><li class="lv2"><a href="#sec-34">更多 L3 深挖 / Extended L3</a></li></ul></nav>
