@@ -67,17 +67,17 @@ function addTocAndIds(html) {
     toc.push({ lvl: +lvl, id, text: inner.replace(/<[^>]+>/g, '').trim() });
     return '<h' + lvl + ' id="' + id + '">' + inner + '</h' + lvl + '>';
   });
-  if (toc.length < 3) return html;
+  if (toc.length < 3) return { html, tocHtml: '' };
   const items = toc.map((t) => '<li class="lv' + t.lvl + '"><a href="#' + t.id + '">' + t.text + '</a></li>').join('');
-  const nav = '<details class="toc" open><summary>目录 / Contents (' + toc.length + ')</summary><ul>' + items + '</ul></details>';
-  return /<\/h1>/.test(html) ? html.replace('</h1>', '</h1>' + nav) : nav + html;
+  const tocHtml = '<nav class="toc"><div class="toc-h">目录 / Contents</div><ul>' + items + '</ul></nav>';
+  return { html, tocHtml };
 }
 
 // 3a) Auto-fold long code blocks (>25 lines) into a collapsible <details> (build-time).
 function foldLongCode(html) {
   return html.replace(/<pre>[\s\S]*?<\/pre>/g, (m) => {
     const lines = (m.match(/\n/g) || []).length + 1;
-    if (lines < 26) return m;
+    if (lines < 30) return m;
     return '<details class="code-fold"><summary>' + lines + ' 行 / lines</summary>' + m + '</details>';
   });
 }
@@ -93,9 +93,11 @@ function decorateCallouts(html) {
 }
 
 function renderDoc(md, title, outFile) {
-  const content = addTocAndIds(decorateCallouts(foldLongCode(highlightCode(renderWithMath(md)))));
-  const bodyClass = /class="cite-note"/.test(content) ? 'has-sn' : '';
-  const html = tpl.replace('{{TITLE}}', () => title).replace('{{BODYCLASS}}', () => bodyClass).replace('{{CONTENT}}', () => content);
+  const r = addTocAndIds(decorateCallouts(foldLongCode(highlightCode(renderWithMath(md)))));
+  const cls = [];
+  if (/class="cite-note"/.test(r.html)) cls.push('has-sn');
+  if (!r.tocHtml) cls.push('no-toc');
+  const html = tpl.replace('{{TITLE}}', () => title).replace('{{BODYCLASS}}', () => cls.join(' ')).replace('{{TOC}}', () => r.tocHtml).replace('{{CONTENT}}', () => r.html);
   fs.writeFileSync(path.join(OUT, outFile), html);
 }
 
