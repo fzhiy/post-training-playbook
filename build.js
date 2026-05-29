@@ -59,12 +59,15 @@ function highlightCode(html) {
 }
 
 // 3) Add heading ids + a per-page Table of Contents (skipped for short pages).
+// In-content "目录 / Table of Contents" headings are dropped from the sidebar TOC
+// (redundant with it) but still get an id so anchors keep working.
 function addTocAndIds(html) {
   const toc = [];
   let i = 0;
   html = html.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (m, lvl, inner) => {
     const id = 'sec-' + (i++);
-    toc.push({ lvl: +lvl, id, text: inner.replace(/<[^>]+>/g, '').trim() });
+    const text = inner.replace(/<[^>]+>/g, '').trim();
+    if (!/^(目录|table of contents|contents)/i.test(text)) toc.push({ lvl: +lvl, id, text });
     return '<h' + lvl + ' id="' + id + '">' + inner + '</h' + lvl + '>';
   });
   if (toc.length < 3) return { html, tocHtml: '' };
@@ -82,22 +85,62 @@ function foldLongCode(html) {
   });
 }
 
-// 3b) Wrap emoji-prefixed blockquotes as colored callouts (build-time; no runtime deps).
+// 3b) Wrap emoji-prefixed blockquotes as colored callouts with a text label
+//     (build-time; no runtime deps). The triggering emoji is stripped — the label replaces it.
 function decorateCallouts(html) {
-  const map = [['💡', 'info'], ['📝', 'info'], ['✅', 'good'], ['⚠', 'warn'], ['🚨', 'bad'], ['❌', 'bad']];
+  const map = [['💡', 'info', '提示 / Note'], ['📝', 'info', '提示 / Note'], ['✅', 'good', '要点 / Key'], ['⚠', 'warn', '注意 / Caution'], ['🚨', 'bad', '陷阱 / Pitfall'], ['❌', 'bad', '陷阱 / Pitfall']];
   return html.replace(/<blockquote>([\s\S]*?)<\/blockquote>/g, (m, inner) => {
     const text = inner.replace(/<[^>]+>/g, '').replace(/^\s+/, '');
-    for (const [emo, cls] of map) if (text.startsWith(emo)) return '<div class="callout callout-' + cls + '">' + inner + '</div>';
+    for (const [emo, cls, label] of map) {
+      if (text.startsWith(emo)) {
+        // Strip the leading emoji + optional variation selector + following space,
+        // wherever it sits (it may be wrapped in <strong>, so not always right after <p>).
+        const stripped = inner.replace(new RegExp(emo + '️?\\s*'), '');
+        return '<div class="callout callout-' + cls + '"><div class="callout-label">' + label + '</div>' + stripped + '</div>';
+      }
+    }
     return m;
   });
 }
 
-function renderDoc(md, title, outFile) {
-  const r = addTocAndIds(decorateCallouts(foldLongCode(highlightCode(renderWithMath(md)))));
+// 3c) Pull the leading H1 (+ optional 2nd consecutive heading as subtitle) out of the
+//     body into an ARIS-style hero header (eyebrow + title + subtitle + double rule).
+//     No subtitle is fabricated when the page has only a single H1.
+function extractHero(md, eyebrow) {
+  const lines = md.split('\n');
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === '') i++;
+  const h1 = lines[i] && lines[i].match(/^#\s+(.+?)\s*$/);
+  if (!h1) return { heroHtml: '', body: md };
+  const title = h1[1];
+  let consumed = i + 1;
+  let j = consumed;
+  while (j < lines.length && lines[j].trim() === '') j++;
+  // Only a SECOND H1 (single #) is a bilingual/secondary title → subtitle.
+  // A '##' is a real first section (e.g. drills' "## 核心数学原理") — never swallow it.
+  const sub = lines[j] && lines[j].match(/^#\s+(.+?)\s*$/);
+  let subtitle = '';
+  if (sub) { subtitle = sub[1]; consumed = j + 1; }
+  const heroHtml = '<header class="hero">'
+    + (eyebrow ? '<div class="eyebrow">' + esc(eyebrow) + '</div>' : '')
+    + '<h1 class="hero-title">' + esc(title) + '</h1>'
+    + (subtitle ? '<p class="hero-sub">' + esc(subtitle) + '</p>' : '')
+    + '<div class="hero-rule"></div></header>';
+  return { heroHtml, body: lines.slice(consumed).join('\n') };
+}
+
+function renderDoc(md, title, outFile, eyebrow) {
+  const hero = extractHero(md, eyebrow || '');
+  const r = addTocAndIds(decorateCallouts(foldLongCode(highlightCode(renderWithMath(hero.body)))));
   const cls = [];
   if (/class="cite-note"/.test(r.html)) cls.push('has-sn');
   if (!r.tocHtml) cls.push('no-toc');
-  const html = tpl.replace('{{TITLE}}', () => title).replace('{{BODYCLASS}}', () => cls.join(' ')).replace('{{TOC}}', () => r.tocHtml).replace('{{CONTENT}}', () => r.html);
+  const html = tpl
+    .replace('{{TITLE}}', () => title)
+    .replace('{{BODYCLASS}}', () => cls.join(' '))
+    .replace('{{HERO}}', () => hero.heroHtml)
+    .replace('{{TOC}}', () => r.tocHtml)
+    .replace('{{CONTENT}}', () => r.html);
   fs.writeFileSync(path.join(OUT, outFile), html);
 }
 
@@ -106,7 +149,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'cheatsheets')).filter((f) => f.e
   const slug = f.replace(/\.md$/, '');
   const md = fs.readFileSync(path.join(ROOT, 'cheatsheets', f), 'utf8');
   const out = 'cheatsheet-' + slug + '.html';
-  renderDoc(md, titleOf(md, slug), out);
+  renderDoc(md, titleOf(md, slug), out, 'Cheatsheet · 题解');
   items.push({ section: 'Cheatsheets 题解', title: titleOf(md, slug), href: out });
 }
 for (const d of fs.readdirSync(path.join(ROOT, 'drills')).sort()) {
@@ -114,7 +157,7 @@ for (const d of fs.readdirSync(path.join(ROOT, 'drills')).sort()) {
   if (!fs.existsSync(rp)) continue;
   const md = fs.readFileSync(rp, 'utf8');
   const out = 'drill-' + d + '.html';
-  renderDoc(md, titleOf(md, d), out);
+  renderDoc(md, titleOf(md, d), out, 'Drill · 手撕');
   items.push({ section: 'Drills 手撕', title: titleOf(md, d), href: out });
 }
 

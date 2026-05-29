@@ -41,6 +41,11 @@
   .callout-warn{border-color:#c77d00;background:#c77d0014}
   .callout-good{border-color:#1a7f4b;background:#1a7f4b12}
   .callout-bad{border-color:#b8390e;background:#b8390e10}
+  .callout-label{font:700 .78rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:.02em;margin-bottom:.25em}
+  .callout-info .callout-label{color:#1a4a8c}
+  .callout-warn .callout-label{color:#b5730a}
+  .callout-good .callout-label{color:#1a7f4b}
+  .callout-bad .callout-label{color:#b8390e}
   /* 折叠 Q&A (问题在 summary, 答案默认折叠) */
   details:not(.toc):not(.code-fold){border:1px solid var(--line);border-radius:8px;margin:.6em 0;background:var(--bg-soft);padding:0 .9em}
   details:not(.toc):not(.code-fold)>summary{cursor:pointer;font-weight:600;color:var(--primary);padding:.55em .1em;list-style:none;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
@@ -53,9 +58,16 @@
   .code-fold{margin:1em 0}
   .code-fold>summary{cursor:pointer;color:var(--primary);font-size:.85rem;padding:.25em 0;list-style:none;font-family:system-ui,sans-serif}
   .code-fold>summary::-webkit-details-marker{display:none}
-  .code-fold>summary::before{content:"▸ 代码 "}
-  .code-fold[open]>summary::before{content:"▾ 代码 "}
+  .code-fold>summary::before{content:"▸ 展开代码 · "}
+  .code-fold[open]>summary::before{content:"▾ 收起代码 · "}
   .code-fold pre{margin:.3em 0}
+  /* ARIS 式 hero 页头: eyebrow 小标签 + 大标题 + 副标题 + 双线 (标题从正文 H1 提升至此) */
+  .hero{max-width:1080px;margin:1.1rem auto .2rem;padding:0 1.1rem}
+  body.no-toc .hero{max-width:820px}
+  .hero .eyebrow{font:600 .72rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;text-transform:uppercase;letter-spacing:.14em;color:var(--accent)}
+  .hero-title{font-size:1.9rem;line-height:1.22;margin:.25rem 0 .12rem;color:#1a1a1a;font-weight:700}
+  .hero-sub{font:400 1.02rem/1.5 Georgia,"Songti SC","Noto Serif CJK SC",serif;color:var(--muted);margin:.1rem 0 .55rem}
+  .hero-rule{border-top:3px double var(--accent);margin:.3rem 0 0}
   /* 两栏: 左 sticky 侧栏 TOC + 正文; ≤900px 折成单栏、TOC 移到顶部; scrollspy 高亮当前节 */
   .layout{max-width:820px;margin:0 auto;padding:0 1.1rem 4rem;display:grid;grid-template-columns:1fr}
   body:not(.no-toc) .layout{max-width:1080px;grid-template-columns:220px minmax(0,1fr);gap:36px;align-items:start}
@@ -85,20 +97,24 @@
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
   @media(prefers-color-scheme:dark){
     :root{--bg:#16181c;--bg-soft:#22262c;--ink:#dcdcdc;--muted:#9aa6b0;--accent:#e8845c;--primary:#7fb0e8;--line:#ffffff33}
-    h1,h2,h3,h4{color:#ededed}
+    h1,h2,h3,h4,.hero-title{color:#ededed}
     :not(pre)>code{background:#7fb0e820;color:#a9cdf5}
     blockquote{background:#ffffff0a}
     .callout{background:#ffffff0a}
+    .callout-info .callout-label{color:#7fb0e8}
+    .callout-warn .callout-label{color:#e0a83a}
+    .callout-good .callout-label{color:#5fc080}
+    .callout-bad .callout-label{color:#e8845c}
   }
   /* (引用 gist 右页边浮动已移除以让位左侧栏 TOC; [N] 仍跳底部 refs, gist 文本在书目里不丢) */
 </style>
 </head>
 <body class="">
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<header class="hero"><div class="eyebrow">Drill · 手撕</div><h1 class="hero-title">PPO Clipped Surrogate Objective 学习演练</h1><div class="hero-rule"></div></header>
 <div class="layout">
 <nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. 数学基础 / Mathematical Foundation</a></li><li class="lv2"><a href="#sec-1">2. 直觉与复杂度 / Intuition &amp; Complexity</a></li><li class="lv2"><a href="#sec-2">3. 文件 / Files</a></li><li class="lv2"><a href="#sec-3">4. 运行 / Run</a></li><li class="lv2"><a href="#sec-4">5. 追问分层 / Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-5">L1 基础</a></li><li class="lv3"><a href="#sec-6">L2 中级</a></li><li class="lv3"><a href="#sec-7">L3 深入</a></li></ul></nav>
-<main id="out"><h1>PPO Clipped Surrogate Objective 学习演练</h1>
-<p>本仓库通过一个独立的实现文件，从零开始研究 PPO（Proximal Policy Optimization）的裁剪代理目标函数。这是一个聚焦于理解 PPO 核心数学与实现细节的专项练习。</p>
+<main id="out"><p>本仓库通过一个独立的实现文件，从零开始研究 PPO（Proximal Policy Optimization）的裁剪代理目标函数。这是一个聚焦于理解 PPO 核心数学与实现细节的专项练习。</p>
 <hr>
 <h2 id="sec-0">1. 数学基础 / Mathematical Foundation</h2>
 <p>PPO 的裁剪代理目标旨在限制策略更新幅度，其核心公式如下。</p>

@@ -41,6 +41,11 @@
   .callout-warn{border-color:#c77d00;background:#c77d0014}
   .callout-good{border-color:#1a7f4b;background:#1a7f4b12}
   .callout-bad{border-color:#b8390e;background:#b8390e10}
+  .callout-label{font:700 .78rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:.02em;margin-bottom:.25em}
+  .callout-info .callout-label{color:#1a4a8c}
+  .callout-warn .callout-label{color:#b5730a}
+  .callout-good .callout-label{color:#1a7f4b}
+  .callout-bad .callout-label{color:#b8390e}
   /* 折叠 Q&A (问题在 summary, 答案默认折叠) */
   details:not(.toc):not(.code-fold){border:1px solid var(--line);border-radius:8px;margin:.6em 0;background:var(--bg-soft);padding:0 .9em}
   details:not(.toc):not(.code-fold)>summary{cursor:pointer;font-weight:600;color:var(--primary);padding:.55em .1em;list-style:none;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
@@ -53,9 +58,16 @@
   .code-fold{margin:1em 0}
   .code-fold>summary{cursor:pointer;color:var(--primary);font-size:.85rem;padding:.25em 0;list-style:none;font-family:system-ui,sans-serif}
   .code-fold>summary::-webkit-details-marker{display:none}
-  .code-fold>summary::before{content:"▸ 代码 "}
-  .code-fold[open]>summary::before{content:"▾ 代码 "}
+  .code-fold>summary::before{content:"▸ 展开代码 · "}
+  .code-fold[open]>summary::before{content:"▾ 收起代码 · "}
   .code-fold pre{margin:.3em 0}
+  /* ARIS 式 hero 页头: eyebrow 小标签 + 大标题 + 副标题 + 双线 (标题从正文 H1 提升至此) */
+  .hero{max-width:1080px;margin:1.1rem auto .2rem;padding:0 1.1rem}
+  body.no-toc .hero{max-width:820px}
+  .hero .eyebrow{font:600 .72rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;text-transform:uppercase;letter-spacing:.14em;color:var(--accent)}
+  .hero-title{font-size:1.9rem;line-height:1.22;margin:.25rem 0 .12rem;color:#1a1a1a;font-weight:700}
+  .hero-sub{font:400 1.02rem/1.5 Georgia,"Songti SC","Noto Serif CJK SC",serif;color:var(--muted);margin:.1rem 0 .55rem}
+  .hero-rule{border-top:3px double var(--accent);margin:.3rem 0 0}
   /* 两栏: 左 sticky 侧栏 TOC + 正文; ≤900px 折成单栏、TOC 移到顶部; scrollspy 高亮当前节 */
   .layout{max-width:820px;margin:0 auto;padding:0 1.1rem 4rem;display:grid;grid-template-columns:1fr}
   body:not(.no-toc) .layout{max-width:1080px;grid-template-columns:220px minmax(0,1fr);gap:36px;align-items:start}
@@ -85,21 +97,24 @@
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
   @media(prefers-color-scheme:dark){
     :root{--bg:#16181c;--bg-soft:#22262c;--ink:#dcdcdc;--muted:#9aa6b0;--accent:#e8845c;--primary:#7fb0e8;--line:#ffffff33}
-    h1,h2,h3,h4{color:#ededed}
+    h1,h2,h3,h4,.hero-title{color:#ededed}
     :not(pre)>code{background:#7fb0e820;color:#a9cdf5}
     blockquote{background:#ffffff0a}
     .callout{background:#ffffff0a}
+    .callout-info .callout-label{color:#7fb0e8}
+    .callout-warn .callout-label{color:#e0a83a}
+    .callout-good .callout-label{color:#5fc080}
+    .callout-bad .callout-label{color:#e8845c}
   }
   /* (引用 gist 右页边浮动已移除以让位左侧栏 TOC; [N] 仍跳底部 refs, gist 文本在书目里不丢) */
 </style>
 </head>
 <body class="">
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">Coding &amp; ML 实现面试速查手册</h1><p class="hero-sub">Coding &amp; ML Implementation — Interview Cheat Sheet</p><div class="hero-rule"></div></header>
 <div class="layout">
 <nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">一、核心概念与公式推导 | Concepts &amp; Formula Derivations</a></li><li class="lv3"><a href="#sec-1">1.1 Softmax 函数</a></li><li class="lv3"><a href="#sec-2">1.2 交叉熵损失 | Cross-Entropy Loss</a></li><li class="lv3"><a href="#sec-3">1.3 Scaled Dot-Product Attention</a></li><li class="lv3"><a href="#sec-4">1.4 Multi-Head Attention | 多头注意力</a></li><li class="lv3"><a href="#sec-5">1.5 Layer Normalization</a></li><li class="lv3"><a href="#sec-6">1.6 LoRA（Low-Rank Adaptation）| 低秩适配</a></li><li class="lv3"><a href="#sec-7">1.7 Top-p（Nucleus）采样</a></li><li class="lv3"><a href="#sec-8">1.8 K-Means 聚类</a></li><li class="lv2"><a href="#sec-9">二、从零实现 PyTorch 代码 | From-Scratch Snippets</a></li><li class="lv3"><a href="#sec-10">S1: 数值稳定 Softmax（NumPy）</a></li><li class="lv3"><a href="#sec-11">S2: 交叉熵损失（NumPy）</a></li><li class="lv3"><a href="#sec-12">S3: Scaled Dot-Product Attention（PyTorch）</a></li><li class="lv3"><a href="#sec-13">S4: Multi-Head Attention（PyTorch）</a></li><li class="lv3"><a href="#sec-14">S5: LoRA 线性层（PyTorch）</a></li><li class="lv3"><a href="#sec-15">S6: Layer Normalization（NumPy）</a></li><li class="lv3"><a href="#sec-16">S7: K-Means（NumPy）</a></li><li class="lv3"><a href="#sec-17">S8: Top-p 采样（PyTorch）</a></li><li class="lv2"><a href="#sec-18">三、面试题库 | Interview Questions (25 题)</a></li><li class="lv3"><a href="#sec-19">L1 — 基础 | Basic</a></li><li class="lv3"><a href="#sec-20">L2 — 中级 | Intermediate</a></li><li class="lv3"><a href="#sec-21">L3 — 深度 | Deep</a></li><li class="lv2"><a href="#sec-22">附录：算法模式速查 | Algorithm Pattern Quick Reference</a></li><li class="lv3"><a href="#sec-23">双指针 | Two Pointers</a></li><li class="lv3"><a href="#sec-24">滑动窗口 | Sliding Window（可变大小）</a></li><li class="lv3"><a href="#sec-25">二分搜索 | Binary Search（左闭右开，找左边界）</a></li><li class="lv3"><a href="#sec-26">BFS 层序遍历 | Level-Order BFS</a></li><li class="lv3"><a href="#sec-27">DP 自底向上 | Bottom-Up DP</a></li><li class="lv2"><a href="#sec-28">练习日志模板 | Practice Log Template</a></li><li class="lv2"><a href="#sec-29">更多 L3 深挖 / Extended L3</a></li></ul></nav>
-<main id="out"><h1>Coding &amp; ML 实现面试速查手册</h1>
-<h1>Coding &amp; ML Implementation — Interview Cheat Sheet</h1>
-<blockquote>
+<main id="out"><blockquote>
 <p><strong>面向读者：</strong> Research / ML Intern 候选人
 <strong>使用说明：</strong> 中文为主，关键术语附英文；公式用 LaTeX；代码均为从零实现</p>
 </blockquote>
