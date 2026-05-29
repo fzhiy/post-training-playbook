@@ -135,19 +135,47 @@ $$\mathcal{L}_{\text{point}} = \mathbb{E}_{(x, y, s)} \left[ (r_\theta(x, y) - s
 
 **定义：** 策略模型学会利用奖励模型的**缺陷和分布外行为 (out-of-distribution behavior)** 来获取高分，而非真正提升回答质量。
 
-**常见模式：**
-- 生成冗长但低质内容 (verbosity hacking)
-- 使用讨好性措辞 (sycophancy)
-- 重复特定高分关键词或句式
-- 格式操纵：过度使用列表、标题、加粗等
+**常见类型 (Common Patterns)：**
+
+| 类型 | 定义 |
+|------|------|
+| **Verbosity hacking** | 生成冗长但低质内容，利用 RM 对长度的虚假偏好刷高分 |
+| **Sycophancy** | 使用讨好、奉承性措辞，迎合用户立场而非提供准确答案 |
+| **Format gaming** | 过度使用 Markdown 列表、标题、加粗等格式元素，RM 误判为质量信号 |
+| **Spec gaming** | 满足 RM 或任务规范的字面要求但违背其实质意图（如答案"形式正确"但内容错误） |
+| **OOD collapse** | 策略偏离训练分布后 RM 评分失准，对分布外生成给出虚高或随机分数 |
 
 ### 3.2 Goodhart 定律视角
 
 > "当一个指标变成目标时，它就不再是好的指标。"
 
-$$r_{\text{true}} \neq r_{\text{RM}} \quad \text{当 policy 偏离训练分布时}$$
+$$r_{\text{true}} \neq r_{\text{RM}} \quad (\text{OOD})$$
 
 RM 只在**训练分布 (training distribution)** 内准确，当 policy 生成分布外内容时，RM 预测不再可靠。
+
+### 3.2a Gao et al. 2022 — 过度优化幂律 (Scaling Laws for Overoptimization)
+
+> 出处：Gao, Schulman & Hilton, arXiv:2210.10760，使用合成 gold RM 在 InstructGPT 设置下实验。
+
+**核心变量：** 令 $d = \sqrt{D_{\text{KL}}(\pi \| \pi_{\text{init}})}$（KL 距离的平方根，原文选择此参数化是因为 KL 是"二次度量"）。gold RM 分数 $R$ 随 $d$ 的变化规律因优化方法不同而**函数形式不同**：
+
+**Best-of-N (BoN) 形式：**
+
+$$R_{\text{bon}}(d) = d(\alpha_{\text{bon}} - \beta_{\text{bon}} d)$$
+
+**强化学习 (RL) 形式：**
+
+$$R_{\text{RL}}(d) = d(\alpha_{\text{RL}} - \beta_{\text{RL}} \log d)$$
+
+其中 $\alpha_{\text{bon}}, \beta_{\text{bon}}, \alpha_{\text{RL}}, \beta_{\text{RL}}$ 是拟合参数（随 RM 参数量平滑变化）；$R(0) := 0$。⚠️ RL 形式在原点附近斜率无穷大，论文注明该形式在原点附近可能不成立。
+
+**关键规律解读：**
+- **初始上升后下降**：gold 分先随 $d$ 增大（RM 信号有效），后因分布外崩溃而下降——Goodhart 效应的定量刻画
+- **峰值位置因方法而异**：BoN(二次)与 RL(对数)的 gold 分峰值出现在不同 $d$ 处，取决于拟合系数（见原文图 3）；论文未就"谁更 KL 高效"下一般性结论
+- **系数平滑 scaling**：$\alpha, \beta$ 随 RM 参数量呈近似对数趋势变化，可外推预测峰值性能
+- **KL penalty 的局限**：论文 §3.6 实验发现，在其设置中增大 KL penalty 可提高给定 KL 下的 proxy 分，但**不能改善 gold 分–KL 曲线**，效果等价于早停 (early stopping)，而非提升 RM 鲁棒性本身。作者注明该结论对超参数敏感
+
+⚠️ 上述系数 $\alpha, \beta$ 的具体数值依赖 RM 参数量和数据量，论文未给出单一通用常数；如需具体数值请查原文图 3。
 
 ### 3.3 缓解策略 (Mitigations)
 
@@ -202,6 +230,41 @@ $$r_{\text{adjusted}} = \frac{r_\theta(x,y)}{\text{len}(y)^\gamma}$$
 | **约束优化 (Constrained Optimization)** | 加入安全/质量硬约束 |
 | **预训练约束** | 保持与预训练模型的接近 (如 L2 正则) |
 | **RM 鲁棒训练** | 对抗训练、数据增强提升 RM 泛化能力 |
+
+### 3.4 偏好数据构建 (Preference Data Construction)
+
+RM 质量的上限由偏好数据质量决定。以下是核心设计选择：
+
+#### 3.4.1 绝对标注 vs 相对标注
+
+| 维度 | 绝对标注 (Pointwise) | 相对标注 (Pairwise/Comparative) |
+|------|------|------|
+| 标注形式 | 给单个回答打 1–5 分 | 比较两个回答选更好的 |
+| 标注成本 | 高（需标注者内部标度一致） | 低（认知任务更简单） |
+| 标注者一致性 | 低，标度漂移明显 | 高，人类做相对判断更可靠 |
+| 信息量 | 更丰富（可恢复序数关系） | 直接对应 Bradley-Terry 模型 |
+| 典型用途 | 直接回归 RM | RLHF 主流做法 |
+
+#### 3.4.2 Margin Filtering（置信度过滤）
+
+**动机：** 偏好对中存在大量"难以区分"的样本（annotator agreement 低），直接训练会引入噪声。
+
+**做法：**
+- 计算标注者间一致率 (inter-annotator agreement)，丢弃接近 50/50 的偏好对
+- 引入 **margin** 标签：chosen 和 rejected 之间的质量差距是否"明显"？只保留 margin 足够大的样本
+- 部分工作（如 Llama-2，据原论文）区分 significantly better / slightly better / negligibly better，用分层权重训练
+- ⚠️ 过激过滤会损失边界样本，导致 RM 在"轻微差异"场景下判别力不足
+
+#### 3.4.3 标注校准 (Annotator Calibration)
+
+**问题：** 不同标注者有系统偏差（个人风格、宽严不一）。
+
+**缓解方法：**
+- **校准题 (calibration items)**：在每批标注中插入已知答案的锚点题，检测标注者漂移
+- **标注者效应建模**：显式建模每个标注者的偏好分布，用混合模型聚合
+- **多数投票 / 金标准过滤**：3+ 标注者打同一对，取多数；丢弃分歧过大的样本
+
+⚠️ 标注者偏差会被 RM 学习并放大，最终影响 policy 行为——数据构建阶段的校准比事后补救更根本。
 
 ---
 
@@ -280,6 +343,8 @@ $$r_{\text{adjusted}} = \frac{r_\theta(x,y)}{\text{len}(y)^\gamma}$$
 - 比较不同训练方法的效果
 
 ### 5.2 LLM-as-Judge (大模型作为评估者)
+
+> 📎 **交叉引用**：本节侧重 LLM-as-Judge 作为**训练信号**的视角（偏差如何污染 RM 训练数据、影响 RLHF 优化）。关于 LLM-as-Judge 在**评测实践**中的具体操作、偏差缓解和 benchmark 选型，见 `eval-and-judges.md §2`。
 
 **核心思想：** 使用强大的 LLM (如 GPT-4 级别模型) 直接对回答质量进行评分或排序，替代人类评估。
 
@@ -558,6 +623,23 @@ $$r_{\text{adjusted}} = \frac{r_\theta(x,y)}{\text{len}(y)^\gamma}$$
 
 > **追问：** 是否存在 reward hacking 是 RLHF 特有而 DPO 不会遇到的？
 > RLHF 特有的问题包括：RM 本身的 OOD 评分失准、PPO 训练中的不稳定性导致策略突变。DPO 不会遇到显式 RM 的 OOD 问题，但会遇到隐式奖励的分布偏移问题 — 形式不同但本质类似。
+
+---
+
+**Q20a (L3): Gao et al. 2022 的幂律对 KL penalty 强度的设置有何实际指导意义？**
+
+**答：** 论文的核心发现是：在其实验设置中，调高 KL penalty 系数 $\beta$ 并不能改善 gold 分–KL 曲线（frontier），效果等价于对同一条曲线做早停。这意味着：
+
+1. **$\beta$ 不能作为泛化度量来调**：增大 $\beta$ 约束策略少偏离参考模型，确实减少了 KL 消耗，但并没有让 RM 对同等 KL 偏移更鲁棒；"更安全"只是因为优化停得更早，而非 RM 本身变好。
+
+2. **KL 惩罚的真正作用**：防止策略在单步内走太远（稳定训练），而非根本上解决 reward hacking。真正需要的是 RM 本身的泛化改进（更多数据、更大模型、迭代重训练）。
+
+3. **实践含义**：不应依靠调大 $\beta$ 来"买"更多优化空间；若 gold 分已达峰值，应重新训练 RM 而非继续在同一 RM 上加强 KL 约束。
+
+> **⚠️ 诚信注记**：论文作者明确指出该结论"对超参数敏感"，不保证在所有设置下成立。
+
+> **追问：** BoN 和 RL 的幂律形式不同（BoN 是 $d(\alpha - \beta d)$，RL 是 $d(\alpha - \beta \log d)$），这说明什么？
+> BoN 的二次型意味着过度优化以加速度恶化（$d$ 较大时降幅更快）；RL 的对数型意味着恶化更缓慢但持续。因此，相同 KL "预算"下，BoN 更高效但也更快崩溃；不应直接用 KL 跨方法比较优化量，两者服从不同的过度优化动力学。
 
 ---
 

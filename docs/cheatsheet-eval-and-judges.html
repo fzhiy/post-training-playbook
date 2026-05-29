@@ -52,7 +52,7 @@
 </head>
 <body class="">
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
-<article id="out"><h1>评测与 LLM-as-judge / Evaluation &amp; Judges</h1><details class="toc" open><summary>目录 / Contents (10)</summary><ul><li class="lv2"><a href="#sec-0">1. 三类评测 / Three families</a></li><li class="lv2"><a href="#sec-1">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv2"><a href="#sec-2">3. 数据污染 / Contamination</a></li><li class="lv2"><a href="#sec-3">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-4">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-5">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-6">L1 基础</a></li><li class="lv3"><a href="#sec-7">L2 进阶</a></li><li class="lv3"><a href="#sec-8">L3 深挖</a></li><li class="lv2"><a href="#sec-9">更多 L3 深挖 / Extended L3</a></li></ul></details>
+<article id="out"><h1>评测与 LLM-as-judge / Evaluation &amp; Judges</h1><details class="toc" open><summary>目录 / Contents (14)</summary><ul><li class="lv2"><a href="#sec-0">1. 三类评测 / Three families</a></li><li class="lv2"><a href="#sec-1">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv2"><a href="#sec-2">3. 数据污染 / Contamination</a></li><li class="lv3"><a href="#sec-3">3.1 污染类型</a></li><li class="lv3"><a href="#sec-4">3.2 检测方法</a></li><li class="lv3"><a href="#sec-5">3.3 n-gram 去重 (Deduplication)</a></li><li class="lv3"><a href="#sec-6">3.4 抗污染 benchmark 设计</a></li><li class="lv2"><a href="#sec-7">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-8">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-9">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-10">L1 基础</a></li><li class="lv3"><a href="#sec-11">L2 进阶</a></li><li class="lv3"><a href="#sec-12">L3 深挖</a></li><li class="lv2"><a href="#sec-13">更多 L3 深挖 / Extended L3</a></li></ul></details>
 <blockquote>
 <p>后训练里「<strong>评测</strong>」往往是真正的瓶颈:训练能跑、但&quot;到底变好没有 / 哪里变差&quot;全靠评测说话。本页讲怎么评一个对齐后的模型 + 各种评测的坑。
 ⚠️ 不放具体分数(易过时/易记错);具体数字以各 benchmark/leaderboard 官方为准。</p>
@@ -83,6 +83,9 @@
 </tr>
 </tbody></table>
 <h2 id="sec-1">2. LLM-as-judge:怎么用 + 偏置</h2>
+<blockquote>
+<p>📎 <strong>交叉引用</strong>：本节侧重 LLM-as-Judge 作为<strong>评测实践</strong>的视角（如何选 judge、具体操作、benchmark 应用）。关于 LLM-as-Judge 作为 <strong>RLHF 训练信号</strong>时偏差如何影响 RM 训练和 reward hacking，见 <code>reward-modeling-eval.md §5.2</code>。</p>
+</blockquote>
 <p>用一个强模型当裁判给回答打分/two-way 比较。<strong>省钱省时,但有系统偏置</strong>:</p>
 <ul>
 <li><strong>位置偏置 (position bias)</strong>:倾向选&quot;第一个&quot;答案 → 缓解:<strong>交换顺序各评一次</strong>取平均。</li>
@@ -93,18 +96,60 @@
 </ul>
 <h2 id="sec-2">3. 数据污染 / Contamination</h2>
 <p>训练集混入了评测集 → 分数虚高、不反映泛化。</p>
+<h3 id="sec-3">3.1 污染类型</h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>直接重叠</strong></td>
+<td>训练数据含有评测集的原文题目或答案</td>
+</tr>
+<tr>
+<td><strong>时间污染 (temporal leakage)</strong></td>
+<td>训练数据截止日期晚于评测集创建时间，模型&quot;见过&quot;测试期内容</td>
+</tr>
+<tr>
+<td><strong>近似重叠</strong></td>
+<td>改写/翻译版本的测试题出现在训练集中，字符串匹配检测不到</td>
+</tr>
+<tr>
+<td><strong>成员推断污染</strong></td>
+<td>训练集不含原题，但含有高度相关的分布内样本，导致分数虚高</td>
+</tr>
+</tbody></table>
+<h3 id="sec-4">3.2 检测方法</h3>
 <ul>
-<li><strong>检测</strong>:n-gram / 子串重叠、canary 字符串、对测试样本的异常低 perplexity、改写后掉分。</li>
-<li><strong>缓解</strong>:decontamination(从训练数据剔除与评测重叠的样本)、用<strong>新/私有</strong>评测集、报告污染审计。</li>
+<li><strong>n-gram / 子串重叠</strong>：计算训练集与评测集之间的 n-gram Jaccard 相似度，设阈值过滤</li>
+<li><strong>Min-k% Prob (MIA)</strong>：成员推断攻击 (Membership Inference Attack)——计算测试样本在模型下的最低 k% token 概率；成员样本的最低 token 概率通常高于非成员（据 Shi et al. 2024 等工作，具体效果随设置而异）</li>
+<li><strong>Canary 字符串</strong>：在训练数据中插入随机字符串，若模型能&quot;记住&quot;则说明该数据确实被训练</li>
+<li><strong>异常低 perplexity</strong>：对测试样本计算 perplexity；若显著低于同类新样本，提示可能见过</li>
+<li><strong>改写后掉分</strong>：对测试题做语义等价改写，若模型在原题上分数高而改写版上分数低，提示记忆而非泛化</li>
 </ul>
-<h2 id="sec-3">4. 偏好评测的陷阱</h2>
+<h3 id="sec-5">3.3 n-gram 去重 (Deduplication)</h3>
+<ul>
+<li>训练数据内部去重（exact + near-dedup）可降低记忆风险，也减少 benchmark 污染传播</li>
+<li>常用工具：MinHash LSH、suffix array 去重（据 Lee et al. 2022 等工作）</li>
+<li>⚠️ 去重不等于去污染：去重针对训练集内重复，去污染 (decontamination) 专门针对训练集与评测集的交叉</li>
+</ul>
+<h3 id="sec-6">3.4 抗污染 benchmark 设计</h3>
+<ul>
+<li><strong>动态/私有评测集</strong>：每轮评测使用新题（如 Chatbot Arena 的持续收集、LiveBench 的月度更新）</li>
+<li><strong>程序化生成题</strong>：自动生成可验证答案的题（数学、代码），题目新颖性由生成程序保证</li>
+<li><strong>时间隔离</strong>：明确报告训练数据截止日期 (data cutoff) 与评测集创建日期，供读者判断时间污染风险</li>
+<li><strong>污染审计报告</strong>：在论文/报告中公开 decontamination 流程和过滤比例，增加可信度</li>
+</ul>
+<h2 id="sec-7">4. 偏好评测的陷阱</h2>
 <ul>
 <li><strong>Goodhart</strong>:一旦某 benchmark 成了优化目标,它就不再是好的衡量(刷榜 ≠ 真变强)。</li>
 <li><strong>prompt 敏感</strong>:同一模型换 prompt 模板分数能差很多 → 固定评测 prompt、报告方差。</li>
 <li><strong>judge ≠ 真值</strong>:LLM-judge 的 win-rate 只是&quot;另一个模型觉得好&quot;,不等于人类偏好或真实效用。</li>
 <li><strong>单点准确率 vs 算力预算</strong>:推理模型要看&quot;给定 test-time 算力下的准确率&quot;,而非单次。</li>
 </ul>
-<h2 id="sec-4">5. 一套实用评测口径(post-training)</h2>
+<h2 id="sec-8">5. 一套实用评测口径(post-training)</h2>
 <ol>
 <li><strong>能力</strong>:GSM8K/MATH(数学)、HumanEval(代码)、MMLU(知识)、IFEval(指令遵循)。</li>
 <li><strong>对齐质量</strong>:AlpacaEval / MT-Bench(judge,带位置去偏)、必要时 Arena。</li>
@@ -113,27 +158,27 @@
 <li><strong>污染审计</strong> + <strong>多 seed/prompt</strong> 报方差。</li>
 </ol>
 <hr>
-<h2 id="sec-5">分层面试题 / Stratified follow-ups</h2>
-<h3 id="sec-6">L1 基础</h3>
+<h2 id="sec-9">分层面试题 / Stratified follow-ups</h2>
+<h3 id="sec-10">L1 基础</h3>
 <ol>
 <li>为什么说评测是 post-training 的瓶颈?能力 benchmark 和偏好评测各测什么?</li>
 <li>LLM-as-judge 是什么?它有哪些已知偏置?</li>
 <li>什么是数据污染?为什么它让分数不可信?</li>
 </ol>
-<h3 id="sec-7">L2 进阶</h3>
+<h3 id="sec-11">L2 进阶</h3>
 <ol start="4">
 <li>位置偏置怎么缓解?为什么&quot;交换顺序各评一次&quot;有效?</li>
 <li>AlpacaEval / MT-Bench / Arena 三者的评测信号有何不同(自动 judge vs 真人 Elo)?</li>
 <li>怎么检测训练数据是否污染了某个评测集?</li>
 </ol>
-<h3 id="sec-8">L3 深挖</h3>
+<h3 id="sec-12">L3 深挖</h3>
 <ol start="7">
 <li>Goodhart 定律在刷榜上怎么体现?如何设计&quot;抗刷&quot;的评测?</li>
 <li>reward model 怎么评(RewardBench 的思路)?RM 评测和最终 policy 效果的关系?</li>
 <li>对推理模型,为什么评测要从&quot;单次准确率&quot;转向&quot;算力预算下的准确率&quot;?这对评测协议提出什么要求?</li>
 <li>如果线上指标(用户留存)和离线评测(judge win-rate)打架,你信哪个、怎么排查?</li>
 </ol>
-<h2 id="sec-9">更多 L3 深挖 / Extended L3</h2>
+<h2 id="sec-13">更多 L3 深挖 / Extended L3</h2>
 <ol start="11">
 <li><p><strong>当用 LLM-as-judge 评估多轮、长上下文对话时，常见的困难是什么？有哪些评估方法上的改进？</strong>
 评估多轮对话的核心挑战是评判模型容易出现<strong>上下文遗忘 (context forgetting)</strong> 或<strong>局部偏好 (local bias)</strong>，即只关注最近一两轮的回答质量而忽略整体对话连贯性和任务完成度。一个关键改进是设计<strong>过程导向的评分量表 (process-oriented rubric)</strong>，明确要求评估每一轮对最终目标的贡献，并引入<strong>分段总结 (segment summarization)</strong> 机制，迫使judge模型先归纳再打分，从而在一定程度上缓解其短视问题。
