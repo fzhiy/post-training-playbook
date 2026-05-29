@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ML / DL Fundamentals 公开速查手册</title>
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="vendor/hl/github.min.css">
+<link rel="stylesheet" href="vendor/hl/github-dark.min.css" media="(prefers-color-scheme: dark)">
 <style>
   :root{color-scheme:light dark}
   body{max-width:820px;margin:0 auto;padding:1rem 1.1rem 4rem;
@@ -14,30 +16,37 @@
   h2{font-size:1.25rem;border-bottom:1px solid #8884;padding-bottom:.2em}
   code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.9em}
   :not(pre)>code{background:#8882;padding:.1em .35em;border-radius:4px}
-  pre{background:#2b2b2b0d;padding:.9rem;border-radius:8px;overflow-x:auto}
-  pre code{display:block;white-space:pre}
+  pre{margin:1em 0}
+  pre code.hljs{border-radius:8px}
   table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
   th,td{border:1px solid #8886;padding:.4em .6em;text-align:left}
   blockquote{border-left:3px solid #8888;margin:1em 0;padding:.2em 1em;color:#888}
   a{color:#0a7}
   nav.top{font-size:.88rem;margin-bottom:1rem}
+  .toc{border:1px solid #8884;border-radius:8px;padding:.4em .9em;margin:1.2em 0;font-size:.92rem;background:#8881}
+  .toc summary{cursor:pointer;color:#0a7;font-weight:600}
+  .toc ul{margin:.5em 0 .2em;padding-left:1.2em;list-style:none}
+  .toc li{margin:.15em 0}
+  .toc li.lv3{padding-left:1.1em;font-size:.95em;opacity:.8}
+  .toc a{color:inherit;text-decoration:none}
+  .toc a:hover{color:#0a7;text-decoration:underline}
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
-  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}pre{background:#ffffff12}}
+  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}}
 </style>
 </head>
 <body>
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
-<article id="out"><h1>ML / DL Fundamentals 公开速查手册</h1>
+<article id="out"><h1>ML / DL Fundamentals 公开速查手册</h1><details class="toc" open><summary>目录 / Contents (33)</summary><ul><li class="lv2"><a href="#sec-0">第一部分：概念与公式推导</a></li><li class="lv2"><a href="#sec-1">Part 1: Concepts &amp; Formula Derivations</a></li><li class="lv3"><a href="#sec-2">1.1 优化器 Optimizers</a></li><li class="lv3"><a href="#sec-3">1.2 学习率调度 Learning Rate Scheduling</a></li><li class="lv3"><a href="#sec-4">1.3 正则化 Regularization</a></li><li class="lv3"><a href="#sec-5">1.4 归一化 Normalization</a></li><li class="lv3"><a href="#sec-6">1.5 参数初始化 Weight Initialization</a></li><li class="lv3"><a href="#sec-7">1.6 反向传播 Backpropagation</a></li><li class="lv3"><a href="#sec-8">1.7 损失函数 Loss Functions</a></li><li class="lv3"><a href="#sec-9">1.8 混合精度训练 Mixed Precision Training</a></li><li class="lv3"><a href="#sec-10">1.9 偏差-方差分解 Bias-Variance Decomposition</a></li><li class="lv3"><a href="#sec-11">1.10 Batch Size 与梯度累积 Gradient Accumulation</a></li><li class="lv2"><a href="#sec-12">第二部分：PyTorch 代码片段</a></li><li class="lv2"><a href="#sec-13">Part 2: PyTorch Snippets (From Scratch)</a></li><li class="lv3"><a href="#sec-14">2.1 SGD + Momentum</a></li><li class="lv3"><a href="#sec-15">2.2 Adam</a></li><li class="lv3"><a href="#sec-16">2.3 AdamW（Decoupled Weight Decay）</a></li><li class="lv3"><a href="#sec-17">2.4 Cosine Annealing LR Schedule</a></li><li class="lv3"><a href="#sec-18">2.5 Layer Normalization from Scratch</a></li><li class="lv3"><a href="#sec-19">2.6 RMSNorm</a></li><li class="lv3"><a href="#sec-20">2.7 Gradient Clipping by Norm</a></li><li class="lv3"><a href="#sec-21">2.8 Mixed Precision Training (AMP)</a></li><li class="lv3"><a href="#sec-22">2.9 Gradient Checkpointing</a></li><li class="lv3"><a href="#sec-23">2.10 Focal Loss</a></li><li class="lv3"><a href="#sec-24">2.11 GELU 与 SwiGLU</a></li><li class="lv3"><a href="#sec-25">2.12 Knowledge Distillation Loss</a></li><li class="lv3"><a href="#sec-26">2.13 LR Finder（学习率搜索器）</a></li><li class="lv3"><a href="#sec-27">2.14 Gradient Accumulation</a></li><li class="lv2"><a href="#sec-28">第三部分：面试题集（25 题）</a></li><li class="lv2"><a href="#sec-29">Part 3: Interview Questions (25 Questions)</a></li><li class="lv3"><a href="#sec-30">L1 — 基础题 Basic</a></li><li class="lv3"><a href="#sec-31">L2 — 中等题 Intermediate</a></li><li class="lv3"><a href="#sec-32">L3 — 深度题 Deep</a></li></ul></details>
 <h1>ML / DL Fundamentals — Public Cheat Sheet</h1>
 <blockquote>
 <p>覆盖优化器、学习率调度、正则化、归一化、初始化、反向传播、梯度问题、损失函数、混合精度等核心基础。
 Covers optimizers, LR scheduling, regularization, normalization, initialization, backpropagation, gradient issues, loss functions, and mixed precision.</p>
 </blockquote>
 <hr>
-<h2>第一部分：概念与公式推导</h2>
-<h2>Part 1: Concepts &amp; Formula Derivations</h2>
+<h2 id="sec-0">第一部分：概念与公式推导</h2>
+<h2 id="sec-1">Part 1: Concepts &amp; Formula Derivations</h2>
 <hr>
-<h3>1.1 优化器 Optimizers</h3>
+<h3 id="sec-2">1.1 优化器 Optimizers</h3>
 <h4>SGD（随机梯度下降 Stochastic Gradient Descent）</h4>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>θ</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi>θ</mi><mi>t</mi></msub><mo>−</mo><mi>η</mi><mtext> </mtext><msub><mi mathvariant="normal">∇</mi><mi>θ</mi></msub><mi>L</mi><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\theta_{t+1} = \theta_t - \eta \, \nabla_\theta L(\theta_t)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9028em;vertical-align:-0.2083em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2083em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">η</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord">∇</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span></p>
 <ul>
@@ -152,7 +161,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </tr>
 </tbody></table>
 <hr>
-<h3>1.2 学习率调度 Learning Rate Scheduling</h3>
+<h3 id="sec-3">1.2 学习率调度 Learning Rate Scheduling</h3>
 <h4>Warmup</h4>
 <p>训练初期 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mi>t</mi></msub><mo separator="true">,</mo><msub><mi>v</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">m_t, v_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal">m</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">v</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 估计不准（严重偏小），直接用大学习率可能导致更新步长异常。Warmup 在前 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>w</mi></msub></mrow><annotation encoding="application/x-tex">T_w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 步线性增大 LR，让矩估计充分积累。</p>
 <h4>Cosine Decay（余弦退火）</h4>
@@ -168,7 +177,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li>Uniform decrease; LR remains relatively large near the end, potentially causing oscillation.</li>
 </ul>
 <hr>
-<h3>1.3 正则化 Regularization</h3>
+<h3 id="sec-4">1.3 正则化 Regularization</h3>
 <h4>Dropout</h4>
 <p>训练时以概率 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">p</span></span></span></span> 将神经元输出置零。<strong>Inverted Dropout</strong>（PyTorch 默认）在训练时将非零输出缩放 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi mathvariant="normal">/</mi><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">1/(1-p)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1/</span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">p</span><span class="mclose">)</span></span></span></span>，推理时无需额外操作。</p>
 <h4>Weight Decay vs L2 正则化</h4>
@@ -192,7 +201,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>y</mi><mtext>smooth</mtext></msub><mo>=</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>ϵ</mi><mo stretchy="false">)</mo><mtext> </mtext><mi>y</mi><mo>+</mo><mfrac><mi>ϵ</mi><mi>K</mi></mfrac></mrow><annotation encoding="application/x-tex">y_{\text{smooth}} = (1 - \epsilon)\,y + \frac{\epsilon}{K}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">smooth</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">ϵ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.7936em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.1076em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0715em;">K</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">ϵ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
 <p>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi></mrow><annotation encoding="application/x-tex">K</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span></span></span></span> 为类别数。防止模型对 logits 过度自信，提升校准性（calibration）。</p>
 <hr>
-<h3>1.4 归一化 Normalization</h3>
+<h3 id="sec-5">1.4 归一化 Normalization</h3>
 <p>假设输入张量形状为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mi>B</mi><mo separator="true">,</mo><mi>C</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(B, C)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mclose">)</span></span></span></span>（简化为二维，NLP 场景）或 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mi>B</mi><mo separator="true">,</mo><mi>C</mi><mo separator="true">,</mo><mi>H</mi><mo separator="true">,</mo><mi>W</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(B, C, H, W)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0813em;">H</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mclose">)</span></span></span></span>（CV 场景）。</p>
 <table>
 <thead>
@@ -255,7 +264,7 @@ M1001 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li><strong>Post-LN</strong>（LN 在 residual 之后）：最终性能可能略高，但训练不稳定，需精细调参。</li>
 </ul>
 <hr>
-<h3>1.5 参数初始化 Weight Initialization</h3>
+<h3 id="sec-6">1.5 参数初始化 Weight Initialization</h3>
 <h4>Xavier（Glorot）初始化</h4>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>W</mi><mo>∼</mo><mi mathvariant="script">U</mi><mrow><mo fence="true">(</mo><mo>−</mo><msqrt><mfrac><mn>6</mn><mrow><msub><mi>n</mi><mtext>in</mtext></msub><mo>+</mo><msub><mi>n</mi><mtext>out</mtext></msub></mrow></mfrac></msqrt><mo separator="true">,</mo><mtext>  </mtext><msqrt><mfrac><mn>6</mn><mrow><msub><mi>n</mi><mtext>in</mtext></msub><mo>+</mo><msub><mi>n</mi><mtext>out</mtext></msub></mrow></mfrac></msqrt><mo fence="true">)</mo></mrow></mrow><annotation encoding="application/x-tex">W \sim \mathcal{U}\left(-\sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}},\; \sqrt{\frac{6}{n_{\text{in}} + n_{\text{out}}}}\right)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∼</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.5266em;vertical-align:-0.95em;"></span><span class="mord mathcal" style="margin-right:0.0993em;">U</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">(</span></span><span class="mord">−</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.5766em;"><span class="svg-align" style="top:-4.4em;"><span class="pstrut" style="height:4.4em;"></span><span class="mord" style="padding-left:1em;"><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">in</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">out</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">6</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.836em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span><span style="top:-3.5366em;"><span class="pstrut" style="height:4.4em;"></span><span class="hide-tail" style="min-width:1.02em;height:2.48em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="2.48em" viewBox="0 0 400000 2592" preserveAspectRatio="xMinYMin slice"><path d="M424,2478
 c-1.3,-0.7,-38.5,-172,-111.5,-514c-73,-342,-109.8,-513.3,-110.5,-514
@@ -290,7 +299,7 @@ h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span
 <li>For ReLU: negative-half zeroing halves variance; the factor of 2 compensates.</li>
 </ul>
 <hr>
-<h3>1.6 反向传播 Backpropagation</h3>
+<h3 id="sec-7">1.6 反向传播 Backpropagation</h3>
 <h4>链式法则 Chain Rule</h4>
 <p>对于计算图 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L = f(g(x))</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.1076em;">f</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">))</span></span></span></span>：</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>L</mi></mrow><mrow><mi mathvariant="normal">∂</mi><mi>x</mi></mrow></mfrac><mo>=</mo><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>L</mi></mrow><mrow><mi mathvariant="normal">∂</mi><mi>g</mi></mrow></mfrac><mo>⋅</mo><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>g</mi></mrow><mrow><mi mathvariant="normal">∂</mi><mi>x</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">\frac{\partial L}{\partial x} = \frac{\partial L}{\partial g} \cdot \frac{\partial g}{\partial x}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal">x</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal">L</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.2519em;vertical-align:-0.8804em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal">L</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8804em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal">x</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
@@ -310,7 +319,7 @@ h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span
 <li><strong>按范数裁剪 Clip by norm</strong>（主流）：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold">g</mi><mo>←</mo><mi mathvariant="bold">g</mi><mo>⋅</mo><mi>min</mi><mo>⁡</mo><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><mn>1</mn><mo separator="true">,</mo><mtext> </mtext><mfrac><mi>c</mi><mrow><mi mathvariant="normal">∥</mi><mi mathvariant="bold">g</mi><msub><mi mathvariant="normal">∥</mi><mn>2</mn></msub></mrow></mfrac><mo fence="true">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbf{g} \leftarrow \mathbf{g} \cdot \min\!\left(1,\, \frac{c}{\|\mathbf{g}\|_2}\right)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord mathbf" style="margin-right:0.016em;">g</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">←</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord mathbf" style="margin-right:0.016em;">g</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.8em;vertical-align:-0.65em;"></span><span class="mop">min</span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size2">(</span></span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6954em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∥</span><span class="mord mathbf mtight" style="margin-right:0.016em;">g</span><span class="mord mtight"><span class="mord mtight">∥</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3173em;"><span style="top:-2.357em;margin-left:0em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">c</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.52em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size2">)</span></span></span></span></span></span>，保持方向不变。</li>
 </ul>
 <hr>
-<h3>1.7 损失函数 Loss Functions</h3>
+<h3 id="sec-8">1.7 损失函数 Loss Functions</h3>
 <h4>Cross-Entropy Loss（交叉熵损失）</h4>
 <p>对于 one-hot 标签 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi></mrow><annotation encoding="application/x-tex">y</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span></span></span></span> 和 softmax 输出 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi></mrow><annotation encoding="application/x-tex">q</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">q</span></span></span></span>：</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>CE</mtext><mo>=</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><msub><mi>y</mi><mi>i</mi></msub><mi>log</mi><mo>⁡</mo><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><mo>−</mo><mi>log</mi><mo>⁡</mo><msub><mi>q</mi><mi>y</mi></msub></mrow><annotation encoding="application/x-tex">\text{CE} = -\sum_{i=1}^{K} y_i \log q_i = -\log q_y</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord text"><span class="mord">CE</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3.106em;vertical-align:-1.2777em;"></span><span class="mord">−</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8283em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0715em;">K</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.9805em;vertical-align:-0.2861em;"></span><span class="mord">−</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></span></p>
@@ -332,7 +341,7 @@ h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span
 <li>Teacher&#39;s soft labels (smoothed by temperature <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi></mrow><annotation encoding="application/x-tex">T</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span></span></span></span>) provide &quot;dark knowledge.&quot;</li>
 </ul>
 <hr>
-<h3>1.8 混合精度训练 Mixed Precision Training</h3>
+<h3 id="sec-9">1.8 混合精度训练 Mixed Precision Training</h3>
 <table>
 <thead>
 <tr>
@@ -369,296 +378,296 @@ h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span
 <li><strong>BF16 优势</strong>：动态范围与 FP32 相同，无需 loss scaling。</li>
 </ol>
 <hr>
-<h3>1.9 偏差-方差分解 Bias-Variance Decomposition</h3>
+<h3 id="sec-10">1.9 偏差-方差分解 Bias-Variance Decomposition</h3>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><mtext>MSE</mtext><mo stretchy="false">]</mo><mo>=</mo><msup><mtext>Bias</mtext><mn>2</mn></msup><mo>+</mo><mtext>Variance</mtext><mo>+</mo><mtext>Irreducible Noise</mtext></mrow><annotation encoding="application/x-tex">\mathbb{E}[\text{MSE}] = \text{Bias}^2 + \text{Variance} + \text{Irreducible Noise}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mord text"><span class="mord">MSE</span></span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.9707em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord text"><span class="mord">Bias</span></span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8873em;"><span style="top:-3.1362em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">Variance</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord text"><span class="mord">Irreducible Noise</span></span></span></span></span></span></p>
 <ul>
 <li><strong>高偏差 High Bias</strong>（欠拟合 Underfitting）：train / val loss 都高。</li>
 <li><strong>高方差 High Variance</strong>（过拟合 Overfitting）：train loss 低，val loss 明显高。</li>
 </ul>
 <hr>
-<h3>1.10 Batch Size 与梯度累积 Gradient Accumulation</h3>
+<h3 id="sec-11">1.10 Batch Size 与梯度累积 Gradient Accumulation</h3>
 <p><strong>Linear Scaling Rule</strong>：batch size 乘以 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> 时，LR 也乘以 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span>，保持每次参数更新的期望步长不变。</p>
 <p><strong>梯度累积</strong>：将 mini-batch 拆为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> 个 micro-batch，前 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k-1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> 步累加梯度（不更新），第 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> 步统一更新，等效于 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> 倍 batch size 但显存不变。</p>
 <hr>
-<h2>第二部分：PyTorch 代码片段</h2>
-<h2>Part 2: PyTorch Snippets (From Scratch)</h2>
+<h2 id="sec-12">第二部分：PyTorch 代码片段</h2>
+<h2 id="sec-13">Part 2: PyTorch Snippets (From Scratch)</h2>
 <blockquote>
 <p>以下片段用于教学理解，不追求完整封装，重点展示核心计算逻辑。
 These snippets prioritize pedagogical clarity over production-ready packaging.</p>
 </blockquote>
 <hr>
-<h3>2.1 SGD + Momentum</h3>
-<pre><code class="language-python">import torch
+<h3 id="sec-14">2.1 SGD + Momentum</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
-class SGDMomentum:
-    def __init__(self, params, lr=0.01, momentum=0.9):
-        self.params = list(params)
-        self.lr = lr
-        self.momentum = momentum
-        self.velocities = [torch.zeros_like(p) for p in self.params]
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">SGDMomentum</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, params, lr=<span class="hljs-number">0.01</span>, momentum=<span class="hljs-number">0.9</span></span>):
+        <span class="hljs-variable language_">self</span>.params = <span class="hljs-built_in">list</span>(params)
+        <span class="hljs-variable language_">self</span>.lr = lr
+        <span class="hljs-variable language_">self</span>.momentum = momentum
+        <span class="hljs-variable language_">self</span>.velocities = [torch.zeros_like(p) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params]
 
-    def step(self):
-        for p, v in zip(self.params, self.velocities):
-            if p.grad is None:
-                continue
-            v.mul_(self.momentum).add_(p.grad)
-            p.data.sub_(self.lr * v)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">step</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> p, v <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(<span class="hljs-variable language_">self</span>.params, <span class="hljs-variable language_">self</span>.velocities):
+            <span class="hljs-keyword">if</span> p.grad <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">continue</span>
+            v.mul_(<span class="hljs-variable language_">self</span>.momentum).add_(p.grad)
+            p.data.sub_(<span class="hljs-variable language_">self</span>.lr * v)
 
-    def zero_grad(self):
-        for p in self.params:
-            if p.grad is not None:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">zero_grad</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params:
+            <span class="hljs-keyword">if</span> p.grad <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
                 p.grad.zero_()
 </code></pre>
 <hr>
-<h3>2.2 Adam</h3>
-<pre><code class="language-python">class Adam:
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8):
-        self.params = list(params)
-        self.lr = lr
-        self.beta1, self.beta2 = betas
-        self.eps = eps
-        self.t = 0
-        self.m = [torch.zeros_like(p) for p in self.params]
-        self.v = [torch.zeros_like(p) for p in self.params]
+<h3 id="sec-15">2.2 Adam</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">Adam</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, params, lr=<span class="hljs-number">1e-3</span>, betas=(<span class="hljs-params"><span class="hljs-number">0.9</span>, <span class="hljs-number">0.999</span></span>), eps=<span class="hljs-number">1e-8</span></span>):
+        <span class="hljs-variable language_">self</span>.params = <span class="hljs-built_in">list</span>(params)
+        <span class="hljs-variable language_">self</span>.lr = lr
+        <span class="hljs-variable language_">self</span>.beta1, <span class="hljs-variable language_">self</span>.beta2 = betas
+        <span class="hljs-variable language_">self</span>.eps = eps
+        <span class="hljs-variable language_">self</span>.t = <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.m = [torch.zeros_like(p) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params]
+        <span class="hljs-variable language_">self</span>.v = [torch.zeros_like(p) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params]
 
-    def step(self):
-        self.t += 1
-        for p, m, v in zip(self.params, self.m, self.v):
-            if p.grad is None:
-                continue
-            m.mul_(self.beta1).add_(p.grad, alpha=1 - self.beta1)
-            v.mul_(self.beta2).addcmul_(p.grad, p.grad, value=1 - self.beta2)
-            # Bias correction
-            m_hat = m / (1 - self.beta1 ** self.t)
-            v_hat = v / (1 - self.beta2 ** self.t)
-            p.data.addcdiv_(m_hat, v_hat.sqrt().add_(self.eps), value=-self.lr)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">step</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.t += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">for</span> p, m, v <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(<span class="hljs-variable language_">self</span>.params, <span class="hljs-variable language_">self</span>.m, <span class="hljs-variable language_">self</span>.v):
+            <span class="hljs-keyword">if</span> p.grad <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">continue</span>
+            m.mul_(<span class="hljs-variable language_">self</span>.beta1).add_(p.grad, alpha=<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta1)
+            v.mul_(<span class="hljs-variable language_">self</span>.beta2).addcmul_(p.grad, p.grad, value=<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta2)
+            <span class="hljs-comment"># Bias correction</span>
+            m_hat = m / (<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta1 ** <span class="hljs-variable language_">self</span>.t)
+            v_hat = v / (<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta2 ** <span class="hljs-variable language_">self</span>.t)
+            p.data.addcdiv_(m_hat, v_hat.sqrt().add_(<span class="hljs-variable language_">self</span>.eps), value=-<span class="hljs-variable language_">self</span>.lr)
 
-    def zero_grad(self):
-        for p in self.params:
-            if p.grad is not None:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">zero_grad</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params:
+            <span class="hljs-keyword">if</span> p.grad <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
                 p.grad.zero_()
 </code></pre>
 <hr>
-<h3>2.3 AdamW（Decoupled Weight Decay）</h3>
-<pre><code class="language-python">class AdamW:
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999),
-                 eps=1e-8, weight_decay=0.01):
-        self.params = list(params)
-        self.lr = lr
-        self.beta1, self.beta2 = betas
-        self.eps = eps
-        self.wd = weight_decay
-        self.t = 0
-        self.m = [torch.zeros_like(p) for p in self.params]
-        self.v = [torch.zeros_like(p) for p in self.params]
+<h3 id="sec-16">2.3 AdamW（Decoupled Weight Decay）</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">AdamW</span>:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, params, lr=<span class="hljs-number">1e-3</span>, betas=(<span class="hljs-params"><span class="hljs-number">0.9</span>, <span class="hljs-number">0.999</span></span>),
+                 eps=<span class="hljs-number">1e-8</span>, weight_decay=<span class="hljs-number">0.01</span></span>):
+        <span class="hljs-variable language_">self</span>.params = <span class="hljs-built_in">list</span>(params)
+        <span class="hljs-variable language_">self</span>.lr = lr
+        <span class="hljs-variable language_">self</span>.beta1, <span class="hljs-variable language_">self</span>.beta2 = betas
+        <span class="hljs-variable language_">self</span>.eps = eps
+        <span class="hljs-variable language_">self</span>.wd = weight_decay
+        <span class="hljs-variable language_">self</span>.t = <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.m = [torch.zeros_like(p) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params]
+        <span class="hljs-variable language_">self</span>.v = [torch.zeros_like(p) <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params]
 
-    def step(self):
-        self.t += 1
-        for p, m, v in zip(self.params, self.m, self.v):
-            if p.grad is None:
-                continue
-            # Decoupled weight decay (applied directly to params)
-            p.data.mul_(1 - self.lr * self.wd)
-            # Adaptive update
-            m.mul_(self.beta1).add_(p.grad, alpha=1 - self.beta1)
-            v.mul_(self.beta2).addcmul_(p.grad, p.grad, value=1 - self.beta2)
-            m_hat = m / (1 - self.beta1 ** self.t)
-            v_hat = v / (1 - self.beta2 ** self.t)
-            p.data.addcdiv_(m_hat, v_hat.sqrt().add_(self.eps), value=-self.lr)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">step</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-variable language_">self</span>.t += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">for</span> p, m, v <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(<span class="hljs-variable language_">self</span>.params, <span class="hljs-variable language_">self</span>.m, <span class="hljs-variable language_">self</span>.v):
+            <span class="hljs-keyword">if</span> p.grad <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-comment"># Decoupled weight decay (applied directly to params)</span>
+            p.data.mul_(<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.lr * <span class="hljs-variable language_">self</span>.wd)
+            <span class="hljs-comment"># Adaptive update</span>
+            m.mul_(<span class="hljs-variable language_">self</span>.beta1).add_(p.grad, alpha=<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta1)
+            v.mul_(<span class="hljs-variable language_">self</span>.beta2).addcmul_(p.grad, p.grad, value=<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta2)
+            m_hat = m / (<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta1 ** <span class="hljs-variable language_">self</span>.t)
+            v_hat = v / (<span class="hljs-number">1</span> - <span class="hljs-variable language_">self</span>.beta2 ** <span class="hljs-variable language_">self</span>.t)
+            p.data.addcdiv_(m_hat, v_hat.sqrt().add_(<span class="hljs-variable language_">self</span>.eps), value=-<span class="hljs-variable language_">self</span>.lr)
 
-    def zero_grad(self):
-        for p in self.params:
-            if p.grad is not None:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">zero_grad</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.params:
+            <span class="hljs-keyword">if</span> p.grad <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
                 p.grad.zero_()
 </code></pre>
 <hr>
-<h3>2.4 Cosine Annealing LR Schedule</h3>
-<pre><code class="language-python">import math
+<h3 id="sec-17">2.4 Cosine Annealing LR Schedule</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> math
 
-def cosine_lr(step, total_steps, lr_max, lr_min=0.0):
-    &quot;&quot;&quot;Cosine decay from lr_max to lr_min over total_steps.&quot;&quot;&quot;
-    return lr_min + 0.5 * (lr_max - lr_min) * (
-        1 + math.cos(math.pi * step / total_steps)
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">cosine_lr</span>(<span class="hljs-params">step, total_steps, lr_max, lr_min=<span class="hljs-number">0.0</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;Cosine decay from lr_max to lr_min over total_steps.&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">return</span> lr_min + <span class="hljs-number">0.5</span> * (lr_max - lr_min) * (
+        <span class="hljs-number">1</span> + math.cos(math.pi * step / total_steps)
     )
 
-# Usage with PyTorch scheduler (built-in):
-# scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-#     optimizer, T_max=total_steps, eta_min=lr_min
-# )
+<span class="hljs-comment"># Usage with PyTorch scheduler (built-in):</span>
+<span class="hljs-comment"># scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(</span>
+<span class="hljs-comment">#     optimizer, T_max=total_steps, eta_min=lr_min</span>
+<span class="hljs-comment"># )</span>
 </code></pre>
 <hr>
-<h3>2.5 Layer Normalization from Scratch</h3>
-<pre><code class="language-python">import torch
-import torch.nn as nn
+<h3 id="sec-18">2.5 Layer Normalization from Scratch</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 
-class LayerNorm(nn.Module):
-    def __init__(self, d_model, eps=1e-5):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.ones(d_model))
-        self.beta = nn.Parameter(torch.zeros(d_model))
-        self.eps = eps
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">LayerNorm</span>(nn.Module):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, d_model, eps=<span class="hljs-number">1e-5</span></span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.gamma = nn.Parameter(torch.ones(d_model))
+        <span class="hljs-variable language_">self</span>.beta = nn.Parameter(torch.zeros(d_model))
+        <span class="hljs-variable language_">self</span>.eps = eps
 
-    def forward(self, x):
-        # x: (batch, seq_len, d_model)
-        mean = x.mean(dim=-1, keepdim=True)
-        var = x.var(dim=-1, keepdim=True, unbiased=False)
-        x_hat = (x - mean) / torch.sqrt(var + self.eps)
-        return self.gamma * x_hat + self.beta
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x</span>):
+        <span class="hljs-comment"># x: (batch, seq_len, d_model)</span>
+        mean = x.mean(dim=-<span class="hljs-number">1</span>, keepdim=<span class="hljs-literal">True</span>)
+        var = x.var(dim=-<span class="hljs-number">1</span>, keepdim=<span class="hljs-literal">True</span>, unbiased=<span class="hljs-literal">False</span>)
+        x_hat = (x - mean) / torch.sqrt(var + <span class="hljs-variable language_">self</span>.eps)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.gamma * x_hat + <span class="hljs-variable language_">self</span>.beta
 </code></pre>
 <hr>
-<h3>2.6 RMSNorm</h3>
-<pre><code class="language-python">class RMSNorm(nn.Module):
-    def __init__(self, d_model, eps=1e-6):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.ones(d_model))
-        self.eps = eps
+<h3 id="sec-19">2.6 RMSNorm</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">RMSNorm</span>(nn.Module):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, d_model, eps=<span class="hljs-number">1e-6</span></span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.gamma = nn.Parameter(torch.ones(d_model))
+        <span class="hljs-variable language_">self</span>.eps = eps
 
-    def forward(self, x):
-        rms = torch.sqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
-        return self.gamma * (x / rms)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x</span>):
+        rms = torch.sqrt(x.<span class="hljs-built_in">pow</span>(<span class="hljs-number">2</span>).mean(dim=-<span class="hljs-number">1</span>, keepdim=<span class="hljs-literal">True</span>) + <span class="hljs-variable language_">self</span>.eps)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.gamma * (x / rms)
 </code></pre>
 <hr>
-<h3>2.7 Gradient Clipping by Norm</h3>
-<pre><code class="language-python">def clip_grad_norm(parameters, max_norm=1.0):
-    &quot;&quot;&quot;Clip gradient norm in-place; returns total norm before clipping.&quot;&quot;&quot;
-    params = [p for p in parameters if p.grad is not None]
+<h3 id="sec-20">2.7 Gradient Clipping by Norm</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">clip_grad_norm</span>(<span class="hljs-params">parameters, max_norm=<span class="hljs-number">1.0</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;Clip gradient norm in-place; returns total norm before clipping.&quot;&quot;&quot;</span>
+    params = [p <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> parameters <span class="hljs-keyword">if</span> p.grad <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>]
     total_norm = torch.sqrt(
-        sum(p.grad.data.norm(2).item() ** 2 for p in params)
+        <span class="hljs-built_in">sum</span>(p.grad.data.norm(<span class="hljs-number">2</span>).item() ** <span class="hljs-number">2</span> <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> params)
     )
-    clip_coef = max_norm / (total_norm + 1e-6)
-    if clip_coef &lt; 1.0:
-        for p in params:
+    clip_coef = max_norm / (total_norm + <span class="hljs-number">1e-6</span>)
+    <span class="hljs-keyword">if</span> clip_coef &lt; <span class="hljs-number">1.0</span>:
+        <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> params:
             p.grad.data.mul_(clip_coef)
-    return total_norm
+    <span class="hljs-keyword">return</span> total_norm
 
-# PyTorch built-in (recommended):
-# torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+<span class="hljs-comment"># PyTorch built-in (recommended):</span>
+<span class="hljs-comment"># torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)</span>
 </code></pre>
 <hr>
-<h3>2.8 Mixed Precision Training (AMP)</h3>
-<pre><code class="language-python">import torch
+<h3 id="sec-21">2.8 Mixed Precision Training (AMP)</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
-# Setup
+<span class="hljs-comment"># Setup</span>
 model = MyModel().cuda()
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-scaler = torch.amp.GradScaler(&quot;cuda&quot;)  # for FP16; not needed for BF16
+optimizer = torch.optim.AdamW(model.parameters(), lr=<span class="hljs-number">1e-4</span>)
+scaler = torch.amp.GradScaler(<span class="hljs-string">&quot;cuda&quot;</span>)  <span class="hljs-comment"># for FP16; not needed for BF16</span>
 
-for inputs, targets in dataloader:
+<span class="hljs-keyword">for</span> inputs, targets <span class="hljs-keyword">in</span> dataloader:
     optimizer.zero_grad()
 
-    # Forward pass in FP16/BF16
-    with torch.amp.autocast(&quot;cuda&quot;, dtype=torch.float16):
+    <span class="hljs-comment"># Forward pass in FP16/BF16</span>
+    <span class="hljs-keyword">with</span> torch.amp.autocast(<span class="hljs-string">&quot;cuda&quot;</span>, dtype=torch.float16):
         outputs = model(inputs)
         loss = criterion(outputs, targets)
 
-    # Backward with loss scaling (FP16 only)
+    <span class="hljs-comment"># Backward with loss scaling (FP16 only)</span>
     scaler.scale(loss).backward()
-    scaler.unscale_(optimizer)           # unscale before clipping
-    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+    scaler.unscale_(optimizer)           <span class="hljs-comment"># unscale before clipping</span>
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=<span class="hljs-number">1.0</span>)
     scaler.step(optimizer)
     scaler.update()
 
-# For BF16: simply replace dtype=torch.bfloat16 and remove GradScaler
+<span class="hljs-comment"># For BF16: simply replace dtype=torch.bfloat16 and remove GradScaler</span>
 </code></pre>
 <hr>
-<h3>2.9 Gradient Checkpointing</h3>
-<pre><code class="language-python">from torch.utils.checkpoint import checkpoint
+<h3 id="sec-22">2.9 Gradient Checkpointing</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">from</span> torch.utils.checkpoint <span class="hljs-keyword">import</span> checkpoint
 
-class TransformerBlock(nn.Module):
-    def __init__(self, d_model, n_heads):
-        super().__init__()
-        self.attn = MultiHeadAttention(d_model, n_heads)
-        self.ffn = FeedForward(d_model)
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">TransformerBlock</span>(nn.Module):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, d_model, n_heads</span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.attn = MultiHeadAttention(d_model, n_heads)
+        <span class="hljs-variable language_">self</span>.ffn = FeedForward(d_model)
 
-    def forward(self, x):
-        # Use checkpoint to save memory at the cost of recomputation
-        x = x + checkpoint(self.attn, x, use_reentrant=False)
-        x = x + checkpoint(self.ffn, x, use_reentrant=False)
-        return x
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x</span>):
+        <span class="hljs-comment"># Use checkpoint to save memory at the cost of recomputation</span>
+        x = x + checkpoint(<span class="hljs-variable language_">self</span>.attn, x, use_reentrant=<span class="hljs-literal">False</span>)
+        x = x + checkpoint(<span class="hljs-variable language_">self</span>.ffn, x, use_reentrant=<span class="hljs-literal">False</span>)
+        <span class="hljs-keyword">return</span> x
 </code></pre>
 <hr>
-<h3>2.10 Focal Loss</h3>
-<pre><code class="language-python">class FocalLoss(nn.Module):
-    def __init__(self, gamma=2.0, weight=None):
-        super().__init__()
-        self.gamma = gamma
-        self.ce = nn.CrossEntropyLoss(weight=weight, reduction=&quot;none&quot;)
+<h3 id="sec-23">2.10 Focal Loss</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">FocalLoss</span>(nn.Module):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, gamma=<span class="hljs-number">2.0</span>, weight=<span class="hljs-literal">None</span></span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.gamma = gamma
+        <span class="hljs-variable language_">self</span>.ce = nn.CrossEntropyLoss(weight=weight, reduction=<span class="hljs-string">&quot;none&quot;</span>)
 
-    def forward(self, logits, targets):
-        ce_loss = self.ce(logits, targets)           # (B,)
-        p_t = torch.exp(-ce_loss)                     # p of correct class
-        focal_weight = (1 - p_t) ** self.gamma
-        return (focal_weight * ce_loss).mean()
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, logits, targets</span>):
+        ce_loss = <span class="hljs-variable language_">self</span>.ce(logits, targets)           <span class="hljs-comment"># (B,)</span>
+        p_t = torch.exp(-ce_loss)                     <span class="hljs-comment"># p of correct class</span>
+        focal_weight = (<span class="hljs-number">1</span> - p_t) ** <span class="hljs-variable language_">self</span>.gamma
+        <span class="hljs-keyword">return</span> (focal_weight * ce_loss).mean()
 </code></pre>
 <hr>
-<h3>2.11 GELU 与 SwiGLU</h3>
-<pre><code class="language-python">import torch
-import torch.nn as nn
-import torch.nn.functional as F
+<h3 id="sec-24">2.11 GELU 与 SwiGLU</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
+<span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
 
-# GELU (exact and approximate)
-class GELUApprox(nn.Module):
-    &quot;&quot;&quot;Common tanh approximation of GELU.&quot;&quot;&quot;
-    def forward(self, x):
-        return 0.5 * x * (
-            1 + torch.tanh(
-                math.sqrt(2 / math.pi) * (x + 0.044715 * x.pow(3))
+<span class="hljs-comment"># GELU (exact and approximate)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">GELUApprox</span>(nn.Module):
+    <span class="hljs-string">&quot;&quot;&quot;Common tanh approximation of GELU.&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0.5</span> * x * (
+            <span class="hljs-number">1</span> + torch.tanh(
+                math.sqrt(<span class="hljs-number">2</span> / math.pi) * (x + <span class="hljs-number">0.044715</span> * x.<span class="hljs-built_in">pow</span>(<span class="hljs-number">3</span>))
             )
         )
 
-# SwiGLU FFN (as used in LLaMA)
-class SwiGLU_FFN(nn.Module):
-    &quot;&quot;&quot;SwiGLU FFN: gate and up proj, then elementwise multiply, then down proj.
+<span class="hljs-comment"># SwiGLU FFN (as used in LLaMA)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">SwiGLU_FFN</span>(nn.Module):
+    <span class="hljs-string">&quot;&quot;&quot;SwiGLU FFN: gate and up proj, then elementwise multiply, then down proj.
     d_ffn is typically (8/3) * d_model to match parameter count of standard FFN.
-    &quot;&quot;&quot;
-    def __init__(self, d_model, d_ffn):
-        super().__init__()
-        self.w_gate = nn.Linear(d_model, d_ffn, bias=False)
-        self.w_up   = nn.Linear(d_model, d_ffn, bias=False)
-        self.w_down = nn.Linear(d_ffn, d_model, bias=False)
+    &quot;&quot;&quot;</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, d_model, d_ffn</span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.w_gate = nn.Linear(d_model, d_ffn, bias=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.w_up   = nn.Linear(d_model, d_ffn, bias=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.w_down = nn.Linear(d_ffn, d_model, bias=<span class="hljs-literal">False</span>)
 
-    def forward(self, x):
-        return self.w_down(F.silu(self.w_gate(x)) * self.w_up(x))
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.w_down(F.silu(<span class="hljs-variable language_">self</span>.w_gate(x)) * <span class="hljs-variable language_">self</span>.w_up(x))
 </code></pre>
 <hr>
-<h3>2.12 Knowledge Distillation Loss</h3>
-<pre><code class="language-python">import torch.nn.functional as F
+<h3 id="sec-25">2.12 Knowledge Distillation Loss</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
 
-def distillation_loss(student_logits, teacher_logits, targets,
-                      temperature=4.0, alpha=0.7):
-    &quot;&quot;&quot;
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">distillation_loss</span>(<span class="hljs-params">student_logits, teacher_logits, targets,
+                      temperature=<span class="hljs-number">4.0</span>, alpha=<span class="hljs-number">0.7</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;
     student_logits, teacher_logits: (B, K) raw logits
     targets: (B,) integer labels
-    &quot;&quot;&quot;
-    # Hard loss
+    &quot;&quot;&quot;</span>
+    <span class="hljs-comment"># Hard loss</span>
     hard_loss = F.cross_entropy(student_logits, targets)
 
-    # Soft loss (KL divergence)
-    s_log_probs = F.log_softmax(student_logits / temperature, dim=-1)
-    t_probs = F.softmax(teacher_logits / temperature, dim=-1)
-    soft_loss = F.kl_div(s_log_probs, t_probs, reduction=&quot;batchmean&quot;)
-    soft_loss = soft_loss * (temperature ** 2)  # scale back gradients
+    <span class="hljs-comment"># Soft loss (KL divergence)</span>
+    s_log_probs = F.log_softmax(student_logits / temperature, dim=-<span class="hljs-number">1</span>)
+    t_probs = F.softmax(teacher_logits / temperature, dim=-<span class="hljs-number">1</span>)
+    soft_loss = F.kl_div(s_log_probs, t_probs, reduction=<span class="hljs-string">&quot;batchmean&quot;</span>)
+    soft_loss = soft_loss * (temperature ** <span class="hljs-number">2</span>)  <span class="hljs-comment"># scale back gradients</span>
 
-    return alpha * hard_loss + (1 - alpha) * soft_loss
+    <span class="hljs-keyword">return</span> alpha * hard_loss + (<span class="hljs-number">1</span> - alpha) * soft_loss
 </code></pre>
 <hr>
-<h3>2.13 LR Finder（学习率搜索器）</h3>
-<pre><code class="language-python">import torch
-import math
+<h3 id="sec-26">2.13 LR Finder（学习率搜索器）</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> math
 
-def lr_finder(model, dataloader, criterion, optimizer,
-              init_lr=1e-7, final_lr=10.0, num_steps=100):
-    &quot;&quot;&quot;Exponentially increase LR from init_lr to final_lr over num_steps.&quot;&quot;&quot;
-    lr_mult = (final_lr / init_lr) ** (1 / num_steps)
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">lr_finder</span>(<span class="hljs-params">model, dataloader, criterion, optimizer,
+              init_lr=<span class="hljs-number">1e-7</span>, final_lr=<span class="hljs-number">10.0</span>, num_steps=<span class="hljs-number">100</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;Exponentially increase LR from init_lr to final_lr over num_steps.&quot;&quot;&quot;</span>
+    lr_mult = (final_lr / init_lr) ** (<span class="hljs-number">1</span> / num_steps)
     lr = init_lr
     results = []
 
-    for i, (inputs, targets) in enumerate(dataloader):
-        if i &gt;= num_steps:
-            break
-        # Set LR
-        for pg in optimizer.param_groups:
-            pg[&quot;lr&quot;] = lr
+    <span class="hljs-keyword">for</span> i, (inputs, targets) <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(dataloader):
+        <span class="hljs-keyword">if</span> i &gt;= num_steps:
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-comment"># Set LR</span>
+        <span class="hljs-keyword">for</span> pg <span class="hljs-keyword">in</span> optimizer.param_groups:
+            pg[<span class="hljs-string">&quot;lr&quot;</span>] = lr
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
@@ -667,27 +676,27 @@ def lr_finder(model, dataloader, criterion, optimizer,
         results.append((lr, loss.item()))
         lr *= lr_mult
 
-    return results  # Plot loss vs. lr; pick LR where loss drops fastest
+    <span class="hljs-keyword">return</span> results  <span class="hljs-comment"># Plot loss vs. lr; pick LR where loss drops fastest</span>
 </code></pre>
 <hr>
-<h3>2.14 Gradient Accumulation</h3>
-<pre><code class="language-python">accumulation_steps = 4  # simulate 4x batch size
+<h3 id="sec-27">2.14 Gradient Accumulation</h3>
+<pre><code class="hljs language-python">accumulation_steps = <span class="hljs-number">4</span>  <span class="hljs-comment"># simulate 4x batch size</span>
 
-for i, (inputs, targets) in enumerate(dataloader):
-    with torch.amp.autocast(&quot;cuda&quot;, dtype=torch.bfloat16):
+<span class="hljs-keyword">for</span> i, (inputs, targets) <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(dataloader):
+    <span class="hljs-keyword">with</span> torch.amp.autocast(<span class="hljs-string">&quot;cuda&quot;</span>, dtype=torch.bfloat16):
         loss = criterion(model(inputs), targets) / accumulation_steps
     loss.backward()
 
-    if (i + 1) % accumulation_steps == 0:
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    <span class="hljs-keyword">if</span> (i + <span class="hljs-number">1</span>) % accumulation_steps == <span class="hljs-number">0</span>:
+        torch.nn.utils.clip_grad_norm_(model.parameters(), <span class="hljs-number">1.0</span>)
         optimizer.step()
         optimizer.zero_grad()
 </code></pre>
 <hr>
-<h2>第三部分：面试题集（25 题）</h2>
-<h2>Part 3: Interview Questions (25 Questions)</h2>
+<h2 id="sec-28">第三部分：面试题集（25 题）</h2>
+<h2 id="sec-29">Part 3: Interview Questions (25 Questions)</h2>
 <hr>
-<h3>L1 — 基础题 Basic</h3>
+<h3 id="sec-30">L1 — 基础题 Basic</h3>
 <hr>
 <p><strong>Q1. SGD、Adam、AdamW 的核心区别是什么？</strong>
 <strong>What are the key differences among SGD, Adam, and AdamW?</strong></p>
@@ -863,7 +872,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p>通常用 Xavier（因为输入经过 softmax 或 LayerNorm，近似线性）。不同框架的默认可能略有差异，但主流做法是 Xavier uniform 或 normal。</p>
 </blockquote>
 <hr>
-<h3>L2 — 中等题 Intermediate</h3>
+<h3 id="sec-31">L2 — 中等题 Intermediate</h3>
 <hr>
 <p><strong>Q11. 反向传播算法的核心步骤是什么？</strong>
 <strong>What are the core steps of the backpropagation algorithm?</strong></p>
@@ -1034,7 +1043,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p>不完全是。Checkpointing 通过重计算减少<strong>激活显存</strong>；ZeRO-Offload 将<strong>优化器状态和梯度</strong>从 GPU 卸载到 CPU/SSD。两者解决不同显存瓶颈，可以组合使用。</p>
 </blockquote>
 <hr>
-<h3>L3 — 深度题 Deep</h3>
+<h3 id="sec-32">L3 — 深度题 Deep</h3>
 <hr>
 <p><strong>Q21. 如果训练中 loss 出现 spike（突然跳升），系统性排查步骤是什么？</strong>
 <strong>What is a systematic debugging procedure for loss spikes during training?</strong></p>

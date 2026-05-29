@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-// Build a FULLY STATIC site into docs/ — markdown + math are pre-rendered at
-// BUILD time (marked + KaTeX); KaTeX CSS/fonts are vendored under
-// docs/vendor/katex/. No runtime CDN → works in mainland China and offline.
-//
-//   npm install        # marked + katex (build-only)
+// Build a FULLY STATIC site into docs/ — markdown + math + code highlighting are
+// all pre-rendered at BUILD time (marked + KaTeX + highlight.js). KaTeX & hljs
+// CSS/fonts are vendored under docs/vendor/. No runtime CDN → works in mainland
+// China and offline.
+//   npm install        # marked + katex + highlight.js (build-only)
 //   node build.js
 
 const fs = require('fs');
 const path = require('path');
 const _m = require('marked');
-const marked = _m.marked || _m;            // works across marked v4 / v5+
+const marked = _m.marked || _m;
 const katex = require('katex');
+const _h = require('highlight.js');
+const hljs = _h.default || _h;
 
 const ROOT = __dirname;
 const OUT = path.join(ROOT, 'docs');
@@ -22,7 +24,7 @@ function titleOf(md, fallback) {
   return m ? m[1].trim() : fallback;
 }
 
-// Pre-render math with KaTeX at build time → static HTML (no runtime MathJax).
+// 1) Pre-render math with KaTeX (static; no runtime MathJax).
 function renderWithMath(md) {
   const slots = [];
   const tex = (s, display) => {
@@ -38,12 +40,41 @@ function renderWithMath(md) {
     .replace(/\\\(([\s\S]+?)\\\)/g, (_, s) => tex(s, false))
     .replace(/\$([^\$\n]+?)\$/g, (_, s) => tex(s, false));
   let html = marked.parse(md, { async: false });
-  html = html.replace(/@@KMATH(\d+)@@/g, (_, i) => slots[+i]);
-  return html;
+  return html.replace(/@@KMATH(\d+)@@/g, (_, i) => slots[+i]);
+}
+
+// 2) Pre-highlight fenced code (static; no runtime highlight.js).
+function unescapeHtml(s) {
+  return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+}
+function highlightCode(html) {
+  return html.replace(/<pre><code(?: class="language-([\w+#.-]+)")?>([\s\S]*?)<\/code><\/pre>/g, (m, lang, code) => {
+    const raw = unescapeHtml(code);
+    let value;
+    try {
+      value = (lang && hljs.getLanguage(lang)) ? hljs.highlight(raw, { language: lang }).value : hljs.highlightAuto(raw).value;
+    } catch (e) { return m; }
+    return '<pre><code class="hljs' + (lang ? ' language-' + lang : '') + '">' + value + '</code></pre>';
+  });
+}
+
+// 3) Add heading ids + a per-page Table of Contents (skipped for short pages).
+function addTocAndIds(html) {
+  const toc = [];
+  let i = 0;
+  html = html.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (m, lvl, inner) => {
+    const id = 'sec-' + (i++);
+    toc.push({ lvl: +lvl, id, text: inner.replace(/<[^>]+>/g, '').trim() });
+    return '<h' + lvl + ' id="' + id + '">' + inner + '</h' + lvl + '>';
+  });
+  if (toc.length < 3) return html;
+  const items = toc.map((t) => '<li class="lv' + t.lvl + '"><a href="#' + t.id + '">' + t.text + '</a></li>').join('');
+  const nav = '<details class="toc" open><summary>目录 / Contents (' + toc.length + ')</summary><ul>' + items + '</ul></details>';
+  return /<\/h1>/.test(html) ? html.replace('</h1>', '</h1>' + nav) : nav + html;
 }
 
 function renderDoc(md, title, outFile) {
-  const content = renderWithMath(md);
+  const content = addTocAndIds(highlightCode(renderWithMath(md)));
   const html = tpl.replace('{{TITLE}}', () => title).replace('{{CONTENT}}', () => content);
   fs.writeFileSync(path.join(OUT, outFile), html);
 }
@@ -65,7 +96,7 @@ for (const d of fs.readdirSync(path.join(ROOT, 'drills')).sort()) {
   items.push({ section: 'Drills 手撕', title: titleOf(md, d), href: out });
 }
 
-// Index hub — pure HTML + vanilla JS search (no CDN, no markdown render needed).
+// Index hub — pure HTML + vanilla JS search (no CDN).
 function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 function buildIndex(items) {
   const groups = {};
@@ -101,11 +132,11 @@ footer{max-width:980px;margin:1rem auto 3rem;padding:0 1rem;color:#999;font-size
 <body>
 <header>
 <h1>Post-Training Playbook</h1>
-<div class="sub">${items.length} 篇 · LLM 后训练面试复习 · 公式/代码已静态渲染(零外部 CDN,国内直连)· 输入关键词过滤</div>
+<div class="sub">${items.length} 篇 · LLM 后训练面试复习 · 公式/代码静态渲染(零外部 CDN,国内直连)· 输入关键词过滤</div>
 <input id="q" type="search" placeholder="搜索主题… / filter topics…" autocomplete="off" autofocus>
 </header>
 <main>${sections}</main>
-<footer>AI 辅助整理的学习笔记,WIP,欢迎 issue/PR 纠错。由 <code>node build.js</code> 生成(marked + KaTeX 构建时渲染)。</footer>
+<footer>AI 辅助整理的学习笔记,WIP,欢迎 issue/PR 纠错。由 <code>node build.js</code> 生成(marked + KaTeX + highlight.js 构建时渲染)。</footer>
 <script>
 const q=document.getElementById('q');
 q.addEventListener('input',function(){
@@ -121,4 +152,4 @@ q.addEventListener('input',function(){
 }
 
 fs.writeFileSync(path.join(OUT, 'index.html'), buildIndex(items));
-console.log('Built ' + items.length + ' static pages into docs/ (markdown + math pre-rendered, zero runtime CDN)');
+console.log('Built ' + items.length + ' static pages into docs/ (markdown + math + code pre-rendered, zero runtime CDN)');

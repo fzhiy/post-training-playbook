@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ML / LLM 系统设计速查表</title>
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="vendor/hl/github.min.css">
+<link rel="stylesheet" href="vendor/hl/github-dark.min.css" media="(prefers-color-scheme: dark)">
 <style>
   :root{color-scheme:light dark}
   body{max-width:820px;margin:0 auto;padding:1rem 1.1rem 4rem;
@@ -14,35 +16,42 @@
   h2{font-size:1.25rem;border-bottom:1px solid #8884;padding-bottom:.2em}
   code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.9em}
   :not(pre)>code{background:#8882;padding:.1em .35em;border-radius:4px}
-  pre{background:#2b2b2b0d;padding:.9rem;border-radius:8px;overflow-x:auto}
-  pre code{display:block;white-space:pre}
+  pre{margin:1em 0}
+  pre code.hljs{border-radius:8px}
   table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
   th,td{border:1px solid #8886;padding:.4em .6em;text-align:left}
   blockquote{border-left:3px solid #8888;margin:1em 0;padding:.2em 1em;color:#888}
   a{color:#0a7}
   nav.top{font-size:.88rem;margin-bottom:1rem}
+  .toc{border:1px solid #8884;border-radius:8px;padding:.4em .9em;margin:1.2em 0;font-size:.92rem;background:#8881}
+  .toc summary{cursor:pointer;color:#0a7;font-weight:600}
+  .toc ul{margin:.5em 0 .2em;padding-left:1.2em;list-style:none}
+  .toc li{margin:.15em 0}
+  .toc li.lv3{padding-left:1.1em;font-size:.95em;opacity:.8}
+  .toc a{color:inherit;text-decoration:none}
+  .toc a:hover{color:#0a7;text-decoration:underline}
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
-  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}pre{background:#ffffff12}}
+  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}}
 </style>
 </head>
 <body>
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
-<article id="out"><h1>ML / LLM 系统设计速查表</h1>
+<article id="out"><h1>ML / LLM 系统设计速查表</h1><details class="toc" open><summary>目录 / Contents (26)</summary><ul><li class="lv2"><a href="#sec-0">目录 / Table of Contents</a></li><li class="lv2"><a href="#sec-1">一、概念与公式推导 / Concepts &amp; Key Formulas</a></li><li class="lv3"><a href="#sec-2">1.1 因果语言模型 / Causal Language Modeling (CLM)</a></li><li class="lv3"><a href="#sec-3">1.2 Softmax 与 Attention / Softmax &amp; Attention</a></li><li class="lv3"><a href="#sec-4">1.3 Position Encoding / 位置编码</a></li><li class="lv3"><a href="#sec-5">1.4 LoRA — 低秩适配 / Low-Rank Adaptation</a></li><li class="lv3"><a href="#sec-6">1.5 RLHF 与 DPO / Reinforcement Learning from Human Feedback</a></li><li class="lv3"><a href="#sec-7">1.6 分布式训练 — 并行策略 / Distributed Training Parallelism</a></li><li class="lv3"><a href="#sec-8">1.7 KV Cache 显存分析 / KV Cache Memory Analysis</a></li><li class="lv3"><a href="#sec-9">1.8 量化基础 / Quantization Fundamentals</a></li><li class="lv3"><a href="#sec-10">1.9 Speculative Decoding / 投机解码</a></li><li class="lv3"><a href="#sec-11">1.10 模型设计通用框架 / 7-Step ML System Design Framework</a></li><li class="lv2"><a href="#sec-12">二、PyTorch 代码片段 / From-Scratch Snippets</a></li><li class="lv3"><a href="#sec-13">2.1 Scaled Dot-Product Attention</a></li><li class="lv3"><a href="#sec-14">2.2 Causal Self-Attention Layer</a></li><li class="lv3"><a href="#sec-15">2.3 LoRA Layer</a></li><li class="lv3"><a href="#sec-16">2.4 Grouped-Query Attention (GQA)</a></li><li class="lv3"><a href="#sec-17">2.5 RoPE (Rotary Position Embedding)</a></li><li class="lv3"><a href="#sec-18">2.6 DPO Loss</a></li><li class="lv3"><a href="#sec-19">2.7 KV Cache Wrapper (Minimal)</a></li><li class="lv3"><a href="#sec-20">2.8 Symmetric INT8 Quantize / Dequantize</a></li><li class="lv2"><a href="#sec-21">三、面试题 / Interview Questions</a></li><li class="lv3"><a href="#sec-22">L1 — 基础 / Basic</a></li><li class="lv3"><a href="#sec-23">L2 — 中级 / Intermediate</a></li><li class="lv3"><a href="#sec-24">L3 — 深度 / Deep</a></li><li class="lv2"><a href="#sec-25">附录：关键术语对照表 / Appendix: Key Term Glossary</a></li></ul></details>
 <h1>ML / LLM System Design — Cheat Sheet</h1>
 <blockquote>
 <p>面向 LLM Research Intern 岗位准备 | For LLM research intern preparation
 公开发布版 · 无特定论文内部结果 | Public edition · No proprietary results included</p>
 </blockquote>
 <hr>
-<h2>目录 / Table of Contents</h2>
+<h2 id="sec-0">目录 / Table of Contents</h2>
 <ol>
 <li><a href="#%E4%B8%80%E6%A6%82%E5%BF%B5%E4%B8%8E%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC--concepts--key-formulas">概念与公式推导 / Concepts &amp; Key Formulas</a></li>
 <li><a href="#%E4%BA%8Cpytorch-%E4%BB%A3%E7%A0%81%E7%89%87%E6%AE%B5--from-scratch-snippets">PyTorch 代码片段 / From-Scratch Snippets</a></li>
 <li><a href="#%E4%B8%89%E9%9D%A2%E8%AF%95%E9%A2%98--interview-questions">面试题 / Interview Questions (25)</a></li>
 </ol>
 <hr>
-<h2>一、概念与公式推导 / Concepts &amp; Key Formulas</h2>
-<h3>1.1 因果语言模型 / Causal Language Modeling (CLM)</h3>
+<h2 id="sec-1">一、概念与公式推导 / Concepts &amp; Key Formulas</h2>
+<h3 id="sec-2">1.1 因果语言模型 / Causal Language Modeling (CLM)</h3>
 <p><strong>核心思想 / Core Idea：</strong> 自回归地预测下一个 token，训练时使用 causal mask 阻止未来信息泄漏。</p>
 <p><strong>损失函数 / Loss Function：</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi mathvariant="script">L</mi><mtext>CLM</mtext></msub><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><mi>T</mi></mfrac><munderover><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><mi>T</mi></munderover><mi>log</mi><mo>⁡</mo><msub><mi>P</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>x</mi><mrow><mo>&lt;</mo><mi>t</mi></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{CLM}} = -\frac{1}{T}\sum_{t=1}^{T} \log P_\theta(x_t \mid x_{&lt;t})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathcal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">CLM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3.0954em;vertical-align:-1.2671em;"></span><span class="mord">−</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">T</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8283em;"><span style="top:-1.8829em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.1389em;">T</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2671em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∣</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mrel mtight">&lt;</span><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1774em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span></p>
@@ -53,7 +62,7 @@
 <li>实现时，logits 形状为 <code>(batch, seq_len, vocab_size)</code>，target 为左移一位的 token ids</li>
 </ul>
 <hr>
-<h3>1.2 Softmax 与 Attention / Softmax &amp; Attention</h3>
+<h3 id="sec-3">1.2 Softmax 与 Attention / Softmax &amp; Attention</h3>
 <p><strong>Scaled Dot-Product Attention：</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>Attn</mtext><mo stretchy="false">(</mo><mi>Q</mi><mo separator="true">,</mo><mi>K</mi><mo separator="true">,</mo><mi>V</mi><mo stretchy="false">)</mo><mo>=</mo><mtext>softmax</mtext><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><mfrac><mrow><mi>Q</mi><msup><mi>K</mi><mi mathvariant="normal">⊤</mi></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo fence="true">)</mo></mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">\text{Attn}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Attn</span></span><span class="mopen">(</span><span class="mord mathnormal">Q</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.4761em;vertical-align:-0.95em;"></span><span class="mord text"><span class="mord">softmax</span></span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">(</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.5261em;"><span style="top:-2.2528em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8572em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-2.8172em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
 c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
@@ -117,7 +126,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li><strong>Grouped-Query Attention (GQA)：</strong> 将 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span> 个 query head 分成 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi></mrow><annotation encoding="application/x-tex">g</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">g</span></span></span></span> 组，每组共享 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo separator="true">,</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">K, V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span>，是 MHA 与 MQA 的折中</li>
 </ul>
 <hr>
-<h3>1.3 Position Encoding / 位置编码</h3>
+<h3 id="sec-4">1.3 Position Encoding / 位置编码</h3>
 <p><strong>Rotary Position Embedding (RoPE)：</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mover accent="true"><mi>q</mi><mo>~</mo></mover><mi>m</mi></msub><mo>=</mo><msub><mi>q</mi><mi>m</mi></msub><msup><mi>e</mi><mrow><mi>i</mi><mi>m</mi><mi>θ</mi></mrow></msup><mo separator="true">,</mo><mspace width="1em"/><msub><mover accent="true"><mi>k</mi><mo>~</mo></mover><mi>n</mi></msub><mo>=</mo><msub><mi>k</mi><mi>n</mi></msub><msup><mi>e</mi><mrow><mi>i</mi><mi>n</mi><mi>θ</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\tilde{q}_m = q_m e^{im\theta}, \quad \tilde{k}_n = k_n e^{in\theta}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8623em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">q</span></span><span style="top:-3.35em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">~</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">m</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.1257em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">q</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">m</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8991em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">im</span><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9313em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span><span style="top:-3.6134em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">~</span></span></span></span></span></span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0315em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.0491em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0315em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8991em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">in</span><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span></span></span></span></span></span></span></span></span></span></p>
 <p>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>θ</mi><mi>j</mi></msub><mo>=</mo><msup><mn>10000</mn><mrow><mo>−</mo><mn>2</mn><mi>j</mi><mi mathvariant="normal">/</mi><mi>d</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\theta_j = 10000^{-2j/d}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9805em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.888em;"></span><span class="mord">1000</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.888em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">2</span><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span><span class="mord mtight">/</span><span class="mord mathnormal mtight">d</span></span></span></span></span></span></span></span></span></span></span></span>。</p>
@@ -132,7 +141,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>RoPE</mtext><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>x</mi><mo>⊙</mo><mi>cos</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>m</mi><mi>θ</mi><mo stretchy="false">)</mo><mo>+</mo><mtext>rotate_half</mtext><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>⊙</mo><mi>sin</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>m</mi><mi>θ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\text{RoPE}(x) = x \odot \cos(m\theta) + \text{rotate\_half}(x) \odot \sin(m\theta)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">RoPE</span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⊙</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">cos</span><span class="mopen">(</span><span class="mord mathnormal">m</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"></span><span class="mord text"><span class="mord">rotate_half</span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⊙</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">sin</span><span class="mopen">(</span><span class="mord mathnormal">m</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span></span></span></span></span></p>
 <p>对 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><msub><mi>d</mi><mi>k</mi></msub></msup></mrow><annotation encoding="application/x-tex">x \in \mathbb{R}^{d_k}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:0em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span>，每对相邻维度 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mrow><mn>2</mn><mi>i</mi></mrow></msub><mo separator="true">,</mo><msub><mi>x</mi><mrow><mn>2</mn><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(x_{2i}, x_{2i+1})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span><span class="mord mathnormal mtight">i</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span><span class="mord mathnormal mtight">i</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2083em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 做 2D 旋转。</p>
 <hr>
-<h3>1.4 LoRA — 低秩适配 / Low-Rank Adaptation</h3>
+<h3 id="sec-5">1.4 LoRA — 低秩适配 / Low-Rank Adaptation</h3>
 <p><strong>动机 / Motivation：</strong> 全参数微调大型模型显存开销大（需存储参数、梯度、优化器状态各一份）。LoRA 冻结预训练权重，仅训练低秩增量。</p>
 <p><strong>核心公式 / Key Formula：</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>h</mi><mo>=</mo><msub><mi>W</mi><mn>0</mn></msub><mi>x</mi><mo>+</mo><mi mathvariant="normal">Δ</mi><mi>W</mi><mi>x</mi><mo>=</mo><msub><mi>W</mi><mn>0</mn></msub><mi>x</mi><mo>+</mo><mi>B</mi><mi>A</mi><mi>x</mi></mrow><annotation encoding="application/x-tex">h = W_0 x + \Delta W x = W_0 x + BAx</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">Δ</span><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord mathnormal">A</span><span class="mord mathnormal">x</span></span></span></span></span></p>
@@ -155,7 +164,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>W</mi><mtext>merged</mtext></msub><mo>=</mo><msub><mi>W</mi><mn>0</mn></msub><mo>+</mo><mfrac><mi>α</mi><mi>r</mi></mfrac><mi>B</mi><mi>A</mi></mrow><annotation encoding="application/x-tex">W_{\text{merged}} = W_0 + \frac{\alpha}{r} BA</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">merged</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.7936em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.1076em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord mathnormal">A</span></span></span></span></span></p>
 <p>合并后推理无额外开销。</p>
 <hr>
-<h3>1.5 RLHF 与 DPO / Reinforcement Learning from Human Feedback</h3>
+<h3 id="sec-6">1.5 RLHF 与 DPO / Reinforcement Learning from Human Feedback</h3>
 <p><strong>奖励模型训练 / Reward Model Training (Bradley-Terry)：</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi mathvariant="script">L</mi><mtext>RM</mtext></msub><mo>=</mo><mo>−</mo><mi>log</mi><mo>⁡</mo><mi>σ</mi><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">(</mo><msub><mi>r</mi><mi>ϕ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><msub><mi>r</mi><mi>ϕ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{RM}} = -\log \sigma\big(r_\phi(x, y_w) - r_\phi(x, y_l)\big)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathcal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="mord">−</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mord"><span class="delimsizing size1">(</span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">ϕ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">ϕ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mord"><span class="delimsizing size1">)</span></span></span></span></span></span></p>
 <p>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>w</mi></msub><mo>≻</mo><msub><mi>y</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">y_w \succ y_l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7335em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≻</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 为人工标注的偏好对（preferred vs rejected）。</p>
@@ -182,7 +191,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li>不易做 online RL（需要 on-policy 采样来改进）</li>
 </ul>
 <hr>
-<h3>1.6 分布式训练 — 并行策略 / Distributed Training Parallelism</h3>
+<h3 id="sec-7">1.6 分布式训练 — 并行策略 / Distributed Training Parallelism</h3>
 <h4>Data Parallelism (DP) / 数据并行</h4>
 <p>每张卡持有完整模型副本，梯度通过 All-Reduce 同步。</p>
 <p><strong>通信量 / Communication：</strong> 每步 All-Reduce 参数梯度 = <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>×</mo><mi mathvariant="normal">∣</mi><mi>θ</mi><mi mathvariant="normal">∣</mi></mrow><annotation encoding="application/x-tex">2 \times |\theta|</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mord">∣</span></span></span></span>（ring all-reduce）。</p>
@@ -238,7 +247,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li>超长上下文：加入 SP（Ring Attention）</li>
 </ul>
 <hr>
-<h3>1.7 KV Cache 显存分析 / KV Cache Memory Analysis</h3>
+<h3 id="sec-8">1.7 KV Cache 显存分析 / KV Cache Memory Analysis</h3>
 <p>每层每个 token 需缓存 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi></mrow><annotation encoding="application/x-tex">K</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span>：</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>KV cache (bytes)</mtext><mo>=</mo><mn>2</mn><mo>×</mo><mi>L</mi><mo>×</mo><msub><mi>n</mi><mtext>heads</mtext></msub><mo>×</mo><msub><mi>d</mi><mtext>head</mtext></msub><mo>×</mo><mi>s</mi><mo>×</mo><mtext>bytes_per_param</mtext></mrow><annotation encoding="application/x-tex">\text{KV cache (bytes)} = 2 \times L \times n_{\text{heads}} \times d_{\text{head}} \times s \times \text{bytes\_per\_param}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">KV cache (bytes)</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">heads</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">head</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0044em;vertical-align:-0.31em;"></span><span class="mord text"><span class="mord">bytes_per_param</span></span></span></span></span></span></p>
 <ul>
@@ -247,7 +256,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </ul>
 <p><strong>PagedAttention（vLLM）：</strong> 将 KV cache 分为固定大小的 page（如 16 tokens/page），按需分配，消除显存碎片，支持更多并发。</p>
 <hr>
-<h3>1.8 量化基础 / Quantization Fundamentals</h3>
+<h3 id="sec-9">1.8 量化基础 / Quantization Fundamentals</h3>
 <p><strong>对称量化 / Symmetric Quantization：</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>x</mi><mi>q</mi></msub><mo>=</mo><mtext>round</mtext><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><mfrac><mi>x</mi><mi>s</mi></mfrac><mo fence="true">)</mo></mrow><mo separator="true">,</mo><mspace width="1em"/><mi>s</mi><mo>=</mo><mfrac><mrow><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi mathvariant="normal">∣</mi><mi>x</mi><mi mathvariant="normal">∣</mi><mo stretchy="false">)</mo></mrow><mrow><msup><mn>2</mn><mrow><mi>b</mi><mo>−</mo><mn>1</mn></mrow></msup><mo>−</mo><mn>1</mn></mrow></mfrac></mrow><annotation encoding="application/x-tex">x_q = \text{round}\!\left(\frac{x}{s}\right), \quad s = \frac{\max(|x|)}{2^{b-1} - 1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">q</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.836em;vertical-align:-0.686em;"></span><span class="mord text"><span class="mord">round</span></span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size2">(</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.1076em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">s</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size2">)</span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1963em;vertical-align:-0.7693em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7751em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">1</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mop">max</span><span class="mopen">(</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mord">∣</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
 <p><strong>非对称量化 / Asymmetric Quantization：</strong></p>
@@ -258,7 +267,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li><strong>AWQ（Activation-Aware Weight Quantization）：</strong> 根据激活的幅度识别&quot;重要通道&quot;（salient channels），对这些通道保护或用更高精度量化，而非均匀量化所有权重</li>
 </ul>
 <hr>
-<h3>1.9 Speculative Decoding / 投机解码</h3>
+<h3 id="sec-10">1.9 Speculative Decoding / 投机解码</h3>
 <p><strong>核心思想：</strong> 用小型 draft model 并行预测 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> 个 token，再用 target model 一次前向验证。</p>
 <p><strong>接受-拒绝采样 / Accept-Reject：</strong></p>
 <ul>
@@ -268,7 +277,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </ul>
 <p><strong>加速比 / Speedup：</strong> 取决于 draft model 与 target model 的 token 接受率。典型场景下可获得 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.5</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">1.5\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.5</span><span class="mord">×</span></span></span></span>–<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2.5</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">2.5\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2.5</span><span class="mord">×</span></span></span></span> 加速。</p>
 <hr>
-<h3>1.10 模型设计通用框架 / 7-Step ML System Design Framework</h3>
+<h3 id="sec-11">1.10 模型设计通用框架 / 7-Step ML System Design Framework</h3>
 <table>
 <thead>
 <tr>
@@ -314,217 +323,217 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </tr>
 </tbody></table>
 <hr>
-<h2>二、PyTorch 代码片段 / From-Scratch Snippets</h2>
+<h2 id="sec-12">二、PyTorch 代码片段 / From-Scratch Snippets</h2>
 <blockquote>
 <p>以下为教学用途的最小实现，突出核心逻辑，省略生产级的错误处理和优化。</p>
 </blockquote>
-<h3>2.1 Scaled Dot-Product Attention</h3>
-<pre><code class="language-python">import torch
-import torch.nn.functional as F
-import math
+<h3 id="sec-13">2.1 Scaled Dot-Product Attention</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
+<span class="hljs-keyword">import</span> math
 
-def scaled_dot_product_attention(
-    q: torch.Tensor,   # (batch, n_heads, seq_q, d_k)
-    k: torch.Tensor,   # (batch, n_heads, seq_k, d_k)
-    v: torch.Tensor,   # (batch, n_heads, seq_k, d_v)
-    mask: torch.Tensor | None = None,  # (batch, 1, seq_q, seq_k) or broadcastable
-) -&gt; torch.Tensor:
-    d_k = q.size(-1)
-    scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_k)
-    if mask is not None:
-        scores = scores.masked_fill(mask == 0, float(&quot;-inf&quot;))
-    attn_weights = F.softmax(scores, dim=-1)
-    return torch.matmul(attn_weights, v), attn_weights
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">scaled_dot_product_attention</span>(<span class="hljs-params">
+    q: torch.Tensor,   <span class="hljs-comment"># (batch, n_heads, seq_q, d_k)</span>
+    k: torch.Tensor,   <span class="hljs-comment"># (batch, n_heads, seq_k, d_k)</span>
+    v: torch.Tensor,   <span class="hljs-comment"># (batch, n_heads, seq_k, d_v)</span>
+    mask: torch.Tensor | <span class="hljs-literal">None</span> = <span class="hljs-literal">None</span>,  <span class="hljs-comment"># (batch, 1, seq_q, seq_k) or broadcastable</span>
+</span>) -&gt; torch.Tensor:
+    d_k = q.size(-<span class="hljs-number">1</span>)
+    scores = torch.matmul(q, k.transpose(-<span class="hljs-number">2</span>, -<span class="hljs-number">1</span>)) / math.sqrt(d_k)
+    <span class="hljs-keyword">if</span> mask <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        scores = scores.masked_fill(mask == <span class="hljs-number">0</span>, <span class="hljs-built_in">float</span>(<span class="hljs-string">&quot;-inf&quot;</span>))
+    attn_weights = F.softmax(scores, dim=-<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">return</span> torch.matmul(attn_weights, v), attn_weights
 </code></pre>
-<h3>2.2 Causal Self-Attention Layer</h3>
-<pre><code class="language-python">import torch
-import torch.nn as nn
-import math
+<h3 id="sec-14">2.2 Causal Self-Attention Layer</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
+<span class="hljs-keyword">import</span> math
 
-class CausalSelfAttention(nn.Module):
-    def __init__(self, d_model: int, n_heads: int):
-        super().__init__()
-        assert d_model % n_heads == 0
-        self.n_heads = n_heads
-        self.d_k = d_model // n_heads
-        self.qkv_proj = nn.Linear(d_model, 3 * d_model, bias=False)
-        self.out_proj = nn.Linear(d_model, d_model, bias=False)
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">CausalSelfAttention</span>(nn.Module):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, d_model: <span class="hljs-built_in">int</span>, n_heads: <span class="hljs-built_in">int</span></span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-keyword">assert</span> d_model % n_heads == <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.n_heads = n_heads
+        <span class="hljs-variable language_">self</span>.d_k = d_model // n_heads
+        <span class="hljs-variable language_">self</span>.qkv_proj = nn.Linear(d_model, <span class="hljs-number">3</span> * d_model, bias=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.out_proj = nn.Linear(d_model, d_model, bias=<span class="hljs-literal">False</span>)
 
-    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x: torch.Tensor</span>) -&gt; torch.Tensor:
         B, T, C = x.shape
-        qkv = self.qkv_proj(x).reshape(B, T, 3, self.n_heads, self.d_k)
-        qkv = qkv.permute(2, 0, 3, 1, 4)  # (3, B, H, T, d_k)
-        q, k, v = qkv[0], qkv[1], qkv[2]
+        qkv = <span class="hljs-variable language_">self</span>.qkv_proj(x).reshape(B, T, <span class="hljs-number">3</span>, <span class="hljs-variable language_">self</span>.n_heads, <span class="hljs-variable language_">self</span>.d_k)
+        qkv = qkv.permute(<span class="hljs-number">2</span>, <span class="hljs-number">0</span>, <span class="hljs-number">3</span>, <span class="hljs-number">1</span>, <span class="hljs-number">4</span>)  <span class="hljs-comment"># (3, B, H, T, d_k)</span>
+        q, k, v = qkv[<span class="hljs-number">0</span>], qkv[<span class="hljs-number">1</span>], qkv[<span class="hljs-number">2</span>]
 
-        # Causal mask: lower triangular
-        mask = torch.tril(torch.ones(T, T, device=x.device)).unsqueeze(0).unsqueeze(0)
+        <span class="hljs-comment"># Causal mask: lower triangular</span>
+        mask = torch.tril(torch.ones(T, T, device=x.device)).unsqueeze(<span class="hljs-number">0</span>).unsqueeze(<span class="hljs-number">0</span>)
 
-        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.d_k)
-        scores = scores.masked_fill(mask == 0, float(&quot;-inf&quot;))
-        attn = torch.softmax(scores, dim=-1)
-        out = (attn @ v).transpose(1, 2).reshape(B, T, C)
-        return self.out_proj(out)
+        scores = (q @ k.transpose(-<span class="hljs-number">2</span>, -<span class="hljs-number">1</span>)) / math.sqrt(<span class="hljs-variable language_">self</span>.d_k)
+        scores = scores.masked_fill(mask == <span class="hljs-number">0</span>, <span class="hljs-built_in">float</span>(<span class="hljs-string">&quot;-inf&quot;</span>))
+        attn = torch.softmax(scores, dim=-<span class="hljs-number">1</span>)
+        out = (attn @ v).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>).reshape(B, T, C)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.out_proj(out)
 </code></pre>
-<h3>2.3 LoRA Layer</h3>
-<pre><code class="language-python">import torch
-import torch.nn as nn
-import math
+<h3 id="sec-15">2.3 LoRA Layer</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
+<span class="hljs-keyword">import</span> math
 
-class LoRALinear(nn.Module):
-    &quot;&quot;&quot;Wraps a frozen nn.Linear and adds a trainable low-rank delta.&quot;&quot;&quot;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">LoRALinear</span>(nn.Module):
+    <span class="hljs-string">&quot;&quot;&quot;Wraps a frozen nn.Linear and adds a trainable low-rank delta.&quot;&quot;&quot;</span>
 
-    def __init__(self, base_linear: nn.Linear, rank: int = 16, alpha: float = 32):
-        super().__init__()
-        self.base = base_linear
-        self.base.weight.requires_grad_(False)
-        if self.base.bias is not None:
-            self.base.bias.requires_grad_(False)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, base_linear: nn.Linear, rank: <span class="hljs-built_in">int</span> = <span class="hljs-number">16</span>, alpha: <span class="hljs-built_in">float</span> = <span class="hljs-number">32</span></span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.base = base_linear
+        <span class="hljs-variable language_">self</span>.base.weight.requires_grad_(<span class="hljs-literal">False</span>)
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.base.bias <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-variable language_">self</span>.base.bias.requires_grad_(<span class="hljs-literal">False</span>)
 
         in_features = base_linear.in_features
         out_features = base_linear.out_features
 
-        self.lora_a = nn.Parameter(torch.empty(rank, in_features))
-        self.lora_b = nn.Parameter(torch.zeros(out_features, rank))  # B init to 0
-        nn.init.kaiming_uniform_(self.lora_a, a=math.sqrt(5))
-        self.scaling = alpha / rank
+        <span class="hljs-variable language_">self</span>.lora_a = nn.Parameter(torch.empty(rank, in_features))
+        <span class="hljs-variable language_">self</span>.lora_b = nn.Parameter(torch.zeros(out_features, rank))  <span class="hljs-comment"># B init to 0</span>
+        nn.init.kaiming_uniform_(<span class="hljs-variable language_">self</span>.lora_a, a=math.sqrt(<span class="hljs-number">5</span>))
+        <span class="hljs-variable language_">self</span>.scaling = alpha / rank
 
-    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
-        base_out = self.base(x)
-        lora_out = (x @ self.lora_a.T @ self.lora_b.T) * self.scaling
-        return base_out + lora_out
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x: torch.Tensor</span>) -&gt; torch.Tensor:
+        base_out = <span class="hljs-variable language_">self</span>.base(x)
+        lora_out = (x @ <span class="hljs-variable language_">self</span>.lora_a.T @ <span class="hljs-variable language_">self</span>.lora_b.T) * <span class="hljs-variable language_">self</span>.scaling
+        <span class="hljs-keyword">return</span> base_out + lora_out
 
-    def merge(self) -&gt; nn.Linear:
-        &quot;&quot;&quot;Return a new Linear with merged weights (for deployment).&quot;&quot;&quot;
-        merged_weight = self.base.weight.data + (self.lora_b @ self.lora_a) * self.scaling
-        new_linear = nn.Linear(self.base.in_features, self.base.out_features, bias=self.base.bias is not None)
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">merge</span>(<span class="hljs-params">self</span>) -&gt; nn.Linear:
+        <span class="hljs-string">&quot;&quot;&quot;Return a new Linear with merged weights (for deployment).&quot;&quot;&quot;</span>
+        merged_weight = <span class="hljs-variable language_">self</span>.base.weight.data + (<span class="hljs-variable language_">self</span>.lora_b @ <span class="hljs-variable language_">self</span>.lora_a) * <span class="hljs-variable language_">self</span>.scaling
+        new_linear = nn.Linear(<span class="hljs-variable language_">self</span>.base.in_features, <span class="hljs-variable language_">self</span>.base.out_features, bias=<span class="hljs-variable language_">self</span>.base.bias <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>)
         new_linear.weight.data.copy_(merged_weight)
-        if self.base.bias is not None:
-            new_linear.bias.data.copy_(self.base.bias.data)
-        return new_linear
+        <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.base.bias <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            new_linear.bias.data.copy_(<span class="hljs-variable language_">self</span>.base.bias.data)
+        <span class="hljs-keyword">return</span> new_linear
 </code></pre>
-<h3>2.4 Grouped-Query Attention (GQA)</h3>
-<pre><code class="language-python">import torch
-import torch.nn as nn
-import math
+<h3 id="sec-16">2.4 Grouped-Query Attention (GQA)</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
+<span class="hljs-keyword">import</span> math
 
-class GroupedQueryAttention(nn.Module):
-    def __init__(self, d_model: int, n_q_heads: int, n_kv_heads: int):
-        super().__init__()
-        assert n_q_heads % n_kv_heads == 0
-        self.n_q_heads = n_q_heads
-        self.n_kv_heads = n_kv_heads
-        self.n_rep = n_q_heads // n_kv_heads  # repeat factor
-        self.d_k = d_model // n_q_heads
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">GroupedQueryAttention</span>(nn.Module):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, d_model: <span class="hljs-built_in">int</span>, n_q_heads: <span class="hljs-built_in">int</span>, n_kv_heads: <span class="hljs-built_in">int</span></span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-keyword">assert</span> n_q_heads % n_kv_heads == <span class="hljs-number">0</span>
+        <span class="hljs-variable language_">self</span>.n_q_heads = n_q_heads
+        <span class="hljs-variable language_">self</span>.n_kv_heads = n_kv_heads
+        <span class="hljs-variable language_">self</span>.n_rep = n_q_heads // n_kv_heads  <span class="hljs-comment"># repeat factor</span>
+        <span class="hljs-variable language_">self</span>.d_k = d_model // n_q_heads
 
-        self.wq = nn.Linear(d_model, n_q_heads * self.d_k, bias=False)
-        self.wk = nn.Linear(d_model, n_kv_heads * self.d_k, bias=False)
-        self.wv = nn.Linear(d_model, n_kv_heads * self.d_k, bias=False)
-        self.wo = nn.Linear(d_model, d_model, bias=False)
+        <span class="hljs-variable language_">self</span>.wq = nn.Linear(d_model, n_q_heads * <span class="hljs-variable language_">self</span>.d_k, bias=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.wk = nn.Linear(d_model, n_kv_heads * <span class="hljs-variable language_">self</span>.d_k, bias=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.wv = nn.Linear(d_model, n_kv_heads * <span class="hljs-variable language_">self</span>.d_k, bias=<span class="hljs-literal">False</span>)
+        <span class="hljs-variable language_">self</span>.wo = nn.Linear(d_model, d_model, bias=<span class="hljs-literal">False</span>)
 
-    @staticmethod
-    def _repeat_kv(x: torch.Tensor, n_rep: int) -&gt; torch.Tensor:
-        &quot;&quot;&quot;Repeat KV heads to match Q heads: (B, n_kv, T, d_k) -&gt; (B, n_q, T, d_k).&quot;&quot;&quot;
-        if n_rep == 1:
-            return x
+<span class="hljs-meta">    @staticmethod</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">_repeat_kv</span>(<span class="hljs-params">x: torch.Tensor, n_rep: <span class="hljs-built_in">int</span></span>) -&gt; torch.Tensor:
+        <span class="hljs-string">&quot;&quot;&quot;Repeat KV heads to match Q heads: (B, n_kv, T, d_k) -&gt; (B, n_q, T, d_k).&quot;&quot;&quot;</span>
+        <span class="hljs-keyword">if</span> n_rep == <span class="hljs-number">1</span>:
+            <span class="hljs-keyword">return</span> x
         B, N, T, D = x.shape
-        return x[:, :, None, :, :].expand(B, N, n_rep, T, D).reshape(B, N * n_rep, T, D)
+        <span class="hljs-keyword">return</span> x[:, :, <span class="hljs-literal">None</span>, :, :].expand(B, N, n_rep, T, D).reshape(B, N * n_rep, T, D)
 
-    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x: torch.Tensor</span>) -&gt; torch.Tensor:
         B, T, _ = x.shape
-        q = self.wq(x).view(B, T, self.n_q_heads, self.d_k).transpose(1, 2)
-        k = self.wk(x).view(B, T, self.n_kv_heads, self.d_k).transpose(1, 2)
-        v = self.wv(x).view(B, T, self.n_kv_heads, self.d_k).transpose(1, 2)
+        q = <span class="hljs-variable language_">self</span>.wq(x).view(B, T, <span class="hljs-variable language_">self</span>.n_q_heads, <span class="hljs-variable language_">self</span>.d_k).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>)
+        k = <span class="hljs-variable language_">self</span>.wk(x).view(B, T, <span class="hljs-variable language_">self</span>.n_kv_heads, <span class="hljs-variable language_">self</span>.d_k).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>)
+        v = <span class="hljs-variable language_">self</span>.wv(x).view(B, T, <span class="hljs-variable language_">self</span>.n_kv_heads, <span class="hljs-variable language_">self</span>.d_k).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>)
 
-        k = self._repeat_kv(k, self.n_rep)
-        v = self._repeat_kv(v, self.n_rep)
+        k = <span class="hljs-variable language_">self</span>._repeat_kv(k, <span class="hljs-variable language_">self</span>.n_rep)
+        v = <span class="hljs-variable language_">self</span>._repeat_kv(v, <span class="hljs-variable language_">self</span>.n_rep)
 
-        mask = torch.tril(torch.ones(T, T, device=x.device)).unsqueeze(0).unsqueeze(0)
-        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.d_k)
-        scores = scores.masked_fill(mask == 0, float(&quot;-inf&quot;))
-        attn = torch.softmax(scores, dim=-1)
-        out = (attn @ v).transpose(1, 2).reshape(B, T, -1)
-        return self.wo(out)
+        mask = torch.tril(torch.ones(T, T, device=x.device)).unsqueeze(<span class="hljs-number">0</span>).unsqueeze(<span class="hljs-number">0</span>)
+        scores = (q @ k.transpose(-<span class="hljs-number">2</span>, -<span class="hljs-number">1</span>)) / math.sqrt(<span class="hljs-variable language_">self</span>.d_k)
+        scores = scores.masked_fill(mask == <span class="hljs-number">0</span>, <span class="hljs-built_in">float</span>(<span class="hljs-string">&quot;-inf&quot;</span>))
+        attn = torch.softmax(scores, dim=-<span class="hljs-number">1</span>)
+        out = (attn @ v).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>).reshape(B, T, -<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.wo(out)
 </code></pre>
-<h3>2.5 RoPE (Rotary Position Embedding)</h3>
-<pre><code class="language-python">import torch
+<h3 id="sec-17">2.5 RoPE (Rotary Position Embedding)</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
-def precompute_rope_freqs(dim: int, max_len: int = 4096, base: float = 10000.0):
-    &quot;&quot;&quot;Precompute sin/cos tables for RoPE.&quot;&quot;&quot;
-    freqs = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))  # (dim/2,)
-    t = torch.arange(max_len).float()           # (max_len,)
-    freqs = torch.outer(t, freqs)                # (max_len, dim/2)
-    return torch.cos(freqs), torch.sin(freqs)    # each (max_len, dim/2)
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">precompute_rope_freqs</span>(<span class="hljs-params">dim: <span class="hljs-built_in">int</span>, max_len: <span class="hljs-built_in">int</span> = <span class="hljs-number">4096</span>, base: <span class="hljs-built_in">float</span> = <span class="hljs-number">10000.0</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;Precompute sin/cos tables for RoPE.&quot;&quot;&quot;</span>
+    freqs = <span class="hljs-number">1.0</span> / (base ** (torch.arange(<span class="hljs-number">0</span>, dim, <span class="hljs-number">2</span>).<span class="hljs-built_in">float</span>() / dim))  <span class="hljs-comment"># (dim/2,)</span>
+    t = torch.arange(max_len).<span class="hljs-built_in">float</span>()           <span class="hljs-comment"># (max_len,)</span>
+    freqs = torch.outer(t, freqs)                <span class="hljs-comment"># (max_len, dim/2)</span>
+    <span class="hljs-keyword">return</span> torch.cos(freqs), torch.sin(freqs)    <span class="hljs-comment"># each (max_len, dim/2)</span>
 
-def apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -&gt; torch.Tensor:
-    &quot;&quot;&quot;Apply RoPE to input tensor.
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">apply_rope</span>(<span class="hljs-params">x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor</span>) -&gt; torch.Tensor:
+    <span class="hljs-string">&quot;&quot;&quot;Apply RoPE to input tensor.
     x: (batch, n_heads, seq_len, d_k)
     cos, sin: (seq_len, d_k/2)
-    &quot;&quot;&quot;
-    d_half = x.shape[-1] // 2
+    &quot;&quot;&quot;</span>
+    d_half = x.shape[-<span class="hljs-number">1</span>] // <span class="hljs-number">2</span>
     x1 = x[..., :d_half]
     x2 = x[..., d_half:]
-    cos = cos.unsqueeze(0).unsqueeze(0)  # broadcast
-    sin = sin.unsqueeze(0).unsqueeze(0)
+    cos = cos.unsqueeze(<span class="hljs-number">0</span>).unsqueeze(<span class="hljs-number">0</span>)  <span class="hljs-comment"># broadcast</span>
+    sin = sin.unsqueeze(<span class="hljs-number">0</span>).unsqueeze(<span class="hljs-number">0</span>)
     out1 = x1 * cos - x2 * sin
     out2 = x2 * cos + x1 * sin
-    return torch.cat([out1, out2], dim=-1)
+    <span class="hljs-keyword">return</span> torch.cat([out1, out2], dim=-<span class="hljs-number">1</span>)
 </code></pre>
-<h3>2.6 DPO Loss</h3>
-<pre><code class="language-python">import torch
-import torch.nn.functional as F
+<h3 id="sec-18">2.6 DPO Loss</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
 
-def dpo_loss(
-    policy_logps_w: torch.Tensor,   # log pi_theta(y_w | x)
-    policy_logps_l: torch.Tensor,   # log pi_theta(y_l | x)
-    ref_logps_w: torch.Tensor,      # log pi_ref(y_w | x)
-    ref_logps_l: torch.Tensor,      # log pi_ref(y_l | x)
-    beta: float = 0.1,
-) -&gt; torch.Tensor:
-    &quot;&quot;&quot;Direct Preference Optimization loss.&quot;&quot;&quot;
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">dpo_loss</span>(<span class="hljs-params">
+    policy_logps_w: torch.Tensor,   <span class="hljs-comment"># log pi_theta(y_w | x)</span>
+    policy_logps_l: torch.Tensor,   <span class="hljs-comment"># log pi_theta(y_l | x)</span>
+    ref_logps_w: torch.Tensor,      <span class="hljs-comment"># log pi_ref(y_w | x)</span>
+    ref_logps_l: torch.Tensor,      <span class="hljs-comment"># log pi_ref(y_l | x)</span>
+    beta: <span class="hljs-built_in">float</span> = <span class="hljs-number">0.1</span>,
+</span>) -&gt; torch.Tensor:
+    <span class="hljs-string">&quot;&quot;&quot;Direct Preference Optimization loss.&quot;&quot;&quot;</span>
     log_ratio_w = policy_logps_w - ref_logps_w
     log_ratio_l = policy_logps_l - ref_logps_l
     logits = beta * (log_ratio_w - log_ratio_l)
-    return -F.logsigmoid(logits).mean()
+    <span class="hljs-keyword">return</span> -F.logsigmoid(logits).mean()
 </code></pre>
-<h3>2.7 KV Cache Wrapper (Minimal)</h3>
-<pre><code class="language-python">import torch
+<h3 id="sec-19">2.7 KV Cache Wrapper (Minimal)</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
-class KVCache:
-    &quot;&quot;&quot;Minimal KV cache for autoregressive generation.&quot;&quot;&quot;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">KVCache</span>:
+    <span class="hljs-string">&quot;&quot;&quot;Minimal KV cache for autoregressive generation.&quot;&quot;&quot;</span>
 
-    def __init__(self, max_len: int, n_heads: int, d_k: int, device: torch.device):
-        self.max_len = max_len
-        self.k = torch.zeros(1, n_heads, max_len, d_k, device=device)
-        self.v = torch.zeros(1, n_heads, max_len, d_k, device=device)
-        self.cur_len = 0
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, max_len: <span class="hljs-built_in">int</span>, n_heads: <span class="hljs-built_in">int</span>, d_k: <span class="hljs-built_in">int</span>, device: torch.device</span>):
+        <span class="hljs-variable language_">self</span>.max_len = max_len
+        <span class="hljs-variable language_">self</span>.k = torch.zeros(<span class="hljs-number">1</span>, n_heads, max_len, d_k, device=device)
+        <span class="hljs-variable language_">self</span>.v = torch.zeros(<span class="hljs-number">1</span>, n_heads, max_len, d_k, device=device)
+        <span class="hljs-variable language_">self</span>.cur_len = <span class="hljs-number">0</span>
 
-    def append(self, new_k: torch.Tensor, new_v: torch.Tensor):
-        &quot;&quot;&quot;Append new KV from one decoding step.&quot;&quot;&quot;
-        seq_len = new_k.shape[2]
-        self.k[:, :, self.cur_len:self.cur_len + seq_len] = new_k
-        self.v[:, :, self.cur_len:self.cur_len + seq_len] = new_v
-        self.cur_len += seq_len
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">append</span>(<span class="hljs-params">self, new_k: torch.Tensor, new_v: torch.Tensor</span>):
+        <span class="hljs-string">&quot;&quot;&quot;Append new KV from one decoding step.&quot;&quot;&quot;</span>
+        seq_len = new_k.shape[<span class="hljs-number">2</span>]
+        <span class="hljs-variable language_">self</span>.k[:, :, <span class="hljs-variable language_">self</span>.cur_len:<span class="hljs-variable language_">self</span>.cur_len + seq_len] = new_k
+        <span class="hljs-variable language_">self</span>.v[:, :, <span class="hljs-variable language_">self</span>.cur_len:<span class="hljs-variable language_">self</span>.cur_len + seq_len] = new_v
+        <span class="hljs-variable language_">self</span>.cur_len += seq_len
 
-    def get(self):
-        &quot;&quot;&quot;Return the current cached KV (trimmed to cur_len).&quot;&quot;&quot;
-        return self.k[:, :, :self.cur_len], self.v[:, :, :self.cur_len]
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">get</span>(<span class="hljs-params">self</span>):
+        <span class="hljs-string">&quot;&quot;&quot;Return the current cached KV (trimmed to cur_len).&quot;&quot;&quot;</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.k[:, :, :<span class="hljs-variable language_">self</span>.cur_len], <span class="hljs-variable language_">self</span>.v[:, :, :<span class="hljs-variable language_">self</span>.cur_len]
 </code></pre>
-<h3>2.8 Symmetric INT8 Quantize / Dequantize</h3>
-<pre><code class="language-python">import torch
+<h3 id="sec-20">2.8 Symmetric INT8 Quantize / Dequantize</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
-def symmetric_quantize_int8(weight: torch.Tensor):
-    &quot;&quot;&quot;Per-tensor symmetric INT8 quantization.&quot;&quot;&quot;
-    scale = weight.abs().max() / 127.0
-    w_q = torch.round(weight / scale).clamp(-128, 127).to(torch.int8)
-    return w_q, scale
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">symmetric_quantize_int8</span>(<span class="hljs-params">weight: torch.Tensor</span>):
+    <span class="hljs-string">&quot;&quot;&quot;Per-tensor symmetric INT8 quantization.&quot;&quot;&quot;</span>
+    scale = weight.<span class="hljs-built_in">abs</span>().<span class="hljs-built_in">max</span>() / <span class="hljs-number">127.0</span>
+    w_q = torch.<span class="hljs-built_in">round</span>(weight / scale).clamp(-<span class="hljs-number">128</span>, <span class="hljs-number">127</span>).to(torch.int8)
+    <span class="hljs-keyword">return</span> w_q, scale
 
-def symmetric_dequantize_int8(w_q: torch.Tensor, scale: float) -&gt; torch.Tensor:
-    &quot;&quot;&quot;Dequantize INT8 back to float.&quot;&quot;&quot;
-    return w_q.float() * scale
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">symmetric_dequantize_int8</span>(<span class="hljs-params">w_q: torch.Tensor, scale: <span class="hljs-built_in">float</span></span>) -&gt; torch.Tensor:
+    <span class="hljs-string">&quot;&quot;&quot;Dequantize INT8 back to float.&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">return</span> w_q.<span class="hljs-built_in">float</span>() * scale
 </code></pre>
 <hr>
-<h2>三、面试题 / Interview Questions</h2>
-<h3>L1 — 基础 / Basic</h3>
+<h2 id="sec-21">三、面试题 / Interview Questions</h2>
+<h3 id="sec-22">L1 — 基础 / Basic</h3>
 <h4>Q1: Transformer 中 self-attention 的时间复杂度是多少？如何降低？</h4>
 <p><strong>答 / Answer：</strong> 标准 self-attention 时间复杂度为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2 d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span>（<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> 为序列长度，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span> 为维度），因为需要计算 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">n \times n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> 的注意力矩阵。降低方法包括：</p>
 <ul>
@@ -628,7 +637,7 @@ LLM 训练中，少数异常样本可能产生极大梯度（gradient spike）�
 <p>是的。Continuous batching 解决了&quot;什么时候调度请求&quot;的问题，PagedAttention 解决了&quot;KV cache 如何分配显存&quot;的问题——将 KV cache 分成固定大小的 page，按需分配，避免因请求长度不一导致的显存碎片。</p>
 </blockquote>
 <hr>
-<h3>L2 — 中级 / Intermediate</h3>
+<h3 id="sec-23">L2 — 中级 / Intermediate</h3>
 <h4>Q8: 解释 ZeRO 的三个阶段分别做了什么，各自的通信开销如何？</h4>
 <p><strong>答 / Answer：</strong></p>
 <ul>
@@ -759,7 +768,7 @@ LLM 训练中，少数异常样本可能产生极大梯度（gradient spike）�
 <p>可以，QLoRA 就是这个思路。实践表明，4-bit NF4 量化基础权重 + LoRA 微调，在多数任务上与 FP16 全参微调的差距在可接受范围内（通常 1–3 个百分点内），但显存节省巨大。</p>
 </blockquote>
 <hr>
-<h3>L3 — 深度 / Deep</h3>
+<h3 id="sec-24">L3 — 深度 / Deep</h3>
 <h4>Q17: Megatron-LM 的 Column-Parallel 和 Row-Parallel Linear 是如何减少 AllReduce 次数的？</h4>
 <p><strong>答 / Answer：</strong></p>
 <p>考虑两层连续的线性变换 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>=</mo><mi>G</mi><mi>E</mi><mi>L</mi><mi>U</mi><mo stretchy="false">(</mo><mi>X</mi><mi>A</mi><mo stretchy="false">)</mo><mi>B</mi></mrow><annotation encoding="application/x-tex">Y = GELU(XA)B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">Y</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">GE</span><span class="mord mathnormal" style="margin-right:0.109em;">LU</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="mord mathnormal">A</span><span class="mclose">)</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span>（MLP block），<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>h</mi><mo>×</mo><mn>4</mn><mi>h</mi></mrow></msup></mrow><annotation encoding="application/x-tex">A \in \mathbb{R}^{h \times 4h}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mtight">4</span><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span></span>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mn>4</mn><mi>h</mi><mo>×</mo><mi>h</mi></mrow></msup></mrow><annotation encoding="application/x-tex">B \in \mathbb{R}^{4h \times h}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">4</span><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span></span>：</p>
@@ -972,7 +981,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p>微调解决&quot;风格和格式&quot;——让模型以客服的语气和流程回答；RAG 解决&quot;知识和事实&quot;——提供最新的产品信息和公司政策。它们互补而非替代：只微调会&quot;幻觉&quot;产品细节；只 RAG 会让模型语气像通用助手而非专业客服。理想方案是两者结合。</p>
 </blockquote>
 <hr>
-<h2>附录：关键术语对照表 / Appendix: Key Term Glossary</h2>
+<h2 id="sec-25">附录：关键术语对照表 / Appendix: Key Term Glossary</h2>
 <table>
 <thead>
 <tr>
