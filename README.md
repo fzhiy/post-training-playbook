@@ -6,7 +6,7 @@
 
 ## 📖 在线浏览 / Read online
 
-👉 **https://fzhiy.github.io/post-training-playbook/** — 可搜索、手机/电脑响应式。
+👉 **https://ac.fzhiy.net/post-training-playbook/** — 可搜索、手机/电脑响应式。
 
 ## 📂 内容 / Contents
 
