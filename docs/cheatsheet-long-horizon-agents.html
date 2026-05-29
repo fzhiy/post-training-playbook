@@ -30,13 +30,20 @@
   .toc li.lv3{padding-left:1.1em;font-size:.95em;opacity:.8}
   .toc a{color:inherit;text-decoration:none}
   .toc a:hover{color:#0a7;text-decoration:underline}
+  sup.cite{font-size:.72em;line-height:0;white-space:nowrap}
+  sup.cite a{text-decoration:none;color:#0a7;padding:0 .08em}
+  .refs{border:1px solid #8884;border-radius:8px;padding:.4em .9em;margin:1.6em 0;font-size:.9rem;background:#8881}
+  .refs summary{cursor:pointer;color:#0a7;font-weight:600}
+  .refs ol{margin:.6em 0 .3em;padding-left:1.6em}
+  .refs li{margin:.4em 0}
+  .refs li:target{background:#0a72;border-radius:4px;padding:.15em .3em;margin-left:-.3em}
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
   @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}}
 </style>
 </head>
 <body>
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
-<article id="out"><h1>长程 / 自进化 Agent:生产现状 vs 前沿(面试向)</h1><details class="toc" open><summary>目录 / Contents (12)</summary><ul><li class="lv2"><a href="#sec-0">1. 【生产】长程 agentic 现在长什么样(已发布产品)</a></li><li class="lv2"><a href="#sec-1">2. 【生产】长程 agent 的工程支柱(官方指南口径,面试高频)</a></li><li class="lv2"><a href="#sec-2">3. 【前沿】长程 / agentic 的训练范式(论文口径,未成工业标准)</a></li><li class="lv3"><a href="#sec-3">3.1 稀疏 / 长程奖励 + 难度带设计(高频系统设计题)</a></li><li class="lv3"><a href="#sec-4">3.2 Web / agent RL 的三大挑战(WebRL 框架,arXiv:2411.02337)</a></li><li class="lv3"><a href="#sec-5">3.3 与现有页的接点</a></li><li class="lv2"><a href="#sec-6">4. 【前沿·最不成熟】自进化 / self-evolving(最需谨慎)</a></li><li class="lv2"><a href="#sec-7">5. 面试考点 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-8">L1 基础</a></li><li class="lv3"><a href="#sec-9">L2 进阶</a></li><li class="lv3"><a href="#sec-10">L3 深挖</a></li><li class="lv2"><a href="#sec-11">来源 / Sources</a></li></ul></details>
+<article id="out"><h1>长程 / 自进化 Agent:生产现状 vs 前沿(面试向)</h1><details class="toc" open><summary>目录 / Contents (12)</summary><ul><li class="lv2"><a href="#sec-0">1. 【生产】长程 agentic 现在长什么样(已发布产品)</a></li><li class="lv2"><a href="#sec-1">2. 【生产】长程 agent 的工程支柱(官方指南口径,面试高频)</a></li><li class="lv2"><a href="#sec-2">3. 【前沿】长程 / agentic 的训练范式(论文口径,未成工业标准)</a></li><li class="lv3"><a href="#sec-3">3.1 稀疏 / 长程奖励 + 难度带设计(高频系统设计题)</a></li><li class="lv3"><a href="#sec-4">3.2 Web / agent RL 的三大挑战(WebRL 框架)</a></li><li class="lv3"><a href="#sec-5">3.3 与现有页的接点</a></li><li class="lv2"><a href="#sec-6">4. 【前沿·最不成熟】自进化 / self-evolving(最需谨慎)</a></li><li class="lv2"><a href="#sec-7">5. 面试考点 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-8">L1 基础</a></li><li class="lv3"><a href="#sec-9">L2 进阶</a></li><li class="lv3"><a href="#sec-10">L3 深挖</a></li><li class="lv2"><a href="#sec-11">参考文献 / References</a></li></ul></details>
 <blockquote>
 <p><strong>long-horizon(长程)</strong> = 多步、长流程、需持续自主执行的任务;<strong>self-evolving(自进化)</strong> = 让 agent 用自生成数据 / 自我反馈不断变强。
 ⚠️ 本页<strong>严格分栏</strong>:【生产】= 已发布产品 / 官方工程指南;【前沿】= 论文 / 技术报告,<strong>未成工业标准</strong>。面试别把前沿当生产标准答。
@@ -45,18 +52,18 @@
 <h2 id="sec-0">1. 【生产】长程 agentic 现在长什么样(已发布产品)</h2>
 <p>国际两家已把&quot;长程 agentic&quot;做进产品 —— 聊&quot;agent 落地&quot;时的硬通货:</p>
 <ul>
-<li><strong>Anthropic computer use</strong>(2024-10-22 public beta;Anthropic API / Amazon Bedrock / Google Vertex AI):Claude 看屏幕截图 → 移动光标 / 点击 / 输入,把指令翻成一连串电脑操作;任务&quot;需要几十、有时几百步&quot;。官方明说<strong>实验性、笨拙易错</strong>,建议从低风险任务起步。</li>
-<li><strong>OpenAI Operator</strong>(2025-01 研究预览,ChatGPT Pro)→ <strong>ChatGPT agent</strong>(2025-07-17,合并 Operator + deep research):底层 <strong>CUA</strong>(Computer-Using Agent)= GPT-4o 视觉 + RL 推理;循环 = 看截图 → CoT 推理下一步 → 点击/滚动/输入,直到完成或需人介入。安全:输密码要用户接管、拒高风险任务(如银行转账)。ChatGPT agent 在一台<strong>虚拟电脑</strong>上用 visual browser + text browser + terminal + API。</li>
+<li><strong>Anthropic computer use</strong>(2024-10-22 public beta;Anthropic API / Amazon Bedrock / Google Vertex AI):Claude 看屏幕截图 → 移动光标 / 点击 / 输入,把指令翻成一连串电脑操作;任务&quot;需要几十、有时几百步&quot;。官方明说<strong>实验性、笨拙易错</strong>,建议从低风险任务起步。<sup class="cite"><a href="#ref-1">1</a></sup></li>
+<li><strong>OpenAI Operator</strong>(2025-01 研究预览,ChatGPT Pro)→ <strong>ChatGPT agent</strong>(2025-07-17,合并 Operator + deep research):底层 <strong>CUA</strong>(Computer-Using Agent)= GPT-4o 视觉 + RL 推理;循环 = 看截图 → CoT 推理下一步 → 点击/滚动/输入,直到完成或需人介入。安全:输密码要用户接管、拒高风险任务(如银行转账)。<sup class="cite"><a href="#ref-4">4</a></sup> ChatGPT agent 在一台<strong>虚拟电脑</strong>上用 visual browser + text browser + terminal + API。<sup class="cite"><a href="#ref-5">5</a></sup></li>
 </ul>
 <h2 id="sec-1">2. 【生产】长程 agent 的工程支柱(官方指南口径,面试高频)</h2>
-<p><strong>Anthropic《Building Effective Agents》(2024-12-19)</strong> ≈ 这一行的工程&quot;圣经&quot;:</p>
+<p><strong>Anthropic《Building Effective Agents》(2024-12-19)</strong><sup class="cite"><a href="#ref-2">2</a></sup> ≈ 这一行的工程&quot;圣经&quot;:</p>
 <ul>
 <li><strong>Workflow vs Agent</strong>(必答):workflow = LLM / 工具走<strong>预定义代码路径</strong>;agent = LLM<strong>自己动态决定</strong>流程与工具用法(控制流归谁是关键区别)。</li>
 <li>常见模式:prompt chaining、routing、parallelization(sectioning / voting)、orchestrator-workers、evaluator-optimizer;以及 <strong>autonomous agents</strong>(靠环境反馈循环、自主规划到完成或触发停止条件)。</li>
 <li><strong>何时才上 agent</strong>:任务开放、步数不可预测、无法硬编码路径,且愿用更高延迟/成本换表现 —— <strong>否则先用简单方案</strong>(单次调用 + 检索 + few-shot)。</li>
 <li>工程要点:把 <strong>ACI(agent-computer interface)</strong> 当 HCI 一样精雕;设<strong>停止条件</strong>(如最大迭代数);每步要<strong>环境 ground truth</strong>(工具结果 / 代码执行)评估进度;sandbox + guardrails 防误差累积。</li>
 </ul>
-<p><strong>Claude Agent SDK</strong> 的核心循环(可直接背):</p>
+<p><strong>Claude Agent SDK</strong><sup class="cite"><a href="#ref-3">3</a></sup> 的核心循环(可直接背):</p>
 <blockquote>
 <p><strong>gather context → take action → verify work → repeat</strong></p>
 </blockquote>
@@ -72,18 +79,18 @@
 <h3 id="sec-3">3.1 稀疏 / 长程奖励 + 难度带设计(高频系统设计题)</h3>
 <p>长程任务奖励稀疏(常只有最终成败)。反复出现的工程原则:<strong>有效 RL 信号只在中间难度带</strong>,要显式防止训练数据退化到两端。</p>
 <ul>
-<li><strong>Self-Play SWE-RL</strong>(arXiv:2512.18552):同一 LLM 既注入 bug 又修 bug,用测试套件当奖励。bug 注入奖励是分段函数(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span> = 注入后测试通过比例):</li>
+<li><strong>Self-Play SWE-RL</strong><sup class="cite"><a href="#ref-6">6</a></sup>:同一 LLM 既注入 bug 又修 bug,用测试套件当奖励。bug 注入奖励是分段函数(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span> = 注入后测试通过比例):</li>
 </ul>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mtext>inject</mtext></msub><mo>=</mo><mrow><mo fence="true">{</mo><mtable rowspacing="0.36em" columnalign="left left" columnspacing="1em"><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mo>−</mo><mi>α</mi><mo separator="true">,</mo></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mi>s</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mstyle></mtd></mtr><mtr><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mn>1</mn><mo>−</mo><mo stretchy="false">(</mo><mn>1</mn><mo>+</mo><mi>α</mi><mo stretchy="false">)</mo><mtext> </mtext><mi>s</mi><mo separator="true">,</mo></mrow></mstyle></mtd><mtd><mstyle scriptlevel="0" displaystyle="false"><mrow><mn>0</mn><mo>&lt;</mo><mi>s</mi><mo>&lt;</mo><mn>1</mn></mrow></mstyle></mtd></mtr></mtable></mrow><mo separator="true">,</mo><mspace width="1em"/><mi>α</mi><mo>=</mo><mn>0.8</mn></mrow><annotation encoding="application/x-tex">r_{\text{inject}} = \begin{cases} -\alpha, &amp; s \in \{0, 1\} \\ 1-(1+\alpha)\,s, &amp; 0 &lt; s &lt; 1 \end{cases}, \quad \alpha = 0.8</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">inject</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3em;vertical-align:-1.25em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size4">{</span></span><span class="mord"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">−</span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mpunct">,</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">s</span><span class="mpunct">,</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mopen">{</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">}</span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord">0</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.8</span></span></span></span></span></p>
 <p>对&quot;太难(无法修,<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo lspace="0em" rspace="0em">=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">s{=}0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord mathnormal">s</span><span class="mord"><span class="mrel">=</span></span><span class="mord">0</span></span></span></span>)&quot;和&quot;太易(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">s{=}1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord mathnormal">s</span><span class="mord"><span class="mrel">=</span></span><span class="mord">1</span></span></span></span>)&quot;都给负分,只奖中间难度。<em>(本页只取奖励设计;其性能数字未经核实,不引用。)</em></p>
 <ul>
-<li><strong>MiMo</strong>(arXiv:2505.07608,小米已发布模型的 RL 配方):动态采样<strong>过滤 pass-rate<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>0</mn><mi mathvariant="normal">/</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">=0/1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.3669em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">0/1</span></span></span></span></strong> 的 prompt,并维护 10% 简单题池防后期策略更新不稳定。</li>
+<li><strong>MiMo</strong><sup class="cite"><a href="#ref-7">7</a></sup>(小米已发布模型的 RL 配方):动态采样<strong>过滤 pass-rate<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>0</mn><mi mathvariant="normal">/</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">=0/1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.3669em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">0/1</span></span></span></span></strong> 的 prompt,并维护 10% 简单题池防后期策略更新不稳定。</li>
 <li>两者动机一致 = <strong>难度自适应课程</strong>:把信号集中到模型&quot;够得着但还没掌握&quot;的题上。</li>
 </ul>
-<h3 id="sec-4">3.2 Web / agent RL 的三大挑战(WebRL 框架,arXiv:2411.02337)</h3>
-<p>答&quot;为什么 web/long-horizon agent 难训&quot;的标准结构:① <strong>训练任务稀缺</strong>;② <strong>反馈信号稀疏</strong>;③ <strong>策略分布漂移</strong>。<em>(该论文&quot;从失败轨迹自动造新任务&quot;的自进化表述,核实时存疑,本页不作事实陈述。)</em></p>
+<h3 id="sec-4">3.2 Web / agent RL 的三大挑战(WebRL 框架)</h3>
+<p>答&quot;为什么 web/long-horizon agent 难训&quot;的标准结构:① <strong>训练任务稀缺</strong>;② <strong>反馈信号稀疏</strong>;③ <strong>策略分布漂移</strong>。<sup class="cite"><a href="#ref-8">8</a></sup> <em>(该论文&quot;从失败轨迹自动造新任务&quot;的自进化表述,核实时存疑,本页不作事实陈述。)</em></p>
 <h3 id="sec-5">3.3 与现有页的接点</h3>
-<p>GRPO 改进(Clip-Higher、去 KL loss)源自字节 <strong>DAPO</strong>(arXiv:2503.14476)、被 MiMo 采用 —— 详见 <a href="cheatsheet-reasoning-rl-frontier.html">reasoning-rl-frontier</a>,本页不重复。</p>
+<p>GRPO 改进(Clip-Higher、去 KL loss)源自字节 <strong>DAPO</strong><sup class="cite"><a href="#ref-9">9</a></sup>、被 MiMo 采用 —— 详见 <a href="cheatsheet-reasoning-rl-frontier.html">reasoning-rl-frontier</a>,本页不重复。</p>
 <h2 id="sec-6">4. 【前沿·最不成熟】自进化 / self-evolving(最需谨慎)</h2>
 <blockquote>
 <p>⚠️ 这块<strong>绝大多数是研究</strong>,生产证据弱。面试别声称工业标准,更别报未核实数字。</p>
@@ -114,18 +121,20 @@
 <li>web / long-horizon agent 训练的三大挑战(任务稀缺 / 稀疏反馈 / 策略漂移)各怎么缓解?</li>
 <li>自进化 / self-play 训练的失败模式是什么?为什么生产里还不敢全自动?</li>
 </ul>
-<h2 id="sec-11">来源 / Sources</h2>
-<ul>
-<li>Anthropic, <em>Introducing computer use, …</em> (2024-10-22) — anthropic.com/news/3-5-models-and-computer-use</li>
-<li>Anthropic, <em>Building Effective Agents</em> (2024-12-19) — anthropic.com/research/building-effective-agents</li>
-<li>Anthropic, <em>Building agents with the Claude Agent SDK</em> — claude.com/blog/building-agents-with-the-claude-agent-sdk</li>
-<li>OpenAI, <em>Introducing Operator</em> / <em>Computer-Using Agent</em> (2025-01)</li>
-<li>OpenAI, <em>Introducing ChatGPT agent</em> (2025-07-17)</li>
-<li>Self-Play SWE-RL, arXiv:2512.18552(奖励设计;不含未核实性能数字)</li>
-<li>MiMo Technical Report, arXiv:2505.07608</li>
-<li>WebRL, arXiv:2411.02337(三大挑战框架;自进化机制表述存疑)</li>
-<li>DAPO, arXiv:2503.14476</li>
-</ul>
+<h2 id="sec-11">参考文献 / References</h2>
+<details class="refs"><summary>参考文献 / References(9 篇,点击展开)</summary>
+<ol>
+<li id="ref-1">Anthropic — <a href="https://www.anthropic.com/news/3-5-models-and-computer-use"><em>Introducing computer use, a new Claude 3.5 Sonnet, and Claude 3.5 Haiku</em></a>(2024-10-22)</li>
+<li id="ref-2">Anthropic — <a href="https://www.anthropic.com/research/building-effective-agents"><em>Building Effective Agents</em></a>(2024-12-19)</li>
+<li id="ref-3">Anthropic — <a href="https://claude.com/blog/building-agents-with-the-claude-agent-sdk"><em>Building agents with the Claude Agent SDK</em></a></li>
+<li id="ref-4">OpenAI — <a href="https://openai.com/index/introducing-operator/"><em>Introducing Operator</em></a> / <a href="https://openai.com/index/computer-using-agent/"><em>Computer-Using Agent (CUA)</em></a>(2025-01)</li>
+<li id="ref-5">OpenAI — <a href="https://openai.com/index/introducing-chatgpt-agent/"><em>Introducing ChatGPT agent</em></a>(2025-07-17)</li>
+<li id="ref-6">Wei et al. — <em>Toward Training Superintelligent Software Agents through Self-Play SWE-RL</em>,<a href="https://arxiv.org/abs/2512.18552">arXiv:2512.18552</a>(本页只取奖励设计,不含未核实性能数字)</li>
+<li id="ref-7">Xiaomi LLM-Core — <em>MiMo Technical Report</em>,<a href="https://arxiv.org/abs/2505.07608">arXiv:2505.07608</a></li>
+<li id="ref-8">Qi et al. — <em>WebRL: Training LLM Web Agents via Self-Evolving Online Curriculum RL</em>,<a href="https://arxiv.org/abs/2411.02337">arXiv:2411.02337</a>(仅取三大挑战框架;自进化机制表述存疑)</li>
+<li id="ref-9">ByteDance Seed — <em>DAPO</em>,<a href="https://arxiv.org/abs/2503.14476">arXiv:2503.14476</a></li>
+</ol>
+</details>
 </article>
 </body>
 </html>

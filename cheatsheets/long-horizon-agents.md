@@ -8,19 +8,19 @@
 
 国际两家已把"长程 agentic"做进产品 —— 聊"agent 落地"时的硬通货:
 
-- **Anthropic computer use**(2024-10-22 public beta;Anthropic API / Amazon Bedrock / Google Vertex AI):Claude 看屏幕截图 → 移动光标 / 点击 / 输入,把指令翻成一连串电脑操作;任务"需要几十、有时几百步"。官方明说**实验性、笨拙易错**,建议从低风险任务起步。
-- **OpenAI Operator**(2025-01 研究预览,ChatGPT Pro)→ **ChatGPT agent**(2025-07-17,合并 Operator + deep research):底层 **CUA**(Computer-Using Agent)= GPT-4o 视觉 + RL 推理;循环 = 看截图 → CoT 推理下一步 → 点击/滚动/输入,直到完成或需人介入。安全:输密码要用户接管、拒高风险任务(如银行转账)。ChatGPT agent 在一台**虚拟电脑**上用 visual browser + text browser + terminal + API。
+- **Anthropic computer use**(2024-10-22 public beta;Anthropic API / Amazon Bedrock / Google Vertex AI):Claude 看屏幕截图 → 移动光标 / 点击 / 输入,把指令翻成一连串电脑操作;任务"需要几十、有时几百步"。官方明说**实验性、笨拙易错**,建议从低风险任务起步。<sup class="cite"><a href="#ref-1">1</a></sup>
+- **OpenAI Operator**(2025-01 研究预览,ChatGPT Pro)→ **ChatGPT agent**(2025-07-17,合并 Operator + deep research):底层 **CUA**(Computer-Using Agent)= GPT-4o 视觉 + RL 推理;循环 = 看截图 → CoT 推理下一步 → 点击/滚动/输入,直到完成或需人介入。安全:输密码要用户接管、拒高风险任务(如银行转账)。<sup class="cite"><a href="#ref-4">4</a></sup> ChatGPT agent 在一台**虚拟电脑**上用 visual browser + text browser + terminal + API。<sup class="cite"><a href="#ref-5">5</a></sup>
 
 ## 2. 【生产】长程 agent 的工程支柱(官方指南口径,面试高频)
 
-**Anthropic《Building Effective Agents》(2024-12-19)** ≈ 这一行的工程"圣经":
+**Anthropic《Building Effective Agents》(2024-12-19)**<sup class="cite"><a href="#ref-2">2</a></sup> ≈ 这一行的工程"圣经":
 
 - **Workflow vs Agent**(必答):workflow = LLM / 工具走**预定义代码路径**;agent = LLM**自己动态决定**流程与工具用法(控制流归谁是关键区别)。
 - 常见模式:prompt chaining、routing、parallelization(sectioning / voting)、orchestrator-workers、evaluator-optimizer;以及 **autonomous agents**(靠环境反馈循环、自主规划到完成或触发停止条件)。
 - **何时才上 agent**:任务开放、步数不可预测、无法硬编码路径,且愿用更高延迟/成本换表现 —— **否则先用简单方案**(单次调用 + 检索 + few-shot)。
 - 工程要点:把 **ACI(agent-computer interface)** 当 HCI 一样精雕;设**停止条件**(如最大迭代数);每步要**环境 ground truth**(工具结果 / 代码执行)评估进度;sandbox + guardrails 防误差累积。
 
-**Claude Agent SDK** 的核心循环(可直接背):
+**Claude Agent SDK**<sup class="cite"><a href="#ref-3">3</a></sup> 的核心循环(可直接背):
 
 > **gather context → take action → verify work → repeat**
 
@@ -35,21 +35,21 @@
 ### 3.1 稀疏 / 长程奖励 + 难度带设计(高频系统设计题)
 长程任务奖励稀疏(常只有最终成败)。反复出现的工程原则:**有效 RL 信号只在中间难度带**,要显式防止训练数据退化到两端。
 
-- **Self-Play SWE-RL**(arXiv:2512.18552):同一 LLM 既注入 bug 又修 bug,用测试套件当奖励。bug 注入奖励是分段函数($s$ = 注入后测试通过比例):
+- **Self-Play SWE-RL**<sup class="cite"><a href="#ref-6">6</a></sup>:同一 LLM 既注入 bug 又修 bug,用测试套件当奖励。bug 注入奖励是分段函数($s$ = 注入后测试通过比例):
 
 $$
 r_{\text{inject}} = \begin{cases} -\alpha, & s \in \{0, 1\} \\ 1-(1+\alpha)\,s, & 0 < s < 1 \end{cases}, \quad \alpha = 0.8
 $$
 
 对"太难(无法修,$s{=}0$)"和"太易($s{=}1$)"都给负分,只奖中间难度。*(本页只取奖励设计;其性能数字未经核实,不引用。)*
-- **MiMo**(arXiv:2505.07608,小米已发布模型的 RL 配方):动态采样**过滤 pass-rate$=0/1$** 的 prompt,并维护 10% 简单题池防后期策略更新不稳定。
+- **MiMo**<sup class="cite"><a href="#ref-7">7</a></sup>(小米已发布模型的 RL 配方):动态采样**过滤 pass-rate$=0/1$** 的 prompt,并维护 10% 简单题池防后期策略更新不稳定。
 - 两者动机一致 = **难度自适应课程**:把信号集中到模型"够得着但还没掌握"的题上。
 
-### 3.2 Web / agent RL 的三大挑战(WebRL 框架,arXiv:2411.02337)
-答"为什么 web/long-horizon agent 难训"的标准结构:① **训练任务稀缺**;② **反馈信号稀疏**;③ **策略分布漂移**。*(该论文"从失败轨迹自动造新任务"的自进化表述,核实时存疑,本页不作事实陈述。)*
+### 3.2 Web / agent RL 的三大挑战(WebRL 框架)
+答"为什么 web/long-horizon agent 难训"的标准结构:① **训练任务稀缺**;② **反馈信号稀疏**;③ **策略分布漂移**。<sup class="cite"><a href="#ref-8">8</a></sup> *(该论文"从失败轨迹自动造新任务"的自进化表述,核实时存疑,本页不作事实陈述。)*
 
 ### 3.3 与现有页的接点
-GRPO 改进(Clip-Higher、去 KL loss)源自字节 **DAPO**(arXiv:2503.14476)、被 MiMo 采用 —— 详见 [reasoning-rl-frontier](cheatsheet-reasoning-rl-frontier.html),本页不重复。
+GRPO 改进(Clip-Higher、去 KL loss)源自字节 **DAPO**<sup class="cite"><a href="#ref-9">9</a></sup>、被 MiMo 采用 —— 详见 [reasoning-rl-frontier](cheatsheet-reasoning-rl-frontier.html),本页不重复。
 
 ## 4. 【前沿·最不成熟】自进化 / self-evolving(最需谨慎)
 
@@ -77,14 +77,18 @@ GRPO 改进(Clip-Higher、去 KL loss)源自字节 **DAPO**(arXiv:2503.14476)、
 - web / long-horizon agent 训练的三大挑战(任务稀缺 / 稀疏反馈 / 策略漂移)各怎么缓解?
 - 自进化 / self-play 训练的失败模式是什么?为什么生产里还不敢全自动?
 
-## 来源 / Sources
+## 参考文献 / References
 
-- Anthropic, *Introducing computer use, …* (2024-10-22) — anthropic.com/news/3-5-models-and-computer-use
-- Anthropic, *Building Effective Agents* (2024-12-19) — anthropic.com/research/building-effective-agents
-- Anthropic, *Building agents with the Claude Agent SDK* — claude.com/blog/building-agents-with-the-claude-agent-sdk
-- OpenAI, *Introducing Operator* / *Computer-Using Agent* (2025-01)
-- OpenAI, *Introducing ChatGPT agent* (2025-07-17)
-- Self-Play SWE-RL, arXiv:2512.18552(奖励设计;不含未核实性能数字)
-- MiMo Technical Report, arXiv:2505.07608
-- WebRL, arXiv:2411.02337(三大挑战框架;自进化机制表述存疑)
-- DAPO, arXiv:2503.14476
+<details class="refs"><summary>参考文献 / References(9 篇,点击展开)</summary>
+<ol>
+<li id="ref-1">Anthropic — <a href="https://www.anthropic.com/news/3-5-models-and-computer-use"><em>Introducing computer use, a new Claude 3.5 Sonnet, and Claude 3.5 Haiku</em></a>(2024-10-22)</li>
+<li id="ref-2">Anthropic — <a href="https://www.anthropic.com/research/building-effective-agents"><em>Building Effective Agents</em></a>(2024-12-19)</li>
+<li id="ref-3">Anthropic — <a href="https://claude.com/blog/building-agents-with-the-claude-agent-sdk"><em>Building agents with the Claude Agent SDK</em></a></li>
+<li id="ref-4">OpenAI — <a href="https://openai.com/index/introducing-operator/"><em>Introducing Operator</em></a> / <a href="https://openai.com/index/computer-using-agent/"><em>Computer-Using Agent (CUA)</em></a>(2025-01)</li>
+<li id="ref-5">OpenAI — <a href="https://openai.com/index/introducing-chatgpt-agent/"><em>Introducing ChatGPT agent</em></a>(2025-07-17)</li>
+<li id="ref-6">Wei et al. — <em>Toward Training Superintelligent Software Agents through Self-Play SWE-RL</em>,<a href="https://arxiv.org/abs/2512.18552">arXiv:2512.18552</a>(本页只取奖励设计,不含未核实性能数字)</li>
+<li id="ref-7">Xiaomi LLM-Core — <em>MiMo Technical Report</em>,<a href="https://arxiv.org/abs/2505.07608">arXiv:2505.07608</a></li>
+<li id="ref-8">Qi et al. — <em>WebRL: Training LLM Web Agents via Self-Evolving Online Curriculum RL</em>,<a href="https://arxiv.org/abs/2411.02337">arXiv:2411.02337</a>(仅取三大挑战框架;自进化机制表述存疑)</li>
+<li id="ref-9">ByteDance Seed — <em>DAPO</em>,<a href="https://arxiv.org/abs/2503.14476">arXiv:2503.14476</a></li>
+</ol>
+</details>
