@@ -29,7 +29,7 @@ node build.js    # 读 cheatsheets/ + drills/ → 生成 docs/
 ## ⚠️ 说明 / Disclaimer
 
 AI 辅助整理(生成 + 跨模型复审)的**学习笔记**,**WIP**。
-- 手撕 drill 的测试需在有 PyTorch 的环境跑过验证。
+- ✅ 全部 **14 个 drill 的测试已在 PyTorch 2.4 跑通**(`pytest` 或 `python test_*.py`)。
 - 涉及具体论文的数字 / 结论以**原论文**为准。
 - 发现问题欢迎 issue / PR —— 见 [CONTRIBUTING](CONTRIBUTING.md)。
 
