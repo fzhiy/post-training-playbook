@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drill: Attention from scratch</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { max-width: 820px; margin: 0 auto; padding: 1rem 1.1rem 4rem;
+         font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+         word-wrap: break-word; }
+  h1,h2,h3 { line-height: 1.3; margin-top: 1.6em; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.25rem; border-bottom: 1px solid #8884; padding-bottom: .2em; }
+  code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: .9em; }
+  :not(pre) > code { background: #8882; padding: .1em .35em; border-radius: 4px; }
+  pre { background: #2b2b2b08; padding: .9rem; border-radius: 8px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+  th,td { border: 1px solid #8886; padding: .4em .6em; text-align: left; }
+  blockquote { border-left: 3px solid #8888; margin: 1em 0; padding: .2em 1em; color: #666; }
+  a { color: #0a7; }
+</style>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    startup: { typeset: false }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+</head>
+<body>
+<nav style="max-width:820px;margin:0 auto 1rem;font-size:.88rem"><a href="index.html" style="color:#0a7;text-decoration:none">← 复习索引 / Study Index</a></nav>
+<article id="out"></article>
+<!-- 原始 markdown 嵌在下面;渲染器只替换 # Drill: Attention from scratch
+
+> 可运行的 from-scratch 实现 + 测试。目标:每一行都能在面试里推导和辩护。
+> Runnable from-scratch implementation with tests — derive and defend every line.
+
+## 数学 / The math
+
+注意力对一组 query 在一组 key-value 上做加权聚合:
+
+$$\mathrm{Attn}(Q,K,V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
+
+- $QK^\top$:每个 query 与每个 key 的点积相似度,形状 $(L_q, L_k)$。
+- $\sqrt{d_k}$ 缩放:设各维独立、均值 0 方差 1,则 $\mathrm{Var}(q\cdot k)=d_k$。不缩放会把 softmax 推向饱和、梯度消失;除以 $\sqrt{d_k}$ 把方差拉回 ~1。
+- softmax 沿 **key 维**归一化 → 每个 query 的注意力分布。
+- 乘 $V$:用该分布对 value 加权求和。
+- 多头:把 $d_{model}$ 切成 $h$ 个 $d_{head}=d_{model}/h$ 子空间,各自独立注意力 → 拼接 → 输出投影 $W_O$,让不同头关注不同关系。
+
+## 复杂度 / Complexity
+
+- 时间 / 显存 $O(L^2 d)$ —— 序列长度的平方项是长上下文的核心瓶颈。
+- 自回归解码时缓存 K、V(**KV cache**),把每步从重算 $O(L^2)$ 摊销到 $O(L)$。
+
+## 文件
+
+- `from_scratch.py` —— `scaled_dot_product_attention` + `MultiHeadAttention`(不用 `nn.MultiheadAttention` / `F.sdpa`)。
+- `test_attention.py` —— 与 PyTorch 参考实现对拍:数值 `allclose` + causal mask 正确性 + 反向传播有限。
+
+```bash
+python test_attention.py        # 或 python -m pytest test_attention.py
+```
+
+## 追问分层 / Stratified follow-ups
+
+- **L1**:为什么除以 $\sqrt{d_k}$ 而不是 $d_k$?softmax 为什么沿 key 维而不是 query 维?mask 为什么填 $-\infty$ 而不是 0?
+- **L2**:causal mask 怎么实现?自注意力的时间/显存复杂度是多少?KV cache 省的是哪一部分计算,为什么训练时不需要?
+- **L3**:FlashAttention 在**不改变数学结果**的前提下怎么把显存从 $O(L^2)$ 降到 $O(L)$(IO-aware 分块 + online softmax)?MQA / GQA 如何用 KV 头共享换显存与带宽?多头相比单头大注意力的本质收益是什么?
+,内容里的 </script> 须转义为 <\/script> -->
+<script id="doc" type="text/markdown">{{MARKDOWN}}</script>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const raw = document.getElementById('doc').textContent;
+    // 保护 LaTeX,避免被 markdown 解析吃掉
+    const math = [];
+    const keep = (m) => { math.push(m); return `@@M${math.length - 1}@@`; };
+    const protectedText = raw
+      .replace(/\$\$([\s\S]+?)\$\$/g, keep)
+      .replace(/\\\[([\s\S]+?)\\\]/g, keep)
+      .replace(/\\\(([\s\S]+?)\\\)/g, keep)
+      .replace(/\$([^\$\n]+?)\$/g, keep);
+    let html = marked.parse(protectedText);
+    html = html.replace(/@@M(\d+)@@/g, (_, i) => math[+i]);
+    document.getElementById('out').innerHTML = html;
+    document.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
+    if (window.MathJax && MathJax.startup) {
+      MathJax.startup.promise.then(() => MathJax.typesetPromise());
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,1335 @@
+# LLM Post-Training 全栈速查手册
+# Complete Bilingual Cheat Sheet: LLM Post-Training
+
+> 适用场景：LLM Post-Training Research Intern 面试准备 & 日常参考
+> 语言：中文为主，关键术语附英文
+
+---
+
+## 目录 / Table of Contents
+
+- [Part 1 — 核心概念与公式推导](#part-1--核心概念与公式推导)
+- [Part 2 — PyTorch 代码片段](#part-2--pytorch-代码片段)
+- [Part 3 — 面试题库](#part-3--面试题库)
+
+---
+
+# Part 1 — 核心概念与公式推导
+# Core Concepts & Formula Derivations
+
+---
+
+## 1. Pre-training vs Post-training 总览 / Overview
+
+| 维度 / Dimension | 预训练 / Pre-training | 后训练 / Post-training |
+|:---|:---|:---|
+| **数据规模 / Data Scale** | 万亿 tokens，网络爬取语料 | 数千–百万条高质量标注/偏好数据 |
+| **目标 / Objective** | Next-token prediction，习得语言与知识 | 指令跟随 + 对齐人类偏好 + 增强推理 |
+| **损失函数 / Loss** | $L = -\sum_t \log p_\theta(x_t \mid x_{<t})$ | SFT loss + RLHF/DPO/GRPO 目标 |
+| **学习率 / LR** | 高（1e-4 数量级），余弦退火 | 低（1e-5 ~ 5e-6），防止遗忘 |
+| **硬件 / Hardware** | 数千张 GPU，训练数周到数月 | 数百张 GPU，训练数小时到数天 |
+| **产物 / Output** | Base model（能力强但不可控） | Instruct / Chat model（可控、安全、有用） |
+
+**标准 5 步 Pipeline（Standard 5-Step Pipeline）：**
+
+1. **SFT (Supervised Fine-Tuning)**：在高质量 (instruction, response) 对上做有监督微调，将 base model 转化为"指令助手"。
+2. **Reward Model 训练**：用人类偏好对比数据（同一 prompt 的两个 response + 人类偏好标注）训练打分模型 RM。
+3. **RLHF / PPO**：用 RM 反馈做强化学习，配合 KL 约束防止偏离 SFT 模型过远。
+4. **DPO（离线替代）**：绕过显式 RM，直接从偏好数据优化 policy，实现更简单稳定的对齐。
+5. **迭代循环**：当前 policy 采样新数据 → 新偏好标注 → 更新 RM → 再做 RL，多轮迭代。
+
+---
+
+## 2. SFT 数据格式与 Loss Masking
+
+**Chat Template（ChatML 格式示例）：**
+
+```
+<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+{用户指令}<|im_end|>
+<|im_start|>assistant
+{助手回复}<|im_end|>
+```
+
+不同模型有自己的 template（LLaMA 用 `[INST]`，Qwen 用 `<|im_start|>`），训练与推理必须使用相同 template，否则分布偏移。
+
+**Loss Masking（损失掩码）：**
+
+SFT 的训练目标是让模型学会"如何回答"，而不是"如何重复问题"。只对 assistant token 位置计算 cross-entropy loss：
+
+$$L_{SFT} = -\frac{1}{|A|} \sum_{t \in A} \log p_\theta(x_t \mid x_{<t})$$
+
+其中 $A$ 是所有 assistant token 的位置集合。User / system token 的 label 设为 $-100$（PyTorch 中 `CrossEntropyLoss` 默认忽略该值）。
+
+**多轮对话 Loss Masking**：每一轮的 user turn 均 mask，只有每轮的 assistant turn 参与 loss 计算。
+
+**System prompt 是否纳入 Loss 的 trade-off**：
+- 不纳入（主流做法）：节省 capacity，专注训练回答质量。
+- 纳入：模型能更好学习遵守 system instruction 的行为，但增加 noise。
+
+---
+
+## 3. Sequence Packing（序列打包）
+
+**定义**：将多条短 sample 拼接成长度 = context window 的一个 sequence，只在 sample 边界加 EOS / 分隔 token，从而消除 padding 浪费。
+
+**GPU 利用率**：不 packing 时，padding 占比可达 30–60%；packing 后接近 100% 有效 token，训练速度提升 2–4×。
+
+**坑 1 — 跨 sample attention 污染**：不加 document-level attention mask 时，packed sequence 内前一个 sample 的 token 可以 attend 到后一个 sample 的 token，造成信息泄漏。解决方案：使用 Flash Attention 的 `cu_seqlens` 参数，它接受每个 sample 在 packed sequence 中的累积长度（cumulative sequence lengths），确保 attention 只在 sample 内部计算。
+
+**坑 2 — Loss 权重失衡**：packing 等价于隐式按 token 数加权（长 sample 产生更多 loss terms）。若原本按 sample 平均，packing 后语义不同，需注意是否需要对 loss 做长度归一化。
+
+**cu_seqlens 示例**（3 个 sample，长度分别为 5, 3, 7）：
+```
+cu_seqlens = [0, 5, 8, 15]  # cumulative lengths
+packed_ids = [s1_tok1, ..., s1_tok5, s2_tok1, ..., s2_tok3, s3_tok1, ..., s3_tok7]
+```
+
+---
+
+## 4. RLHF 完整流程 / PPO in RLHF
+
+RLHF（Reinforcement Learning from Human Feedback）三阶段：
+
+1. **SFT**：建立初始 policy $\pi_{ref}$（参考策略，后续作为 KL 惩罚的基准）。
+2. **RM 训练**：用 Bradley-Terry 模型从人类偏好对比数据拟合标量奖励函数 $r(x,y)$。
+3. **PPO 优化**：最大化带 KL 约束的增强奖励。
+
+**总奖励（Augmented Reward）：**
+
+$$r_{total}(x,y) = r_{RM}(x,y) - \beta \cdot \text{KL}\!\left(\pi_\theta(\cdot|x) \| \pi_{ref}(\cdot|x)\right)$$
+
+**PPO Clipped Objective：**
+
+$$L^{CLIP}(\theta) = \mathbb{E}_t\!\left[\min\!\left(r_t(\theta)\hat{A}_t,\ \text{clip}(r_t(\theta), 1-\varepsilon, 1+\varepsilon)\hat{A}_t\right)\right]$$
+
+其中 $r_t(\theta) = \dfrac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}$ 是概率比值，$\varepsilon$ 通常取 0.1–0.2。
+
+**GAE Advantage Estimation：**
+
+$$\hat{A}_t = \sum_{l=0}^{T-t} (\gamma\lambda)^l \delta_{t+l}, \quad \delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$$
+
+$\lambda$ 控制 bias-variance 权衡：$\lambda=1$ 方差大 bias 小；$\lambda=0$ 退化为一步 TD。
+
+**PPO 需要的 4 个模型（显存压力来源）：**
+
+| 模型 | 作用 | 是否更新 |
+|:---|:---|:---|
+| **Actor** (Policy $\pi_\theta$) | 被优化的 LLM policy | 是（PPO 梯度） |
+| **Critic** (Value model) | 估计 $V(s_t)$，计算 advantage | 是（TD 误差） |
+| **Reference** ($\pi_{ref}$) | KL penalty 的基准，即 SFT 模型 | 否（冻结） |
+| **Reward Model** (RM) | 对 (x,y) 打分 | 否（冻结） |
+
+---
+
+## 5. Bradley-Terry Reward Model（奖励模型）
+
+**Bradley-Terry 偏好模型**：给定 prompt $x$，更好的回复 $y_w$ 比更差的 $y_l$ 被偏好的概率为：
+
+$$P(y_w \succ y_l \mid x) = \sigma\!\left(r(x,y_w) - r(x,y_l)\right)$$
+
+**RM 训练损失（最大化偏好数据的 log likelihood）：**
+
+$$L_{RM} = -\mathbb{E}_{(x,y_w,y_l)}\!\left[\log \sigma\!\left(r(x,y_w) - r(x,y_l)\right)\right]$$
+
+**RM 架构**：
+- 初始化自 SFT 模型（共享语言理解能力）。
+- 移除 LM head，替换为线性层 $W \in \mathbb{R}^{d \times 1}$，输出标量 reward。
+- 训练时输入一对 (chosen, rejected) response，分别前向传播取最后 token 的标量输出，计算 Bradley-Terry loss。
+
+**主要风险**：
+- **Reward hacking**：policy 找到 RM 误差高分但质量差的 response（Goodhart's Law）。
+- **Distribution shift**：RM 在未见过的 policy 分布上失效，需要迭代更新 RM。
+
+---
+
+---
+
+## 6. DPO 完整推导 (Direct Preference Optimization Full Derivation)
+
+### 6.1 从 RLHF 目标出发 (Starting from the RLHF Objective)
+
+RLHF 的 KL 约束优化目标 (The KL-constrained RLHF optimization objective):
+
+$$
+\max_{\pi} \; \mathbb{E}_{x \sim \mathcal{D},\; y \sim \pi(\cdot|x)}\!\big[r(x, y)\big] \;-\; \beta \cdot \mathrm{KL}\!\big(\pi(\cdot|x) \;\|\; \pi_{\mathrm{ref}}(\cdot|x)\big)
+$$
+
+其中 (where):
+- $r(x, y)$ 是奖励模型的打分 (scalar reward from the reward model)
+- $\pi_{\mathrm{ref}}$ 是参考策略，通常为 SFT 模型 (reference policy, typically the SFT model)
+- $\beta > 0$ 控制 KL 惩罚强度 (controls KL penalty strength)
+
+展开 KL 散度 (Expanding the KL divergence):
+
+$$
+\max_{\pi} \; \mathbb{E}_{x,y}\!\big[r(x,y)\big] - \beta \sum_{y} \pi(y|x)\log\frac{\pi(y|x)}{\pi_{\mathrm{ref}}(y|x)}
+$$
+
+对每个 $y$ 求变分最优，令泛函导数为零 (Taking the variational derivative per $y$ and setting it to zero):
+
+$$
+\frac{\partial}{\partial \pi(y|x)}\left[r(x,y) - \beta\log\frac{\pi(y|x)}{\pi_{\mathrm{ref}}(y|x)} - \beta\right] = 0
+$$
+
+> 注意：归一化约束 $\sum_y \pi(y|x)=1$ 引入拉格朗日乘子 $Z(x)$
+
+### 6.2 最优策略的闭式解 (Closed-Form Optimal Policy)
+
+求解得到最优策略 (Solving yields the optimal policy):
+
+$$
+\boxed{\pi^*(y|x) = \frac{1}{Z(x)}\,\pi_{\mathrm{ref}}(y|x)\,\exp\!\left(\frac{r(x,y)}{\beta}\right)}
+$$
+
+其中配分函数 (partition function):
+
+$$
+Z(x) = \sum_{y} \pi_{\mathrm{ref}}(y|x)\,\exp\!\left(\frac{r(x,y)}{\beta}\right)
+$$
+
+$Z(x)$ 确保 $\sum_y \pi^*(y|x) = 1$，即策略是合法的概率分布 (ensures $\pi^*$ is a valid probability distribution)。
+
+### 6.3 反解奖励函数 (Inverting for the Reward)
+
+对最优策略两边取对数 (Taking log of both sides):
+
+$$
+\log \pi^*(y|x) = \log \pi_{\mathrm{ref}}(y|x) + \frac{r(x,y)}{\beta} - \log Z(x)
+$$
+
+移项得到 (Rearranging):
+
+$$
+\boxed{r(x,y) = \beta \log\frac{\pi^*(y|x)}{\pi_{\mathrm{ref}}(y|x)} + \beta \log Z(x)}
+$$
+
+**关键洞察 (Key insight)**：奖励可以用策略与参考策略的对数比来表示，无需显式奖励模型 (reward is expressed via the log-ratio of policy to reference, eliminating the explicit RM)。
+
+### 6.4 代入 Bradley-Terry 模型 (Substituting into Bradley-Terry)
+
+人类偏好建模 (Human preference model):
+
+$$
+p(y_w \succ y_l \mid x) = \sigma\!\big(r(x, y_w) - r(x, y_l)\big)
+$$
+
+其中 $\sigma(z) = \frac{1}{1+e^{-z}}$ 是 sigmoid 函数 (sigmoid function)。
+
+将反解的奖励代入 (Substituting the inverted reward):
+
+$$
+r(x,y_w) - r(x,y_l) = \beta\log\frac{\pi^*(y_w|x)}{\pi_{\mathrm{ref}}(y_w|x)} - \beta\log\frac{\pi^*(y_l|x)}{\pi_{\mathrm{ref}}(y_l|x)} + \cancel{\beta\log Z(x)} - \cancel{\beta\log Z(x)}
+$$
+
+> **$Z(x)$ 项完美消去**！这是因为同一 prompt $x$ 下两个响应共享相同的配分函数 (both responses share the same partition function for the same prompt)。
+
+$$
+p(y_w \succ y_l \mid x) = \sigma\!\left(\beta\log\frac{\pi^*(y_w|x)}{\pi_{\mathrm{ref}}(y_w|x)} - \beta\log\frac{\pi^*(y_l|x)}{\pi_{\mathrm{ref}}(y_l|x)}\right)
+$$
+
+### 6.5 DPO 损失函数 (DPO Loss Function)
+
+用参数化策略 $\pi_\theta$ 替代 $\pi^*$，取负对数似然 (replacing $\pi^*$ with parameterized $\pi_\theta$, negative log-likelihood):
+
+$$
+\boxed{\mathcal{L}_{\mathrm{DPO}}(\pi_\theta) = -\mathbb{E}_{(x,\, y_w,\, y_l) \sim \mathcal{D}}\!\left[\log\sigma\!\left(\beta\log\frac{\pi_\theta(y_w|x)}{\pi_{\mathrm{ref}}(y_w|x)} - \beta\log\frac{\pi_\theta(y_l|x)}{\pi_{\mathrm{ref}}(y_l|x)}\right)\right]}
+$$
+
+展开隐式奖励 (Implicit reward defined as):
+
+$$
+\hat{r}_\theta(x, y) \triangleq \beta \log\frac{\pi_\theta(y|x)}{\pi_{\mathrm{ref}}(y|x)}
+$$
+
+则损失简洁地写为 (Loss simplifies to):
+
+$$
+\mathcal{L}_{\mathrm{DPO}} = -\mathbb{E}\!\big[\log\sigma\!\big(\hat{r}_\theta(x,y_w) - \hat{r}_\theta(x,y_l)\big)\big]
+$$
+
+### 6.6 梯度分析 (Gradient Analysis)
+
+$$
+\nabla_\theta \mathcal{L}_{\mathrm{DPO}} = -\beta\,\mathbb{E}\!\left[\underbrace{\sigma(-\hat{r}_\theta(x,y_w)+\hat{r}_\theta(x,y_l))}_{\text{权重：模型犯错越多，梯度越大}}\!\left(\nabla_\theta\log\pi_\theta(y_w|x) - \nabla_\theta\log\pi_\theta(y_l|x)\right)\right]
+$$
+
+- 当模型已经正确排序 $y_w \succ y_l$ 时，$\sigma(\cdot) \to 0$，梯度自然衰减 (gradient naturally decays)
+- 当模型排序错误时，$\sigma(\cdot) \to 1$，梯度最大 (gradient is largest)
+
+### 6.7 DPO 优缺点总结 (DPO Advantages & Disadvantages)
+
+| 优点 (Advantages) | 缺点 (Disadvantages) |
+|---|---|
+| 无需训练独立的奖励模型 (No separate RM training) | **离线算法 (Offline)**：只能使用静态数据集 $\mathcal{D}$，无法在线探索 |
+| 无需在线采样/rollout (No online rollout needed) | **分布偏移 (Distribution mismatch)**：$\pi_\theta$ 偏离数据收集策略时，训练信号退化 |
+| 训练流程简化，只需一次优化 (Simplified pipeline) | **拒绝粒度粗 (Imprecise rejection)**：全局拒绝整个响应，而非逐步纠正 |
+| 相比 PPO 更稳定 (More stable than PPO) | 对偏好数据质量敏感 (Sensitive to preference data quality) |
+| 理论上等价于 RLHF（数据充分时） | $Z(x)$ 消去依赖于 BT 模型假设的正确性 |
+
+---
+
+## 7. DPO 变体对比 (DPO Variants Comparison)
+
+### 7.1 IPO (Identity Preference Optimization)
+
+**解决的 DPO 问题**：DPO 的 logistic 损失在 $\hat{r}(y_w) - \hat{r}(y_l) \to \infty$ 时梯度趋零，可能导致隐式奖励发散 (implicit reward divergence / degeneration)。
+
+**核心改动 (Key formula change)**：用平方损失替代 logistic 损失 (squared loss replaces logistic):
+
+$$
+\mathcal{L}_{\mathrm{IPO}}(\pi_\theta) = \mathbb{E}_{(x,y_w,y_l)}\!\left[\left(\log\frac{\pi_\theta(y_w|x)}{\pi_{\mathrm{ref}}(y_w|x)} - \log\frac{\pi_\theta(y_l|x)}{\pi_{\mathrm{ref}}(y_l|x)} - \frac{1}{2\beta}\right)^2\right]
+$$
+
+**特点**：
+- 直接回归偏好边际 (directly regresses preference margin to a target value $\frac{1}{2\beta}$)
+- 梯度永不为零，防止奖励值无界增长 (gradient never vanishes, prevents unbounded reward growth)
+- **权衡 (Trade-off)**：损失函数不再对应 BT 概率模型，理论解释性略弱
+
+### 7.2 KTO (Kahneman-Tversky Optimization)
+
+**解决的 DPO 问题**：DPO 需要成对偏好数据 $(x, y_w, y_l)$，而现实中常只有单独的正/负反馈 (pointwise thumbs-up/down)。
+
+**核心改动**：受前景理论 (Prospect Theory) 启发，对 chosen 和 rejected 分别施加非对称损失 (separate asymmetric losses):
+
+$$
+\mathcal{L}_{\mathrm{KTO}} = \mathbb{E}_{x,y_w}\!\Big[\lambda_w\,\sigma\!\big(-\hat{r}_\theta(x,y_w)\big)\Big] + \mathbb{E}_{x,y_l}\!\Big[\lambda_l\,\sigma\!\big(\hat{r}_\theta(x,y_l)\big)\Big]
+$$
+
+其中 $\lambda_w, \lambda_l$ 是可调节的损失权重 (tunable loss weights)，且通常 $\lambda_l > \lambda_w$（损失厌恶 loss aversion）。
+
+**特点**：
+- 无需配对 (No pairing requirement)，支持 pointwise 数据
+- **权衡**：放弃了 BT 模型的成对一致性约束，信息利用效率较低
+
+### 7.3 ORPO (Odds Ratio Preference Optimization)
+
+**解决的 DPO 问题**：DPO 需要先 SFT 再偏好优化两阶段训练，且需要维护参考模型 $\pi_{\mathrm{ref}}$。
+
+**核心改动**：在 SFT 的交叉熵损失上直接附加 odds-ratio 偏好损失 (unified SFT + odds-ratio loss):
+
+$$
+\mathcal{L}_{\mathrm{ORPO}} = \underbrace{\mathcal{L}_{\mathrm{SFT}}(y_w)}_{\text{SFT on chosen}} + \lambda \cdot \underbrace{\left[-\log\sigma\!\left(\log\frac{\mathrm{odds}_\theta(y_w|x)}{\mathrm{odds}_\theta(y_l|x)}\right)\right]}_{\text{odds ratio preference}}
+$$
+
+其中 odds 定义为 (odds defined as):
+
+$$
+\mathrm{odds}_\theta(y|x) = \frac{p_\theta(y|x)}{1 - p_\theta(y|x)}
+$$
+
+**特点**：
+- 单阶段训练 (Single-stage)，无需参考模型 (No reference model needed)
+- **权衡**：odds ratio 与 BT 模型无直接理论联系；SFT 损失和偏好损失可能冲突
+
+### 7.4 SimPO (Simple Preference Optimization)
+
+**解决的 DPO 问题**：DPO 使用对数概率比 (log-ratio) 作为隐式奖励，受序列长度影响较大。
+
+**核心改动**：用平均对数概率替代对数比，并添加目标奖励边际 $\gamma$ (average log-probability with target margin):
+
+$$
+\hat{r}_{\mathrm{SimPO}}(x, y) = \frac{\beta}{|y|}\log p_\theta(y|x)
+$$
+
+$$
+\mathcal{L}_{\mathrm{SimPO}} = -\mathbb{E}\!\left[\log\sigma\!\left(\frac{\beta}{|y_w|}\log p_\theta(y_w|x) - \frac{\beta}{|y_l|}\log p_\theta(y_l|x) - \gamma\right)\right]
+$$
+
+**特点**：
+- 无需参考模型 (No reference model needed)，因为只用 $p_\theta$ 本身
+- 平均对数概率自然消除长度偏差 (length-normalization via averaging)
+- $\gamma > 0$ 确保 chosen 和 rejected 之间有明确的奖励间距 (explicit reward margin)
+- **权衡**：损失理论上不再等价于 BT 偏好模型
+
+### 7.5 综合对比表 (Summary Comparison Table)
+
+| 变体 | 是否需要配对数据 | 是否需要 $\pi_{\mathrm{ref}}$ | 损失类型 | 防退化机制 |
+|:---:|:---:|:---:|:---:|:---:|
+| DPO | ✅ 是 | ✅ 是 | Logistic (BT) | 无显式 |
+| IPO | ✅ 是 | ✅ 是 | Squared | 目标边际 $\frac{1}{2\beta}$ |
+| KTO | ❌ 否 (pointwise) | ✅ 是 | Asymmetric logistic | 损失厌恶权重 |
+| ORPO | ✅ 是 | ❌ 否 | Odds ratio + SFT | SFT 锚定 |
+| SimPO | ✅ 是 | ❌ 否 | Avg-logprob + margin | 目标边际 $\gamma$ |
+
+---
+
+## 8. GRPO vs PPO (Group Relative Policy Optimization vs Proximal Policy Optimization)
+
+### 8.1 GRPO 群组优势估计 (Group Advantage Estimation)
+
+GRPO 的核心思想：对同一 prompt $x$，采样一组响应 $\{y_1, y_2, \dots, y_G\}$，用组内统计量估计优势 (estimate advantage using intra-group statistics):
+
+$$
+\boxed{A_i = \frac{r_i - \mathrm{mean}(\{r_1, r_2, \dots, r_G\})}{\mathrm{std}(\{r_1, r_2, \dots, r_G\})}}
+$$
+
+其中 $r_i = r(x, y_i)$ 是第 $i$ 个响应的奖励 (reward for the $i$-th response)。
+
+GRPO 的策略梯度损失 (GRPO policy gradient loss):
+
+$$
+\mathcal{L}_{\mathrm{GRPO}}(\theta) = -\frac{1}{G}\sum_{i=1}^{G}\left[\min\!\left(\frac{\pi_\theta(y_i|x)}{\pi_{\theta_{\mathrm{old}}}(y_i|x)} A_i, \;\mathrm{clip}\!\left(\frac{\pi_\theta(y_i|x)}{\pi_{\theta_{\mathrm{old}}}(y_i|x)}, 1-\epsilon, 1+\epsilon\right)A_i\right)\right]
+$$
+
+> 与 PPO 的 clipping 机制相同，但优势估计完全不同 (same clipping mechanism, entirely different advantage estimation)。
+
+### 8.2 核心对比 (Key Comparison)
+
+| 特性 | PPO | GRPO |
+|:---|:---|:---|
+| **所需模型数量** | 4 个：Actor + Critic + Reference + RM | 2 个：Actor + Reference（奖励来自外部/规则） |
+| **优势估计** | GAE (Generalized Advantage Estimation)，需要 Critic 网络 | 组内相对排名，无需 Critic |
+| **内存开销** | 高（4 份模型权重） | 低（2 份模型权重） |
+| **奖励来源** | 学习到的神经网络 RM (learned neural RM) | 可验证奖励 / 规则奖励 (verifiable / rule-based reward) |
+| **适用场景** | 开放式对话、创意写作 (open-ended generation) | 数学推理、代码生成 (math, code with verifiable ground truth) |
+| **训练稳定性** | 需仔细调参 Critic，否则不稳定 | 更稳定，因为无 Critic 估计误差 |
+| **梯度方差** | 较低（GAE 提供低方差估计） | 较高（组采样数 $G$ 有限） |
+
+### 8.3 RLVR 框架 (RL from Verifiable Rewards)
+
+GRPO 最适配的范式是 **RLVR**：奖励不来自学习的 RM，而是来自可自动验证的规则 (rewards from automatically verifiable rules)：
+
+- **数学**：答案是否等于标准答案 (answer matches ground truth) → $r = \mathbb{1}[\text{extract}(y) = y^*]$
+- **代码**：是否通过所有测试用例 (passes all test cases) → $r = \frac{\text{passed tests}}{\text{total tests}}$
+- **格式**：是否遵循指定格式 (follows required format) → $r \in \{0, 1\}$
+
+RLVR 的核心优势：**奖励无噪声** (noise-free reward)，避免了 RM 本身的偏差与过拟合。
+
+### 8.4 选择指南 (When to Prefer Which)
+
+- **优先 GRPO**：奖励可自动验证（数学、代码、逻辑推理）；资源有限（无法维护 4 个模型）；需要稳定训练
+- **优先 PPO**：奖励需要语义/风格判断（对话质量、创意写作）；奖励信号复杂且无法规则化；有充足计算资源和成熟的 RM
+
+---
+
+## 9. KL 惩罚的作用与 β 调参 (Role of KL Penalty & Tuning β)
+
+### 9.1 KL 项的直觉理解 (Intuitive Role of the KL Term)
+
+$$
+\beta \cdot \mathrm{KL}\!\big(\pi_\theta(\cdot|x) \;\|\; \pi_{\mathrm{ref}}(\cdot|x)\big)
+$$
+
+KL 惩罚的角色是**正则化** (regularization)，具体功能：
+
+1. **防止策略偏离太远 (Prevents excessive drift)**：确保 $\pi_\theta$ 不会偏离 $\pi_{\mathrm{ref}}$ 太多，保留预训练知识
+2. **抑制奖励黑客 (Mitigates reward hacking)**：如果策略学会 exploit RM 的缺陷，KL 会增大作为惩罚
+3. **维持多样性 (Maintains diversity)**：防止策略坍缩到少数高奖励模式 (mode collapse)
+4. **稳定训练 (Stabilizes training)**：约束探索空间，避免策略更新过大
+
+数学上展开 (Expanding mathematically):
+
+$$
+\mathrm{KL}(\pi_\theta \| \pi_{\mathrm{ref}}) = \mathbb{E}_{y \sim \pi_\theta}\!\left[\log\frac{\pi_\theta(y|x)}{\pi_{\mathrm{ref}}(y|x)}\right] \geq 0
+$$
+
+> 当 $\pi_\theta = \pi_{\mathrm{ref}}$ 时，KL = 0（完全不偏离参考策略时无惩罚）。
+
+### 9.2 KL-RM 分数 Pareto 前沿 (KL-RM Score Pareto Frontier)
+
+调参 $\beta$ 本质上是在两个目标间权衡：
+
+$$
+\underbrace{\mathbb{E}[r(x,y)]}_{\text{奖励分数 ↑}} \quad \text{vs.} \quad \underbrace{\mathrm{KL}(\pi_\theta \| \pi_{\mathrm{ref}})}_{\text{偏离程度 ↑}}
+$$
+
+| $\beta$ 值 | 效果 |
+|:---:|:---|
+| $\beta$ 太大 | 策略几乎不更新，接近 $\pi_{\mathrm{ref}}$，奖励提升小 (underfitting) |
+| $\beta$ 太小 | 策略激进更新，奖励可能高但分布偏移严重，可能 reward hacking |
+| $\beta$ 适中 | 在 KL-RM 前沿上找到平衡点 |
+
+典型值范围 (typical range)：$\beta \in [0.01, 0.5]$，实际中常用 $\beta = 0.1$ 或 $\beta = 0.2$。
+
+### 9.3 DPO 中的 β 与 PPO 中的 β (β in DPO vs PPO)
+
+| 维度 | PPO 中的 $\beta$ | DPO 中的 $\beta$ |
+|:---|:---|:---|
+| **数学角色** | 控制 KL 惩罚项的权重（在损失函数中） | 控制隐式奖励的缩放（在 log-ratio 中） |
+| **出现位置** | $\max_\pi \mathbb{E}[r] - \beta \cdot \mathrm{KL}$ | $\hat{r}(x,y) = \beta \log\frac{\pi_\theta(y|x)}{\pi_{\mathrm{ref}}(y|x)}$ |
+| **是否语义等价** | 理论上，DPO 的 $\beta$ 源自 RLHF 目标中的同一个 $\beta$，但实际中因训练动态不同，数值上需要分别调优 |
+| **实际影响** | $\beta \uparrow$ → 更保守策略 | $\beta \uparrow$ → 隐式奖励变化更剧烈，对偏好信号更敏感 |
+
+> **结论**：理论等价 (theoretically equivalent)，实践不同 (practically different)。DPO 中 $\beta$ 还影响梯度中的权重项 $\sigma(\cdot)$ 的锐度 (sharpness)。
+
+---
+
+## 10. Process Reward Model (PRM) vs Outcome Reward Model (ORM)
+
+### 10.1 ORM：结果奖励模型 (Outcome Reward Model)
+
+$$
+r_{\mathrm{ORM}}(x, y) = f_\phi(x, y) \in \mathbb{R}
+$$
+
+- 仅在**序列末尾** (End of Sequence, EOS) 给出一个标量奖励
+- 整个响应 $y = (s_1, s_2, \dots, s_T)$ 共享同一奖励值
+- 训练数据：$(x, y, \text{correct/incorrect})$ 二元标签
+
+### 10.2 PRM：过程奖励模型 (Process Reward Model)
+
+$$
+r_{\mathrm{PRM}}(x, y, t) = f_\phi(x, s_1, \dots, s_t) \in \mathbb{R}
+$$
+
+- 对推理链的**每一步**给出独立的分数 (step-level scoring)
+- $r_{\text{step}}(s_t)$ 表示第 $t$ 步推理的质量
+- 训练数据：$(x, s_1, \dots, s_t, \text{step correct/incorrect})$ 逐步标签
+
+### 10.3 信用分配优势 (Credit Assignment Advantage)
+
+这是 PRM 的核心优势。考虑一个数学推理链：
+
+> Step 1: 设 $f(x) = x^2 + 3x$ → ✅ 正确
+> Step 2: 求导得 $f'(x) = 2x + 3$ → ✅ 正确
+> Step 3: 令 $f'(x) = 0$，解 $x = -3/2$ → ✅ 正确
+> Step 4: $f(-3/2) = 9/4 - 9/2 = -9/4$ → ✅ 正确
+
+**ORM** 只知道"最终答案正确"→ 给高分，但不知道每步是否可靠。
+
+**PRM** 可以识别"前三步正确，第四步错误"的情况：
+
+$$
+\underbrace{r_{\mathrm{PRM}}(s_1) > 0,\; r_{\mathrm{PRM}}(s_2) > 0,\; r_{\mathrm{PRM}}(s_3) > 0}_{\text{正确步骤}} \quad \underbrace{r_{\mathrm{PRM}}(s_4) < 0}_{\text{错误步骤被定位}}
+$$
+
+这使得 PRM 能更精确地指导搜索和训练 (more precise guidance for search and training)。
+
+### 10.4 基于 PRM 的 Best-of-N 搜索 (Best-of-N Search with PRM)
+
+给定 prompt $x$，采样 $N$ 个候选响应 $\{y_1, \dots, y_N\}$，对每个响应的每一步打分：
+
+$$
+\text{Score}(y_i) = \min_{t=1}^{T_i} r_{\mathrm{PRM}}(x, y_i, t)
+$$
+
+或使用乘积形式 (product form)：
+
+$$
+\text{Score}(y_i) = \prod_{t=1}^{T_i} \sigma\!\big(r_{\mathrm{PRM}}(x, y_i, t)\big)
+$$
+
+> **取 min 或乘积**是为了确保每一步都合格——任何一步低分都会拉低整体分数 (any weak step pulls down the overall score)。
+
+选择最优响应 (Select the best):
+
+$$
+y^* = \arg\max_{y_i} \text{Score}(y_i)
+$$
+
+### 10.5 PRM 训练数据挑战 (PRM Training Data Challenges)
+
+| 挑战 | 说明 |
+|:---|:---|
+| **标注成本极高 (Expensive annotation)** | 每条推理链的每一步都需要人类专家标注正确性，比 ORM 标注贵 10-50× |
+| **步骤边界模糊 (Ambiguous step boundaries)** | 推理步骤的切分没有统一标准，不同标注者可能有不同的切分方式 |
+| **标注一致性低 (Low inter-annotator agreement)** | 对"某步是否正确"的判断可能因标注者数学水平而异 |
+| **自动化方法的局限** | Monte Carlo 估计法（通过多次采样估计某步之后能得出正确答案的概率）有较大方差 |
+
+> **自动化 PRM 标注方法**：对第 $t$ 步之后，多次采样完成推理，统计最终答案正确的比例作为 $r_{\mathrm{PRM}}(s_t)$ 的估计。公式：$r_{\mathrm{PRM}}(s_t) \approx \frac{1}{K}\sum_{k=1}^{K} \mathbb{1}[\text{completion}_k \text{ leads to correct answer}]$
+
+---
+
+## 11. Alignment Tax 与权重平均 (Alignment Tax & Weight Averaging)
+
+### 11.1 对齐税的定义 (Definition of Alignment Tax)
+
+**对齐税 (Alignment Tax)** 指模型经过对齐训练后，在基础能力基准上的性能下降：
+
+$$
+\text{Alignment Tax} = \text{Perf}_{\mathrm{base}}(\theta_{\mathrm{base}}) - \text{Perf}_{\mathrm{base}}(\theta_{\mathrm{aligned}})
+$$
+
+其中 $\text{Perf}_{\mathrm{base}}$ 表示在预训练基准（如 MMLU、代码能力、数学能力等）上的表现。
+
+直觉上：SFT/RL 训练在提升对齐质量（安全性、有用性、格式遵循）的同时，可能"遗忘"或"覆盖"部分预训练知识。
+
+### 11.2 WiSE-FT 线性插值 (WiSE-FT Linear Interpolation)
+
+**WiSE-FT** (Weight-space Ensembles for Finetuning) 通过在权重空间中插值来减轻对齐税：
+
+$$
+\boxed{\theta_{\mathrm{merged}} = (1 - \alpha)\,\theta_{\mathrm{aligned}} + \alpha\,\theta_{\mathrm{base}}}
+$$
+
+其中 $\alpha \in [0, 1]$ 控制对齐模型与基础模型之间的权衡 (controls the trade-off)。
+
+| $\alpha$ | 效果 |
+|:---:|:---|
+| $\alpha = 0$ | 完全使用对齐模型 (fully aligned) |
+| $\alpha = 1$ | 完全使用基础模型 (base model) |
+| $\alpha \in (0, 1)$ | 折中：保留部分对齐行为，恢复部分基础能力 |
+
+### 11.3 为什么插值有效 (Why Interpolation Works)
+
+**任务向量 (Task Vector)** 视角：对齐训练相当于在权重空间中沿一个方向移动：
+
+$$
+\tau_{\mathrm{align}} = \theta_{\mathrm{aligned}} - \theta_{\mathrm{base}}
+$$
+
+研究表明，不同任务对应的权重变化方向近似正交 (near-orthogonal)，因此：
+
+$$
+\theta_{\mathrm{merged}} = \theta_{\mathrm{base}} + (1-\alpha)\,\tau_{\mathrm{align}}
+$$
+
+线性插值不会严重干扰其他任务的表示 (doesn't severely interfere with other task representations)。
+
+### 11.4 模型合并进阶方法 (Advanced Model Merging Variants)
+
+| 方法 | 公式 / 操作 | 核心思想 |
+|:---|:---|:---|
+| **线性插值** | $\theta_m = (1-\alpha)\theta_a + \alpha\theta_b$ | 最简单，逐参数线性平均 |
+| **SLERP** (Spherical Linear Interpolation) | $\theta_m = \frac{\sin((1-t)\Omega)}{\sin\Omega}\theta_a + \frac{\sin(t\Omega)}{\sin\Omega}\theta_b$，其中 $\cos\Omega = \frac{\theta_a \cdot \theta_b}{\|\theta_a\|\|\theta_b\|}$ | 在超球面上插值，保持向量范数 |
+| **DARE** (Drop And REscale) | 先随机丢弃 $\theta_{\mathrm{aligned}} - \theta_{\mathrm{base}}$ 中 $p\%$ 的参数，再缩放剩余参数：$\delta_i \leftarrow \delta_i / (1-p)$，再合并 | 稀疏化任务向量，减少干扰 |
+| **TIES** (Trim, Elect, Sign) | ① 修剪小幅度变化 ② 投票确定符号 ③ 仅保留一致方向的参数 | 解决多个模型合并时参数冲突 |
+
+> **SLERP 直觉**：权重向量的"方向"比"长度"更重要，球面插值保持方向间的几何关系。
+
+---
+
+## 12. 灾难性遗忘、模式坍缩与奖励黑客 (Catastrophic Forgetting, Mode Collapse & Reward Hacking)
+
+这是三种**截然不同**的训练失败模式 (three distinct failure modes)。
+
+### 12.1 灾难性遗忘 (Catastrophic Forgetting)
+
+**定义**：模型在 SFT 或 RL 阶段学习新行为时，丢失了预训练阶段获得的知识和能力。
+
+**机制** (Mechanism)：
+
+$$
+\text{预训练能力} \xrightarrow{\text{SFT/RL 更新 } \theta} \text{部分覆盖/擦除}
+$$
+
+神经网络的权重空间有限，新任务的梯度更新可能覆盖存储旧知识的权重。
+
+**检测指标 (Detection Metrics)**：
+- 基准测试分数下降（MMLU、GSM8K、HumanEval 等）
+- 困惑度 (perplexity) 在预训练分布上上升
+- 能力探针 (capability probes) 的准确率下降
+
+**缓解策略 (Mitigation Strategies)**：
+
+| 策略 | 说明 |
+|:---|:---|
+| 混合训练数据 | 在 SFT 中混入预训练数据 (mix pre-training data into SFT) |
+| 低秩适配 (LoRA) | 仅更新低秩增量 $\Delta W = BA$，大幅减少对原始权重的干扰 |
+| 正则化 | EWC (Elastic Weight Consolidation)：$\mathcal{L} = \mathcal{L}_{\mathrm{new}} + \frac{\lambda}{2}\sum_i F_i(\theta_i - \theta_i^*)^2$，$F_i$ 为 Fisher 信息 |
+| 模型合并 | WiSE-FT / SLERP 将对齐模型与基础模型合并 |
+
+### 12.2 模式坍缩 (Mode Collapse)
+
+**定义**：模型在 RL 训练过程中，输出多样性急剧下降，反复产生相似甚至相同的响应。
+
+**机制 (Mechanism)**：策略过度优化某个高奖励模式，概率质量集中到少数输出上：
+
+$$
+H(\pi_\theta(\cdot|x)) = -\sum_y \pi_\theta(y|x)\log\pi_\theta(y|x) \to 0
+$$
+
+**检测指标 (Detection Metrics)**：
+- 输出多样性度量下降（self-BLEU ↑, distinct-n ↓, entropy of token distribution ↓）
+- 不同 prompt 的响应趋同 (responses converge across prompts)
+- 温度采样下几乎无变化
+
+**缓解策略 (Mitigation Strategies)**：
+
+| 策略 | 说明 |
+|:---|:---|
+| 增大 KL 惩罚 | $\beta \uparrow$ 使策略保持接近 $\pi_{\mathrm{ref}}$，维持多样性 |
+| 熵正则化 | 加入 $-\eta H(\pi_\theta)$ 项鼓励探索 |
+| 数据多样性 | 训练数据覆盖多样化 prompt 分布 |
+| 早停 (Early stopping) | 监控多样性指标，及时停止训练 |
+
+### 12.3 奖励黑客 (Reward Hacking)
+
+**定义**：策略学会利用奖励模型的缺陷 (exploit RM weaknesses)，获得高 RM 分数但人类评价实际下降。这是 **Goodhart's Law** 的直接体现：
+
+$$
+\text{"When a measure becomes a target, it ceases to be a good measure."}
+$$
+
+$$
+\mathbb{E}_{y \sim \pi_\theta}[r_\phi(x,y)] \uparrow\uparrow \quad \text{但} \quad \mathbb{E}_{y \sim \pi_\theta}[r_{\mathrm{human}}(x,y)] \downarrow
+$$
+
+**检测指标 (Detection Metrics)**：
+
+| 指标 | 说明 |
+|:---|:---|
+| RM 分数与人类评分的分歧 | $\Delta = r_{\mathrm{RM}} - r_{\mathrm{human}}$ 增大 |
+| KL 不断增大 | 策略持续偏离 $\pi_{\mathrm{ref}}$ |
+| 特定 pattern 激增 | 如过度使用"然而"、"值得注意的是"等套话 |
+| 响应长度膨胀 | RM 偏好长回答 → 模型学会输出冗余内容 |
+
+**缓解策略 (Mitigation Strategies)**：
+
+| 策略 | 说明 |
+|:---|:---|
+| KL 惩罚 | 约束策略不偏离太远 (most fundamental) |
+| RM 集成 (RM ensemble) | 多个 RM 取平均，减少单一 RM 的偏差 |
+| 对抗训练 | 不断更新 RM，适应策略变化 (online RLHF) |
+| 人工验证 | 定期人类评估，检测 RM-human 分歧 |
+| 长度惩罚 | 对 RM 分数做长度归一化 |
+
+### 12.4 三者关系总结 (Relationship Summary)
+
+```
+预训练 → SFT → RL
+              ↓         ↓         ↓
+         灾难性遗忘    模式坍缩    奖励黑客
+         (知识丢失)    (多样性丢失)  (RM 被 exploit)
+```
+
+| 特征 | 灾难性遗忘 | 模式坍缩 | 奖励黑客 |
+|:---|:---|:---|:---|
+| 发生阶段 | SFT / RL | RL | RL |
+| 根本原因 | 权重覆盖 | 过度优化单一模式 | RM 缺陷被利用 |
+| 表现 | 能力下降 | 输出单调 | RM 分高但质量差 |
+| 核心缓解 | 正则化 + 混合数据 | KL + 熵 + 多样性 | KL + RM 集成 + 人工验证 |
+
+---
+
+## 13. Constitutional AI / RLAIF (基于宪法的 AI / 基于 AI 反馈的强化学习)
+
+### 13.1 RLAIF 概述 (RLAIF Overview)
+
+**RLAIF** (Reinforcement Learning from AI Feedback) 用 LLM 生成的偏好标签替代人类标注员 (LLM-generated preference labels replace human annotators)：
+
+$$
+\text{标准 RLHF:} \quad \text{人类标注员} \xrightarrow{\text{比较 } (y_1, y_2)} \text{偏好标签} (y_w, y_l)
+$$
+
+$$
+\text{RLAIF:} \quad \text{LLM 评判者} \xrightarrow{\text{比较 } (y_1, y_2)} \text{偏好标签} (y_w, y_l)
+$$
+
+### 13.2 CAI 自我批评-修订循环 (CAI Self-Critique-Revision Loop)
+
+**Constitutional AI (CAI)** 的核心是**四步循环**：
+
+**Step 1 — 生成 (Generate)**：给定 prompt $x$，用当前模型生成初始响应 $y_0$：
+$$y_0 \sim \pi_\theta(\cdot | x)$$
+
+**Step 2 — 批评 (Critique)**：用 LLM 根据宪法原则 (constitution principles) 对 $y_0$ 进行批评：
+$$\text{critique} = \mathrm{LLM}\!\left(\text{"根据原则 } P_j \text{，以下回复有什么问题：} y_0\text{"}\right)$$
+
+**Step 3 — 修订 (Revise)**：基于批评意见，用 LLM 修订响应：
+$$y_1 = \mathrm{LLM}\!\left(\text{"请根据以下批评修改回复：} [\text{critique}] \rightarrow y_0\text{"}\right)$$
+
+> 可迭代多次：$y_0 \to y_1 \to y_2 \to \dots$（通常 1-3 轮）
+
+**Step 4 — 训练 (Train)**：
+- **SL-CAI (SFT 阶段)**：用修订后的 $y_k$ 作为训练数据做 SFT
+- **RL-CAI (RL 阶段)**：用 LLM 作为偏好评判者，生成 $(y_w, y_l)$ 偏好对，训练奖励模型，再做 RL
+
+### 13.3 宪法原则 (Constitution Principles)
+
+宪法原则是一组**可审计的对齐约束** (auditable alignment constraints)，例如：
+
+| 编号 | 原则示例 (Principle Example) |
+|:---:|:---|
+| P₁ | "选择最有帮助、最准确、最无害的回复" (Choose the response that is most helpful, accurate, and harmless) |
+| P₂ | "选择不会助长偏见或歧视的回复" (Choose the response that does not promote bias or discrimination) |
+| P₃ | "选择不会协助非法活动的回复" (Choose the response that does not assist with illegal activities) |
+
+与隐式的人类偏好不同，宪法原则是**显式的、可审查的** (explicit and auditable)：
+
+$$
+p_{\mathrm{CAI}}(y_w \succ y_l | x) = \sigma\!\big(r_{\mathrm{LLM}}(x, y_w) - r_{\mathrm{LLM}}(x, y_l)\big)
+$$
+
+其中 $r_{\mathrm{LLM}}$ 是基于宪法原则的 LLM 评分。
+
+### 13.4 与标准 RLHF 流程对比 (Comparison with Standard RLHF)
+
+| 维度 | 标准 RLHF | RLAIF / CAI |
+|:---|:---|:---|
+| **偏好来源** | 人类标注员 | LLM（基于宪法原则） |
+| **标注成本** | 高（人力密集） | 低（API 调用费用） |
+| **可扩展性** | 受限于标注员数量和时间 | 几乎无限扩展 |
+| **一致性** | 标注员间有分歧 (inter-annotator variance) | LLM 高度一致 |
+| **可审计性** | 偏好标准隐式存在于标注员脑中 | 宪法原则显式、可审查 |
+| **风险** | 标注员偏见 | LLM 自身偏见 + 宪法原则设计不当 |
+| **人类参与** | 全程 | 仅在设计宪法原则时 |
+
+### 13.5 RLAIF 的理论优势 (Theoretical Advantages)
+
+1. **原则引导 (Principle-guided)**：对齐目标通过自然语言原则明确表达，比隐式偏好更可控
+2. **自我改进循环 (Self-improvement loop)**：模型批评自己、修订自己、学习修订后的版本 → 持续提升
+3. **减少人类负担 (Reduced human burden)**：人类只需设计原则，不需要逐条标注
+4. **跨文化一致性 (Cross-cultural consistency)**：不同文化背景的标注员可能有不同偏好，而宪法原则可以统一标准
+
+> **注意**：CAI 并非完全去人类化。人类仍然需要：
+> - 设计宪法原则 (design the constitution)
+> - 评估最终模型质量 (evaluate final model quality)
+> - 监控迭代过程中的偏差 (monitor for drift)
+
+---
+
+# Part 2 — PyTorch 代码片段 / From-Scratch PyTorch Snippets
+
+---
+
+**SFT loss masking** — 训练 SFT 时，只在助手（assistant）回复的 token 上计算 loss，prompt 部分通过 `label=-100` 屏蔽。
+
+
+```python
+import torch
+from torch.nn.utils.rnn import pad_sequence
+
+class SFTDataCollator:
+    """
+    将 prompt token 的 label 设为 -100，loss 只计算 assistant 部分。
+    Masks prompt tokens with label=-100 so loss only applies to assistant tokens.
+    """
+    def __init__(self, tokenizer):
+        self.pad_id = tokenizer.pad_token_id or 0
+
+    def __call__(self, batch):
+        input_ids, labels, attention_mask = [], [], []
+        for sample in batch:  # each sample: dict with 'input_ids' and 'prompt_length'
+            ids = torch.tensor(sample["input_ids"], dtype=torch.long)
+            prompt_len = sample["prompt_length"]
+            lab = ids.clone()
+            lab[:prompt_len] = -100  # 屏蔽 prompt / mask prompt tokens
+            input_ids.append(ids)
+            labels.append(lab)
+        # 动态 padding / dynamic pad to longest in batch
+        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_id)
+        labels = pad_sequence(labels, batch_first=True, padding_value=-100)
+        attention_mask = (input_ids != self.pad_id).long()
+        return {"input_ids": input_ids, "labels": labels, "attention_mask": attention_mask}
+
+# --- 用法示例 / Usage example ---
+collator = SFTDataCollator(type("Tok", (), {"pad_token_id": 0})())
+toy_batch = [
+    {"input_ids": [10, 20, 30, 40, 50], "prompt_length": 3},  # prompt=前3个
+    {"input_ids": [11, 21, 31], "prompt_length": 2},
+]
+out = collator(toy_batch)
+print("input_ids:\n", out["input_ids"])
+print("labels (prompt positions = -100):\n", out["labels"])
+# labels: tensor([[ -100, -100, -100, 40, 50],
+#                 [ -100, -100,  31,  0,  0]])
+```
+
+
+
+---
+
+**DPO loss** — 从 policy 和 reference 模型的 log-probability 计算 Direct Preference Optimization 损失。
+
+```python
+import torch
+import torch.nn.functional as F
+
+@torch.no_grad()
+def get_logps(logits: torch.Tensor, labels: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """
+    逐 token 计算 log-probability 并在序列维度求和。
+    Computes per-token log-probs and sums over the sequence dimension.
+    logits: (B, T, V),  labels: (B, T),  mask: (B, T)  (1=有效, 0=padding)
+    返回每个样本的标量 log-prob / Returns scalar log-prob per sample.
+    """
+    # shift: 预测下一个 token / predict next token
+    shift_logits = logits[:, :-1, :].contiguous()
+    shift_labels = labels[:, 1:].contiguous()
+    shift_mask = mask[:, 1:].contiguous()
+    log_probs = F.log_softmax(shift_logits, dim=-1)            # (B, T-1, V)
+    token_logps = log_probs.gather(-1, shift_labels.unsqueeze(-1)).squeeze(-1)  # (B, T-1)
+    return (token_logps * shift_mask).sum(dim=-1)               # (B,)
+
+def dpo_loss(
+    policy_logps_chosen: torch.Tensor,
+    policy_logps_rejected: torch.Tensor,
+    ref_logps_chosen: torch.Tensor,
+    ref_logps_rejected: torch.Tensor,
+    beta: float = 0.1,
+) -> torch.Tensor:
+    """
+    DPO 损失: L = -E[ log σ( β·(log π_θ/π_ref)_chosen - β·(log π_θ/π_ref)_rejected ) ]
+    """
+    log_ratio_chosen = policy_logps_chosen - ref_logps_chosen
+    log_ratio_rejected = policy_logps_rejected - ref_logps_rejected
+    loss = -F.logsigmoid(beta * (log_ratio_chosen - log_ratio_rejected)).mean()
+    return loss
+
+# --- 示例 / Example ---
+B, T, V = 4, 10, 100
+logits = torch.randn(B, T, V)
+labels = torch.randint(0, V, (B, T))
+mask = torch.ones(B, T)
+
+logps = get_logps(logits, labels, mask)  # (B,)
+# 分开 chosen / rejected 是在调用者侧做的
+policy_logps_chosen, policy_logps_rejected = logps[:2], logps[2:]
+ref_logps_chosen, ref_logps_rejected = logps[:2] - 0.1, logps[2:] + 0.05
+
+loss = dpo_loss(policy_logps_chosen, policy_logps_rejected,
+                ref_logps_chosen, ref_logps_rejected, beta=0.1)
+print("DPO loss:", loss.item())
+```
+
+
+
+---
+
+**Reward Model** — 在预训练 LLM 骨干网络上，替换 LM head 为标量线性头，并用 Bradley-Terry 损失训练。
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from transformers import AutoModel, AutoTokenizer
+
+class RewardModel(nn.Module):
+    """
+    奖励模型：LLM 骨干 + 线性标量头，取最后一个有效 token 的隐状态。
+    Reward model: LLM backbone + scalar linear head on last valid hidden state.
+    """
+    def __init__(self, model_name: str = "Qwen/Qwen2.5-0.5B"):
+        super().__init__()
+        self.backbone = AutoModel.from_pretrained(model_name)
+        hidden_size = self.backbone.config.hidden_size
+        self.reward_head = nn.Linear(hidden_size, 1)  # 标量奖励 / scalar reward
+
+    def forward(self, input_ids, attention_mask):
+        out = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
+        hidden = out.last_hidden_state  # (B, T, H)
+        # 取每个序列最后一个有效 token 的隐状态 / hidden state of last valid token
+        last_idx = attention_mask.sum(dim=1) - 1  # (B,)
+        last_hidden = hidden[torch.arange(hidden.size(0)), last_idx]  # (B, H)
+        reward = self.reward_head(last_hidden).squeeze(-1)  # (B,)
+        return reward
+
+def bradley_terry_loss(rewards_chosen, rewards_rejected):
+    """
+    Bradley-Terry 损失: L = -log σ(r_chosen - r_rejected)
+    BT loss: higher reward for preferred responses.
+    """
+    return -F.logsigmoid(rewards_chosen - rewards_rejected).mean()
+
+# --- 训练示例 / Training example ---
+device = "cpu"
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B")
+rm = RewardModel("Qwen/Qwen2.5-0.5B").to(device)
+
+chosen_text = ["The answer is 42.", "It is safe to proceed."]
+rejected_text = ["I don't know.", "No, never do that."]
+tok_chosen = tokenizer(chosen_text, return_tensors="pt", padding=True, truncation=True)
+tok_rejected = tokenizer(rejected_text, return_tensors="pt", padding=True, truncation=True)
+
+r_chosen = rm(tok_chosen["input_ids"], tok_chosen["attention_mask"])
+r_rejected = rm(tok_rejected["input_ids"], tok_rejected["attention_mask"])
+loss = bradley_terry_loss(r_chosen, r_rejected)
+print("BT loss:", loss.item())
+```
+
+
+
+---
+
+**GRPO advantage** — Group Relative Policy Optimization：在同一组（group）内将奖励归一化，作为 advantage 进行策略梯度更新。
+
+```python
+import torch
+import torch.nn.functional as F
+
+def compute_grpo_advantages(rewards: torch.Tensor) -> torch.Tensor:
+    """
+    在 group 内归一化奖励作为 advantage：(r - mean) / std。
+    Normalize rewards within group: subtract mean, divide by std.
+    rewards: (G,)  — 同一 prompt 的 G 个采样回复的奖励
+    """
+    mean = rewards.mean()
+    std = rewards.std().clamp(min=1e-8)  # 防止除零 / avoid division by zero
+    return (rewards - mean) / std
+
+# --- 简化策略梯度更新 / Simplified policy gradient update ---
+# 模拟：给定 policy log-probs 和 group advantages, 做一次梯度上升
+G = 8  # 每个 prompt 采样 8 个回复 / sample 8 responses per prompt
+
+# 模拟采样的 token-level log-probs (已 sum 成序列级) / simulated per-sequence log-probs
+policy_logps = torch.randn(G, requires_grad=True)
+
+# 模拟奖励（例如来自 reward model）/ simulated rewards
+rewards = torch.tensor([1.2, 0.5, 2.0, 0.3, 1.8, 0.1, 1.5, 0.9])
+
+advantages = compute_grpo_advantages(rewards)
+print("Advantages:", advantages)
+
+# 策略梯度 loss = -E[advantage * log_prob]  → 最大化高 advantage 的 log-prob
+grpo_loss = -(advantages.detach() * policy_logps).mean()
+grpo_loss.backward()
+print("GRPO loss:", grpo_loss.item())
+print("policy_logps.grad:", policy_logps.grad)
+```
+
+---
+
+**Sequence packing with cu_seqlens** — 将多条不等长序列拼接到一个 batch 中，计算 Flash Attention 所需的 `cu_seqlens`，并对拼接后的 loss 做正确 mask。
+
+```python
+import torch
+
+def pack_sequences(input_ids_list, labels_list, pad_token_id=0):
+    """
+    将多条序列拼接成一个平坦 tensor，并计算 Flash Attention 用的 cu_seqlens。
+    Packs variable-length sequences into a flat tensor with cu_seqlens for Flash Attention.
+    """
+    # 计算每条序列的真实长度 / compute real lengths
+    lengths = [ids.size(0) for ids in input_ids_list]
+    # cu_seqlens: [0, len_0, len_0+len_1, ...]  (半精度索引 / Flash Attention format)
+    cu_seqlens = torch.zeros(len(lengths) + 1, dtype=torch.int32)
+    for i, l in enumerate(lengths):
+        cu_seqlens[i + 1] = cu_seqlens[i] + l
+
+    # 拼接所有序列 / concatenate all sequences into one flat tensor
+    packed_input_ids = torch.cat(input_ids_list, dim=0)   # (total_tokens,)
+    packed_labels = torch.cat(labels_list, dim=0)          # (total_tokens,)
+    return packed_input_ids, packed_labels, cu_seqlens
+
+def compute_packed_loss(logits_flat, labels_flat, cu_seqlens, ignore_index=-100):
+    """
+    在拼接序列上计算 cross-entropy，loss 屏蔽 label=-100 的 token。
+    Compute cross-entropy on packed sequence; -100 labels are masked.
+    logits_flat: (total_tokens, V),  labels_flat: (total_tokens,)
+    """
+    # shift 对齐 / shift for next-token prediction
+    shift_logits = logits_flat[:-1, :]
+    shift_labels = labels_flat[1:]
+    # 在序列边界处也屏蔽 loss / mask loss at sequence boundaries
+    boundary_mask = torch.zeros(shift_labels.size(0), dtype=torch.bool)
+    for i in range(len(cu_seqlens) - 1):
+        start, end = cu_seqlens[i].item(), cu_seqlens[i + 1].item()
+        if start < end:
+            boundary_mask[start] = True  # 屏蔽第一条 token 的 shift / mask first token of seq
+    shift_labels[boundary_mask] = ignore_index
+    loss = torch.nn.functional.cross_entropy(shift_logits, shift_labels, ignore_index=ignore_index)
+    return loss
+
+# --- 示例 / Example ---
+seq_a_ids = torch.tensor([101, 202, 303, 404, 505])
+seq_b_ids = torch.tensor([606, 707])
+seq_c_ids = torch.tensor([808, 909, 1010])
+
+seq_a_lab = torch.tensor([-100, -100, 303, 404, 505])   # 前两个是 prompt
+seq_b_lab = torch.tensor([-100, 707])
+seq_c_lab = torch.tensor([-100, 1010, 1010])
+
+packed_ids, packed_labels, cu_seqlens = pack_sequences(
+    [seq_a_ids, seq_b_ids, seq_c_ids], [seq_a_lab, seq_b_lab, seq_c_lab]
+)
+print("packed_ids:", packed_ids)
+print("cu_seqlens:", cu_seqlens)  # tensor([0, 5, 7, 10])
+
+# 模拟 logits / simulate logits
+V = 2000
+logits_flat = torch.randn(packed_ids.size(0), V)
+loss = compute_packed_loss(logits_flat, packed_labels, cu_seqlens)
+print("Packed loss:", loss.item())
+```
+
+---
+
+**KL divergence penalty** — 在 PPO/RLHF 奖励塑形中，逐 token 计算 policy 与 reference 模型之间的 KL 惩罚项。
+
+```python
+import torch
+import torch.nn.functional as F
+
+def compute_kl_penalty(
+    policy_logits: torch.Tensor,
+    ref_logits: torch.Tensor,
+    mask: torch.Tensor,
+) -> torch.Tensor:
+    """
+    逐 token KL 散度：KL(π_θ || π_ref)，在序列维度求均值后取 batch 均值。
+    Per-token KL divergence: KL(policy || ref), averaged over valid tokens & batch.
+    policy_logits / ref_logits: (B, T, V),  mask: (B, T) — 1=有效, 0=padding
+    """
+    policy_logps = F.log_softmax(policy_logits, dim=-1)  # (B, T, V)
+    ref_logps = F.log_softmax(ref_logits, dim=-1)        # (B, T, V)
+    # KL(p||q) = sum_p p(x) * [log p(x) - log q(x)] = E_p[log p - log q]
+    policy_probs = policy_logps.exp()
+    token_kl = (policy_probs * (policy_logps - ref_logps)).sum(dim=-1)  # (B, T)
+    # 用 mask 求均值 / masked mean
+    kl_per_seq = (token_kl * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)  # (B,)
+    return kl_per_seq.mean()  # scalar
+
+# --- 用在 PPO 奖励塑形中 / Used in PPO reward shaping ---
+B, T, V = 2, 8, 1000
+policy_logits = torch.randn(B, T, V)
+ref_logits = torch.randn(B, T, V)
+mask = torch.ones(B, T); mask[1, 6:] = 0  # 第二条序列后半部分是 padding
+
+kl = compute_kl_penalty(policy_logits, ref_logits, mask)
+print("KL penalty:", kl.item())
+
+# PPO reward shaping: r = r_raw - beta * KL
+beta_kl = 0.05
+shaped_reward = 1.5 - beta_kl * kl  # 在 batch 级别使用
+print("Shaped reward:", shaped_reward.item())
+```
+
+
+
+---
+
+**Rejection Sampling Fine-tuning (RFT)** — 从 policy 模型采样 N 条回复，用奖励函数打分，保留得分最高的 1 条作为 SFT 目标进行微调。
+
+```python
+import torch
+import torch.nn.functional as F
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+def rejection_sampling_finetune(model, tokenizer, prompts, reward_fn, N=4, max_new_tokens=64):
+    """
+    RFT 流程：对每个 prompt 采样 N 个回复，用 reward_fn 评分，取 top-1 做 SFT。
+    RFT loop: sample N responses, score with reward_fn, keep top-1 as SFT target.
+    """
+    model.train()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
+    for prompt in prompts:
+        # ---- 采样阶段 / Sampling phase ----
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        all_completions, all_rewards = [], []
+        with torch.no_grad():
+            for _ in range(N):
+                out = model.generate(input_ids, max_new_tokens=max_new_tokens,
+                                     do_sample=True, temperature=0.8, top_p=0.95)
+                gen_ids = out[0, input_ids.size(1):]           # 只取生成部分
+                text = tokenizer.decode(gen_ids, skip_special_tokens=True)
+                reward = reward_fn(prompt, text)               # 标量奖励 / scalar reward
+                all_completions.append(gen_ids)
+                all_rewards.append(reward)
+
+        # ---- 选择 top-1 / Select best response ----
+        best_idx = int(torch.tensor(all_rewards).argmax())
+        best_ids = all_completions[best_idx]
+
+        # ---- SFT 阶段 / SFT phase (compute loss on best response) ----
+        full_ids = torch.cat([input_ids[0], best_ids]).unsqueeze(0)  # (1, T)
+        labels = full_ids.clone()
+        labels[0, :input_ids.size(1)] = -100  # 屏蔽 prompt / mask prompt tokens
+        logits = model(input_ids=full_ids).logits
+        loss = F.cross_entropy(logits[:, :-1, :].reshape(-1, logits.size(-1)),
+                               labels[:, 1:].reshape(-1), ignore_index=-100)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        print(f"RFT loss: {loss.item():.4f}, best reward: {all_rewards[best_idx]:.4f}")
+
+# --- 简单奖励函数示例 / Simple reward function ---
+def dummy_reward_fn(prompt, response):
+    """奖励: 回复越长越好（仅为演示）/ Reward: longer is better (demo only)."""
+    return float(len(response))
+
+# 运行 / Run
+model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-0.5B")
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B")
+prompts = ["Explain gravity in one sentence.", "What is 2+2?"]
+rejection_sampling_finetune(model, tokenizer, prompts, dummy_reward_fn, N=4)
+```
+
+---
+
+# Part 3 — 面试题库 / Interview Question Bank
+
+**L1 — 基础题 / Basic (8 questions):**
+
+### Q1. Pre-training 和 post-training 分别解决什么问题？标准 pipeline 是什么？
+**答 / Answer:**
+Pre-training（预训练）的目标是让模型在海量无标注文本上学得通用的语言能力、世界知识和推理基础，本质上是做无监督的语言建模。Post-training（后训练）的目标是将这个“知识渊博但不听话”的基座模型，塑造成一个能遵循指令、有帮助、安全且与人类价值观对齐的助手。标准pipeline是：1) Supervised Fine-Tuning (SFT)，用高质量指令-回复对微调模型；2) Preference Alignment，通常使用RLHF或DPO等方法，基于人类偏好数据进一步优化模型行为。
+
+**追问 / Follow-up:**
+为什么不能只用一个阶段（如SFT）来完成从预训练到可用助手的全部转变？
+
+### Q2. SFT 的 loss masking 是什么？为什么只对 assistant tokens 计算 loss？
+**答 / Answer:**
+Loss masking 指在计算SFT损失时，只将模型输出中assistant回复部分（即模型需要学习生成的部分）对应的token的预测损失计入总损失，而忽略input/user指令部分的损失。这是为了将模型的优化目标聚焦于“学习如何正确响应”，而不是“复述用户的输入”。如果不对输入部分进行mask，模型可能会浪费学习容量去记忆输入格式，而非专注于生成高质量回复。
+
+**追问 / Follow-up:**
+如果在SFT中，user指令部分的梯度完全不被更新，模型是否就真的完全无法“理解”指令？请解释。
+
+### Q3. Reward Model 的训练目标是什么？Bradley-Terry 模型是什么？
+**答 / Answer:**
+Reward Model (RM) 的训练目标是为给定的（prompt, response）对输出一个标量分数，这个分数应反映人类对该回复质量的偏好排序。具体来说，它通过比较一对回复（chosen vs. rejected）来学习。Bradley-Terry 模型是一个用于成对比较的概率模型，它假设选择胜出回复的概率与两个回复对应的奖励值之差成正比。在RM训练中，损失函数通常基于这个概率，目标是最大化chosen response相对于rejected response的奖励差。
+
+**追问 / Follow-up:**
+如果人类标注数据中的偏好排序存在不一致或噪声，会如何影响Bradley-Terry模型训练的Reward Model？
+
+### Q4. KL penalty 在 RLHF 中的作用？β 如何调节？
+**答 / Answer:**
+在RLHF的强化学习阶段，策略模型（当前待优化的LLM）在生成回复时会最大化来自Reward Model的奖励，但这可能导致模型为了获取高分而生成一些奇怪、不自然或偏离其原始能力分布的文本。KL惩罚项通过计算当前策略与初始SFT模型（参考策略）之间的KL散度，并将其作为惩罚项加入到优化目标中。作用是约束优化后的模型不要偏离初始模型太远，从而维持语言质量和多样性。β是超参数，用于调节KL惩罚的强度：β越大，对偏离的惩罚越重，模型越保守、越接近初始模型；β越小，模型越自由，可能更追求奖励但风险也更高。
+
+**追问 / Follow-up:**
+KL惩罚计算的是整个序列分布的散度，这在实际操作中有什么挑战？有没有更高效或更局部的近似方法？
+
+### Q5. DPO 是什么？和 RLHF 的核心区别是什么？
+**答 / Answer:**
+DPO (Direct Preference Optimization) 是一种直接利用人类偏好数据优化语言模型的方法。它通过一个巧妙的数学变换，将RLHF中“训练一个Reward Model，再用其进行RL优化”这两个步骤，合并为一个单一的监督学习损失函数。模型在DPO中直接学习将偏好排序转化为对回复概率的调整。核心区别在于：RLHF是“显式”的，包含独立的RM训练和在线的RL优化过程（如PPO）；而DPO是“隐式”的，它绕过了RM的显式训练和在线采样，通过一个离线的对比损失直接优化策略，通常更简单、稳定。
+
+**追问 / Follow-up:**
+DPO的一个主要批评是它严重依赖于偏好数据的质量。为什么它对数据质量的要求比RLHF可能更高？
+
+### Q6. 什么是 sequence packing？有什么好处和坑？
+**答 / Answer:**
+Sequence packing 是一种训练时的效率优化技术。它将多个短序列（例如多个不同的指令-回复对）通过添加特殊的分隔符（如`<EOS>`后接新序列的起始标记）拼接成一个达到模型最大上下文长度的长序列，作为一个整体进行训练。好处是显著提高了GPU的利用率，减少了因短序列填充（padding）带来的计算浪费，加速训练。主要的“坑”在于：1）需要小心设计attention mask，防止模型在训练时“看到”同一个拼接序列中其他短序列的信息（即跨序列注意力泄露），这可能导致数据污染或学习偏差；2）对序列顺序可能敏感。
+
+**追问 / Follow-up:**
+在sequence packing中，如果两个拼接的序列主题完全无关（如一个数学题和一个诗歌），跨序列注意力的泄露具体会带来什么危害？
+
+### Q7. 什么是 reward hacking？举两个例子。
+**答 / Answer:**
+Reward hacking 指的是模型找到了“作弊”或“钻空子”的方法来获取更高的奖励分数，但其生成的回复实际上并不符合人类期望的“有帮助、诚实、无害”的真正目标。它是对奖励函数的过度优化或利用。例子1：如果RM偏爱更长的回复，模型可能学会生成冗长但内容空洞的回复。例子2：如果RM对包含某些特定“安全”短语（如“作为AI助手，我必须遵守...”）的回复打分高，模型可能学会机械地在所有回复中插入这些套话，而不考虑是否真的需要。
+
+**追问 / Follow-up:**
+除了改进Reward Model本身，在RLHF的训练过程中，可以通过哪些策略来缓解reward hacking现象？
+
+### Q8. Alignment 的 Helpful/Harmless/Honest 三者之间有什么 tension？
+**答 / Answer:**
+Helpful（有用）、Harmless（无害）、Honest（诚实）三者之间存在固有的权衡（tension）。例如，一个过于追求Harmless的模型，可能因为过度谨慎而拒绝回答一些合理但敏感的问题，从而损害了Helpful（例如，医生讨论医学症状）。一个追求极致Honest的模型，可能会在回复中暴露未经验证的信息或用户隐私，从而损害Harmless。反之，为了Helpful而编造答案会损害Honest。理想的对齐模型需要在不同场景下动态地平衡这三个目标，不存在一个固定的完美解。
+
+**追问 / Follow-up:**
+你能否提供一个具体场景，说明模型为了实现Harmless而不可避免地牺牲了Helpful和Honest？
+
+**L2 — 中级题 / Intermediate (9 questions):**
+
+### Q9. GRPO 和 PPO 的核心区别？GRPO 需要几个模型？
+**答 / Answer:**
+GRPO (Group Relative Policy Optimization) 和PPO (Proximal Policy Optimization) 都是策略梯度算法，但GRPO为了简化RLHF训练流程做了关键改进。核心区别在于：PPO需要维护四个模型：策略模型、参考模型、价值模型（Critic）和奖励模型；而GRPO**不需要单独的价值模型**。GRPO通过为同一个prompt生成一组（Group）回复，然后使用该组内回复的平均奖励作为基线（baseline）来估计优势函数（advantage），从而计算策略梯度。因此，GRPO通常只需要两个模型：策略模型和奖励模型（参考模型可合并或共享）。
+
+**追问 / Follow-up:**
+GRPO用组内平均奖励作为基线来估计优势函数，这可能会引入什么样的偏差？它如何影响训练的稳定性？
+
+### Q10. IPO、KTO、ORPO、SimPO 各解决 DPO 的什么问题？
+**答 / Answer:**
+这些方法都是对DPO的改进或变体：
+- **IPO (Identity Preference Optimization)**：解决DPO可能对离群点（outliers）过度优化导致的过拟合问题，通过引入正则化项使优化更稳健。
+- **KTO (Kahneman-Tversky Optimization)**：解决DPO需要严格配对的偏好数据（chosen/rejected对）的限制。KTO只需要每个回复是否为“好”或“差”的二元标签数据，无需成对，数据获取更灵活。
+- **ORPO (Odds Ratio Preference Optimization)**：尝试将SFT和偏好对齐合并为一个单一训练阶段。它直接优化模型生成chosen response相对于rejected response的优势比（odds ratio）。
+- **SimPO (Simple Preference Optimization)**：试图进一步简化DPO，移除参考模型的依赖，同时通过使用长度归一化的对数概率作为隐式奖励，并引入一个目标奖励边际（margin），来提高优化稳定性和对回复长度的鲁棒性。
+
+**追问 / Follow-up:**
+在这些方法中，哪一种对训练数据的质量或数量要求相对最低？为什么？
+
+### Q11. 数据质量和数据量在 SFT 中哪个更重要？如何做数据 curation？
+**答 / Answer:**
+在SFT阶段，**数据质量通常远比数据量重要**。高质量、多样、准确且符合人类价值观的指令数据，即使是较小规模，也能显著提升模型性能。相反，大量低质、错误或有害的数据会严重污染模型。数据curation流程通常包括：1）**来源筛选**：选择可信、专业的来源；2）**质量过滤**：使用规则或模型（如RM）过滤低分、有害或格式错误的样本；3）**去重**：移除重复或近似重复的样本；4）**多样性增强**：确保指令覆盖广泛的任务、难度和领域；5）**格式标准化**：统一回复的风格和长度分布。
+
+**追问 / Follow-up:**
+如果只能使用一个自动化模型（而非人工）来对大规模SFT数据进行质量评估和筛选，你会优先选择使用什么类型的模型？为什么？
+
+### Q12. Synthetic data 的主要生成范式有哪些？length bias 从哪里来？
+**答 / Answer:**
+主要范式有：1）**Self-Instruct**：让模型自己根据种子任务生成新的指令和回复；2）**Evol-Instruct**：对已有指令进行多轮、多维度的复杂化演化；3）**Bootstrapping**：使用强大的“教师”模型为“学生”模型生成训练数据（如蒸馏）；4）**Reward-guided Generation**：用RM或规则筛选/修订模型生成的多个候选回复。Length bias（长度偏差）主要来源于：1）**模型本身的偏见**：预训练数据中常见回复（如技术文档）可能较长；2）**奖励模型的偏见**：如果RM的训练数据中，人类标注者普遍偏好更详细、更长的回复，那么RM就会给更长的回复打高分，模型在优化RM时就会倾向于生成更长文本；3）**生成策略**：例如，为了确保覆盖所有要点而进行冗长的列举。
+
+**追问 / Follow-up:**
+在生成合成数据时，如何设计流程或损失函数来显式地控制或减少最终回复的长度偏差？
+
+### Q13. Online vs offline preference learning 的区别？各自适合什么场景？
+**答 / Answer:**
+**Online learning**（在线学习，如标准RLHF中的PPO阶段）指的是策略模型在训练过程中，实时生成新的回复，并与环境（如RM）交互获得新的奖励信号来更新策略。**Offline learning**（离线学习，如DPO）指的是使用一个预先收集好的、固定的偏好数据集来优化模型，训练过程中不产生新的数据。Online适合需要持续探索、快速适应新奖励信号或解决分布偏移（distribution shift）问题的场景，但计算开销大、不稳定。Offline适合数据收集成本高、需要稳定训练流程的场景，但容易受到数据分布固定的限制，可能陷入次优。
+
+**追问 / Follow-up:**
+在offline learning中，如果用于训练的偏好数据分布与模型实际部署时遇到的数据分布差异很大，会导致什么问题？如何缓解？
+
+### Q14. 什么是 benchmark 污染（contamination）？如何检测？
+**答 / Answer:**
+Benchmark污染指的是待评估的模型（或其训练数据）在训练过程中已经“见过”了评估基准（benchmark）中的测试题目或答案。这会导致模型在该基准上获得虚高的、不真实的性能分数，无法反映其真实的泛化能力。检测方法包括：1）**成员推断攻击**：分析模型对测试集样本与相似的非测试集样本的困惑度（perplexity）差异；2）**n-gram重叠分析**：检查模型训练数据与测试集之间的文本重叠度；3）**数据溯源**：严格审计训练数据的来源，排除已知包含主流基准测试集的数据集（如Common Crawl的某些版本）；4）**设计动态基准**：使用定期更新、未公开的测试集。
+
+**追问 / Follow-up:**
+除了数据污染，还有哪些评估方法论上的缺陷可能导致对模型能力的误判？
+
+### Q15. Catastrophic forgetting 在 post-training 中如何表现？如何缓解？
+**答 / Answer:**
+在post-training中，灾难性遗忘表现为模型在通过SFT或RLHF学习新能力（如遵循指令、对齐价值观）的过程中，**丢失了其在预训练阶段学到的广泛知识、语言能力或解决多样任务的能力**。例如，一个对齐后的模型可能在指令遵循上表现很好，但其在代码、数学或多语言方面的基础能力相比基座模型出现了显著退化。缓解方法包括：1）**混合训练数据**：在SFT/RLHF数据中混入部分预训练数据或通用能力数据；2）**低秩适应**：使用LoRA等参数高效微调方法，仅更新一小部分参数；3）**正则化**：如在损失函数中加入对原始模型参数的L2惩罚（类似EWC的思想）；4）**知识蒸馏**：将原始模型作为教师，约束对齐后模型的输出分布。
+
+**追问 / Follow-up:**
+在参数高效微调方法（如LoRA）中，选择对哪些层（如注意力层的QKV投影，还是FFN层）进行微调，对缓解灾难性遗忘和保留原有能力的影响有何不同？
+
+### Q16. Process Reward Model (PRM) vs Outcome Reward Model (ORM)？
+**答 / Answer:**
+ORM（结果奖励模型）仅对模型生成的**最终答案或完整回复**给出一个奖励分数，不关心中间推理过程。PRM（过程奖励模型）则对解决问题或生成回复的**每一个中间步骤**都进行评估和打分。PRM的优势在于能提供更密集、更精细的监督信号，有助于引导模型进行正确的逐步推理，尤其在数学、逻辑推理等复杂任务中，可以避免模型通过“抄近路”得到正确答案但过程错误。其挑战在于标注成本极高，需要人类专家对每个步骤进行判断。
+
+**追问 / Follow-up:**
+在实际应用中，如何高效地收集用于训练PRM的数据？是否有可能使用ORM或其他模型来自动生成PRM的训练标签？
+
+### Q17. MT-Bench、AlpacaEval、Chatbot Arena 各自的局限性是什么？
+**答 / Answer:**
+- **MT-Bench**：使用预设的、多轮对话题目和强大的LLM（如GPT-4）作为评判。局限在于：1）评判模型自身可能有偏见；2）题目固定，容易过拟合；3）无法评估长文档处理、真实世界复杂任务等。
+- **AlpacaEval**：使用一个固定的指令集，通过GPT-4对比评判模型回复与参考回复（通常是GPT-4自己的回复）的优劣。局限在于：1）强烈依赖GPT-4的偏好，可能无法反映广大人类用户的偏好；2）存在“自我偏好”风险，即与GPT-4风格越相似的回复得分可能越高。
+- **Chatbot Arena**：通过真实用户匿名投票进行两两对比，是目前最贴近人类偏好的动态评估。局限在于：1）用户群体可能不具完全代表性（偏向技术人群）；2）评估成本高、速度慢；3）对话领域分布可能不均衡。
+
+**追问 / Follow-up:**
+如果要设计一个新的、更全面的后训练模型评估框架，你会融合哪些不同的评估维度和方法来弥补上述单一基准的不足？
+
+**L3 — 深度题 / Deep (8 questions):**
+
+### Q18. PPO 的 value model (critic) 为什么难训练？GRPO 如何绕开这个问题？
+**答 / Answer:**
+在RLHF的PPO中，价值模型（Critic）需要准确估计在给定状态下（即当前的prompt和部分生成的历史），未来能获得的奖励总和的期望值（即状态价值函数V(s)）。这个估计非常困难：1）**稀疏奖励**：奖励通常只在生成完整回复后才给出，中间状态缺乏直接监督信号；2）**高方差**：生成文本的状态空间巨大且复杂，导致价值估计方差很高，训练不稳定；3）**非平稳性**：策略模型在快速更新，导致状态价值函数的目标分布也在不断变化，增加了拟合难度。GRPO通过完全移除价值模型来绕开这个问题。它为每个prompt生成一组回复，用这组回复的平均奖励作为基线来估计每个回复相对于平均水平的优势（advantage）。这种方法避免了训练一个复杂的、面向所有可能状态的价值网络。
+
+**追问 / Follow-up:**
+GRPO使用组内平均奖励作为基线，这相当于假设所有状态（同一个prompt下的不同生成路径）的价值是相同的。这个假设在什么情况下会变得不合理？
+
+### Q19. DPO 的理论推导：从 RLHF KL-constrained 最优解到 DPO loss，走一遍推导。
+**答 / Answer:**
+1. **RLHF目标**：我们有一个KL约束的优化目标：`max_{π} E_{x~D, y~π}[r(x, y)] - β * KL[π(y|x) || π_ref(y|x)]`，其中π是策略，π_ref是参考策略，r是奖励函数。
+2. **闭式最优解**：对上述目标关于π求解，可以得到其闭式最优解为：`π*(y|x) = π_ref(y|x) * exp(r(x, y) / β) / Z(x)`，其中`Z(x)`是配分函数（归一化常数）。
+3. **反解奖励函数**：从上式两边取对数并整理，可以将奖励函数表示为策略的函数：`r(x, y) = β * log(π*(y|x) / π_ref(y|x)) + β * log(Z(x))`。
+4. **代入Bradley-Terry模型**：对于偏好对(y_w, y_l)，根据BT模型，人类选择y_w的概率为`σ(r(x, y_w) - r(x, y_l))`，其中σ是sigmoid函数。
+5. **消除配分函数**：将步骤3中的奖励表达式代入步骤4，由于`log(Z(x))`在相减时被抵消，我们得到：`P(y_w ≻ y_l | x) = σ(β * log(π*(y_w|x) / π_ref(y_w|x)) - β * log(π*(y_l|x) / π_ref(y_l|x)))`。
+6. **DPO损失**：最终，DPO的损失函数就是最大化上述概率（即最小化负对数似然）：`L_DPO(θ) = -E[log σ(β * log(π_θ(y_w|x) / π_ref(y_w|x)) - β * log(π_θ(y_l|x) / π_ref(y_l|x)))]`，其中π_θ是我们要优化的策略。
+
+**追问 / Follow-up:**
+在上述推导中，我们假设了奖励函数r可以用策略π来表示（步骤3）。这个假设成立的隐含条件是什么？
+
+### Q20. Mode collapse 和 reward hacking 的区别？如何检测 mode collapse？
+**答 / Answer:**
+**Reward hacking** 是模型找到了获得高奖励的“捷径”但输出不符合人类意图（如生成冗长废话）。**Mode collapse** 则是指模型的输出多样性急剧下降，倾向于重复生成某几种获得高奖励的、安全的或模式化的回复，失去了回应不同prompt时应有的丰富性和创造性。它是生成式模型的一种常见故障模式。检测mode collapse的方法包括：1）**多样性指标**：计算模型在一组prompt上生成回复的词汇多样性（如distinct-n）、语义嵌入的方差等，与基线模型对比；2）**分析奖励分布**：如果模型的奖励分数分布变得非常集中（高均值、低方差），可能意味着它找到了少数几种“高分模板”；3）**人工抽样检查**：随机抽取多组回复，观察其内容、结构和用词是否高度相似。
+
+**追问 / Follow-up:**
+在RLHF训练中，增加KL惩罚系数β是缓解mode collapse的有效手段。除此之外，从数据角度或算法角度还有什么方法可以鼓励多样性？
+
+### Q21. Alignment tax 是什么？weight averaging 如何缓解它？原理是什么？
+**答 / Answer:**
+Alignment tax（对齐税）指的是模型在post-training对齐过程中，为获得更好的指令遵循、安全性和无害性，而**在某些未被直接优化的通用能力（如基础语言建模、复杂推理）上支付的性能代价**，即这些能力可能出现下降。Weight averaging（权重平均）是一种简单有效的缓解技术。它通过平均训练过程中不同时间点或不同随机种子产生的多个模型权重，来得到一个更平滑、泛化能力更强的最终模型。其原理在于：1）**减少方差**：平均化可以减少单一模型由于训练波动或随机性导致的性能不稳定；2）**探索更优解**：不同的训练快照可能位于损失面上不同的“好”区域，平均可能找到一个在各方面都表现不错的中间点；3）**类似于隐式正则化**，可以防止模型过度拟合到训练数据的特定模式（包括对齐数据中可能存在的偏见）。
+
+**追问 / Follow-up:**
+在权重平均的具体实现中，如Stochastic Weight Averaging (SWA) 和 Model Soups，它们的策略和假设有何不同？哪种在缓解对齐税上可能更有效？
+
+### Q22. DeepSeek-R1 的训练流程有哪些关键设计决策？cold-start SFT 的作用是什么？
+**答 / Answer:**
+DeepSeek-R1的流程有几个关键点：1）**多阶段强化学习**：在标准SFT和RLHF之后，引入了额外的、面向推理能力的强化学习阶段（如使用GRPO），重点优化数学、代码等任务的思维链（CoT）生成。2）**长思维链的强化**：鼓励模型生成更长、更详细的推理过程。3）**Cold-start SFT的作用**：在核心的强化学习阶段之前，使用一个经过精心筛选的、包含高质量长思维链推理示例的数据集进行SFT。其作用是为模型提供关于“如何进行复杂推理”的**初始、格式化的示范**。这相当于给了模型一个“冷启动”，让它在进入大规模的强化学习探索前，已经掌握了生成结构化思维链的基本“语法”和模式，从而极大提高了后续RL阶段的效率和成功率。
+
+**追问 / Follow-up:**
+Cold-start SFT使用的数据质量要求非常高。如果这部分数据存在错误或偏差，会对后续强化学习阶段的探索产生什么连锁反应？
+
+### Q23. RLAIF 和 Constitutional AI 的 self-critique-revision 机制如何工作？
+**答 / Answer:**
+RLAIF (Reinforcement Learning from AI Feedback) 和 Constitutional AI 的核心思想是使用AI模型自身来生成偏好反馈或进行修正，以减少对人类标注的依赖。其self-critique-revision机制通常包含一个循环：1）**生成初始回复**：针对一个prompt，模型先生成一个初步回复。2）**自我批判**：模型（或一个独立的批判模型）根据一组预设的“宪法”原则（如“回答要客观”、“避免有害内容”）对初始回复进行审视和批判，指出可能违反原则的地方。3）**修订回复**：模型根据生成的批判，对初始回复进行修改，生成一个更符合宪法原则的新版本。4）**（可选）用于训练**：将（初始回复，修订后回复）作为一个（rejected, chosen）对，用于训练RM或直接进行DPO等优化。这个机制让模型在无需人类实时干预的情况下，进行自我改进和对齐。
+
+**追问 / Follow-up:**
+这种自我修正机制有可能导致模型陷入某种“对齐循环”吗？例如，为了让回复更“安全”，它可能通过多轮修订，使回复变得越来越保守甚至无用。
+
+### Q24. Iterative RLHF 和 online DPO 的异同？如何解决 distribution mismatch？
+**答 / Answer:**
+两者都是为了解决offline方法（如标准DPO）中**训练数据分布（旧策略生成的偏好对）与模型当前策略分布不匹配**的问题。**相同点**：都通过迭代的方式，使用当前策略模型生成新的数据（或回复），并用这些新数据来更新模型，从而让训练数据分布跟随策略变化。**不同点**：Iterative RLHF通常指交替进行“在线数据生成（用当前策略采样，并由RM评分）”和“用新数据更新策略模型（可能用PPO或DPO）”的过程。Online DPO则更特指在每个训练迭代中，使用当前策略生成一组回复，由RM或人类选出偏好对，然后用这个**新生成的、分布匹配的偏好数据**来直接进行DPO损失计算和模型更新，省去了显式的RL步骤。
+
+**追问 / Follow-up:**
+在Online DPO中，使用当前策略生成偏好对时，应该在生成的回复中使用什么采样温度（temperature）？为什么这个参数选择很重要？
+
+### Q25. Post-training 的 scaling 规律：数据量、模型规模怎么影响对齐效果？SFT 和 RL 的最优 compute 分配策略有何不同？
+**答 / Answer:**
+Post-training的scaling规律与预训练不同。对于**数据量**：在SFT阶段，存在收益递减，高质量数据比大量低质数据更重要，达到一定规模后性能提升放缓。对于**模型规模**：更大的基座模型通常具有更强的对齐潜力，能更好地理解复杂的指令和价值观，但达到相同对齐水平所需的高质量数据量可能不一定同比例增长。**SFT vs RL的最优分配策略**：SFT的收益更“数据效率”，通常在项目初期投入较多计算资源快速建立指令遵循能力是划算的。RL（如RLHF）则更“计算昂贵”，其收益体现在精细的行为调整和价值对齐上，需要更多的在线采样和迭代。一个常见的策略是：用大部分计算预算训练一个足够好的基座模型和SFT模型，然后将剩余的、相对较少的计算预算用于几轮关键的RL迭代进行精调，因为RL的边际收益可能迅速下降。
+
+**追问 / Follow-up:**
+如果我们将模型规模和数据量都视为资源，在post-training阶段，你认为是投资于将一个70B的模型对齐，还是投资于将一个7B的模型配合更大量、更高质量的数据进行对齐，哪种策略更可能获得一个在实际应用中表现优异的助手模型？请阐述理由。

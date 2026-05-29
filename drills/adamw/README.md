@@ -1,0 +1,81 @@
+# AdamW 从零实现学习练习 / AdamW from Scratch Study Drill
+
+本项目旨在通过从零实现 AdamW 优化器的一个步骤，深入理解其数学原理和实现细节。实现基于纯 PyTorch，专注于核心更新逻辑。
+
+## 1. 数学原理 / Mathematics
+
+AdamW 是 Adam 优化器（Kingma & Ba, 2014）的变体，引入了**解耦权重衰减（decoupled weight decay）**（Loshchilov & Hutter, 2017）。对于每个参数 $p$ 在步骤 $t$ 的梯度 $g$，关键更新方程如下：
+
+**第一步：更新有偏矩估计（Biased Moment Estimates）**
+
+$$
+\begin{aligned}
+m_t &= \beta_1 \cdot m_{t-1} + (1 - \beta_1) \cdot g \quad &\text{(一阶矩，梯度的指数移动平均)} \\
+v_t &= \beta_2 \cdot v_{t-1} + (1 - \beta_2) \cdot g^2 \quad &\text{(二阶矩，梯度平方的指数移动平均)}
+\end{aligned}
+$$
+
+**第二步：偏差校正（Bias Correction）**
+
+$$
+\begin{aligned}
+\hat{m}_t &= \frac{m_t}{1 - \beta_1^t} \quad &\text{(校正一阶矩)} \\
+\hat{v}_t &= \frac{v_t}{1 - \beta_2^t} \quad &\text{(校正二阶矩)}
+\end{aligned}
+$$
+
+**第三步：参数更新（Parameter Update）**
+
+$$
+p_t = p_{t-1} - \alpha \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} - \alpha \cdot \lambda \cdot p_{t-1}
+$$
+
+其中：
+- $\alpha$：学习率（learning rate），代码中对应 `lr`。
+- $\beta_1, \beta_2$：矩估计的指数衰减率（exponential decay rates），代码中对应 `betas`。
+- $\epsilon$：数值稳定性小常数（small constant for numerical stability），代码中对应 `eps`。
+- $\lambda$：权重衰减系数（weight decay coefficient），代码中对应 `weight_decay`。
+
+**注意**：权重衰减项 $-\alpha \cdot \lambda \cdot p$ 直接施加于参数 $p$，而不通过梯度，这与 L2 正则化不同，称为“解耦”。
+
+## 2. 直觉与复杂度 / Intuition and Complexity
+
+**直觉**：AdamW 结合了 Adam 的自适应学习率（通过一阶和二阶矩调整每个参数的更新幅度）和解耦的权重衰减。权重衰减直接惩罚参数值，促进模型稀疏性和泛化能力，而不干扰 Adam 的自适应机制。偏差校正项解决了初始化时矩估计为零导致的偏差问题。
+
+**复杂度**：
+- **时间复杂度**：每个优化步骤为 $O(n)$，其中 $n$ 是参数数量。因为需要遍历所有参数并执行常数时间操作（如加、乘、开方）。
+- **空间复杂度**：$O(n)$，用于存储每个参数的一阶矩 $m$ 和二阶矩 $v$（状态变量）。
+
+## 3. 文件 / Files
+
+本项目目录包含**仅有**以下三个文件：
+
+- `from_scratch.py`：AdamW 优化器的从零实现，核心类为 `AdamWFromScratch`。
+- `test_adamw.py`：针对实现的测试脚本，验证正确性和一致性。
+- `README.md`：本说明文档。
+
+## 4. 运行 / Run
+
+仅支持以下两个运行命令：
+
+- **演示/自测试**：运行 `python from_scratch.py`。该脚本会执行一个简单的优化步骤演示，展示 AdamW 的行为。
+- **运行测试**：运行 `python test_adamw.py`。该脚本将运行一系列测试用例，确保实现与 PyTorch 官方 AdamW 或预期行为一致。
+
+## 5. 追问分层 / Stratified follow-ups
+
+以下问题旨在分层深入理解 AdamW 优化器步骤的从零实现：
+
+- **L1 基础问题**：
+  1. 权重衰减（weight decay）在 AdamW 中的作用是什么？它如何影响模型训练？
+  2. 代码中 `exp_avg` 和 `exp_avg_sq` 分别代表什么？它们如何初始化？
+  3. 为什么需要偏差校正（bias correction）？如果不进行校正，早期步骤会发生什么？
+
+- **L2 中级问题**：
+  1. 在 AdamW 中，解耦权重衰减与 L2 正则化有何区别？为什么这可能影响优化动态？
+  2. 解释代码中 `step_size = lr / bias_correction1` 这一步的数学意义。为什么这样计算？
+  3. 如何从代码中理解 Adam 的自适应学习率机制？参数更新中的 `denom` 项起什么作用？
+
+- **L3 深度问题**：
+  1. 分析 AdamW 优化器的收敛性质。偏差校正如何帮助在初始阶段稳定训练？这与 Adam 的原始论文有何关联？
+  2. 在实际应用中，AdamW 的超参数（如 $\beta_1, \beta_2, \epsilon, \lambda$）如何调整？从实现角度，哪些代码修改会影响这些超参数的敏感性？
+  3. 扩展思考：如果要在分布式训练中使用此 AdamW 实现，需要考虑哪些并行化和通信挑战？如何基于当前代码结构进行扩展？

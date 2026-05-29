@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPO Clipped Surrogate Objective 学习演练</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { max-width: 820px; margin: 0 auto; padding: 1rem 1.1rem 4rem;
+         font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+         word-wrap: break-word; }
+  h1,h2,h3 { line-height: 1.3; margin-top: 1.6em; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.25rem; border-bottom: 1px solid #8884; padding-bottom: .2em; }
+  code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: .9em; }
+  :not(pre) > code { background: #8882; padding: .1em .35em; border-radius: 4px; }
+  pre { background: #2b2b2b08; padding: .9rem; border-radius: 8px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+  th,td { border: 1px solid #8886; padding: .4em .6em; text-align: left; }
+  blockquote { border-left: 3px solid #8888; margin: 1em 0; padding: .2em 1em; color: #666; }
+  a { color: #0a7; }
+</style>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    startup: { typeset: false }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+</head>
+<body>
+<nav style="max-width:820px;margin:0 auto 1rem;font-size:.88rem"><a href="index.html" style="color:#0a7;text-decoration:none">← 复习索引 / Study Index</a></nav>
+<article id="out"></article>
+<!-- 原始 markdown 嵌在下面;渲染器只替换 # PPO Clipped Surrogate Objective 学习演练
+
+本仓库通过一个独立的实现文件，从零开始研究 PPO（Proximal Policy Optimization）的裁剪代理目标函数。这是一个聚焦于理解 PPO 核心数学与实现细节的专项练习。
+
+---
+
+## 1. 数学基础 / Mathematical Foundation
+
+PPO 的裁剪代理目标旨在限制策略更新幅度，其核心公式如下。
+
+**概率比 $r_t$**:
+$$ r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} $$
+代码实现: `ratio = torch.exp(action_logprobs - old_action_logprobs)`
+
+**裁剪代理目标 $L^{CLIP}$**:
+$$ L^{CLIP}(\theta) = \mathbb{E}_t \left[ \min\left( r_t(\theta) \hat{A}_t, \ \text{clip}\left(r_t(\theta), 1-\epsilon, 1+\epsilon\right) \hat{A}_t \right) \right] $$
+其中 $\hat{A}_t$ 为优势函数估计，$\epsilon$ 为裁剪超参数。
+
+**代码实现对应**:
+```python
+surrogate_unclipped = ratio * advantages
+ratio_clipped = torch.clamp(ratio, 1.0 - clip_epsilon, 1.0 + clip_epsilon)
+surrogate_clipped = ratio_clipped * advantages
+surrogate_per_sample = torch.min(surrogate_unclipped, surrogate_clipped)
+loss = -surrogate_per_sample.mean()  # 因为优化器最小化损失，故取负
+```
+
+**诊断指标**:
+- **近似 KL 散度**: $\approx \mathbb{E}[r - 1 - \log r]$ (Schulman blog)
+- **裁剪比例**: $|\ r - 1\ | > \epsilon$ 的样本比例
+
+---
+
+## 2. 直觉与复杂度 / Intuition & Complexity
+
+**直觉**:
+- PPO 通过 `min` 操作选择一个保守的目标，防止策略在每次更新中发生过大变化。
+- 当优势 $A > 0$（好的动作），$r$ 会被限制不超过 $1+\epsilon$，避免过度提升该动作概率。
+- 当优势 $A < 0$（坏的动作），$r$ 会被限制不低于 $1-\epsilon$，避免过度降低该动作概率。
+- 这种对称约束使得策略更新保持在“信任域”内。
+
+**实现复杂度**:
+- **时间复杂度**: $O(B)$，其中 $B$ 为 batch size。所有操作均为逐元素。
+- **空间复杂度**: $O(B)$，存储中间张量 `ratio`, `surrogate_unclipped` 等。
+- **数值稳定性**: 代码使用 `log_ratio` 避免直接计算概率比，防止数值溢出。
+
+---
+
+## 3. 文件 / Files
+
+- `from_scratch.py`: 包含 PPO 裁剪代理目标和 GAE 的从零实现，以及一个简单的演示。
+- `test_ppo_clip.py`: 包含针对裁剪代理目标函数的单元测试。
+- `README.md`: 本说明文件。
+
+---
+
+## 4. 运行 / Run
+
+运行演示与自检：
+```bash
+python from_scratch.py
+```
+
+运行测试套件：
+```bash
+python test_ppo_clip.py
+```
+
+---
+
+## 5. 追问分层 / Stratified Follow-ups
+
+### L1 基础
+1. 为什么 PPO 要对策略更新进行裁剪（clipping）？如果不裁剪，可能会发生什么？
+2. 解释 `ratio` 为什么在代码中通过 `exp(log_ratio)` 计算，而不是直接计算概率的比值。
+3. 在 `min` 操作中，为什么要对 `surrogate_unclipped` 和 `surrogate_clipped` 取较小值？
+
+### L2 中级
+1. 代码中 `approx_kl` 的计算公式 `((ratio - 1) - log_ratio).mean()` 的来源是什么？它近似了什么量？
+2. 解释超参数 `clip_epsilon` 的作用。如果将其设为 0 或非常大（如 100），优化行为会如何变化？
+3. GAE（Generalized Advantage Estimation）函数中的 `lam`（$\lambda$）参数有什么作用？它如何权衡偏差（bias）与方差（variance）？
+
+### L3 深入
+1. 讨论 PPO 裁剪目标与 TRPO（Trust Region Policy Optimization）中 KL 散度约束在数学形式和实际行为上的异同。
+2. 在反向传播时，梯度如何通过 `min` 操作流回 `cur_logprobs`？从自动微分的角度分析其行为。
+3. 代码中 `advantages` 在演示部分进行了白化（whitening）。为什么需要对优势函数进行归一化？如果不这样做，对训练稳定性可能产生什么影响？,内容里的 </script> 须转义为 <\/script> -->
+<script id="doc" type="text/markdown">{{MARKDOWN}}</script>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const raw = document.getElementById('doc').textContent;
+    // 保护 LaTeX,避免被 markdown 解析吃掉
+    const math = [];
+    const keep = (m) => { math.push(m); return `@@M${math.length - 1}@@`; };
+    const protectedText = raw
+      .replace(/\$\$([\s\S]+?)\$\$/g, keep)
+      .replace(/\\\[([\s\S]+?)\\\]/g, keep)
+      .replace(/\\\(([\s\S]+?)\\\)/g, keep)
+      .replace(/\$([^\$\n]+?)\$/g, keep);
+    let html = marked.parse(protectedText);
+    html = html.replace(/@@M(\d+)@@/g, (_, i) => math[+i]);
+    document.getElementById('out').innerHTML = html;
+    document.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
+    if (window.MathJax && MathJax.startup) {
+      MathJax.startup.promise.then(() => MathJax.typesetPromise());
+    }
+  });
+</script>
+</body>
+</html>
