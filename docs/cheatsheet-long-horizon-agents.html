@@ -8,46 +8,69 @@
 <link rel="stylesheet" href="vendor/hl/github.min.css">
 <link rel="stylesheet" href="vendor/hl/github-dark.min.css" media="(prefers-color-scheme: dark)">
 <style>
-  :root{color-scheme:light dark}
-  body{max-width:820px;margin:0 auto;padding:1rem 1.1rem 4rem;
-       font:16px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;word-wrap:break-word}
-  h1,h2,h3{line-height:1.3;margin-top:1.6em}
-  h1{font-size:1.5rem}
-  h2{font-size:1.25rem;border-bottom:1px solid #8884;padding-bottom:.2em}
-  code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.9em}
-  :not(pre)>code{background:#8882;padding:.1em .35em;border-radius:4px}
-  pre{margin:1em 0}
-  pre code.hljs{border-radius:8px}
-  table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
-  th,td{border:1px solid #8886;padding:.4em .6em;text-align:left}
-  blockquote{border-left:3px solid #8888;margin:1em 0;padding:.2em 1em;color:#888}
-  a{color:#0a7}
-  nav.top{font-size:.88rem;margin-bottom:1rem}
-  .toc{border:1px solid #8884;border-radius:8px;padding:.4em .9em;margin:1.2em 0;font-size:.92rem;background:#8881}
-  .toc summary{cursor:pointer;color:#0a7;font-weight:600}
+  :root{
+    color-scheme:light dark;
+    --bg:#fdfcf7; --bg-soft:#f4f1ea; --ink:#2b2b2b; --muted:#6b6b6b;
+    --accent:#b8390e;  /* 赭红 — 加粗/强调 */
+    --primary:#1a4a8c; /* navy — 链接/代码边条 */
+    --line:#8884;
+  }
+  body{max-width:820px;margin:0 auto;padding:1rem 1.1rem 4rem;background:var(--bg);color:var(--ink);
+       font:16px/1.75 Georgia,"Iowan Old Style","Songti SC","Noto Serif CJK SC","STSong",serif;word-wrap:break-word}
+  h1,h2,h3,h4{line-height:1.3;margin-top:1.6em;color:#1a1a1a;font-weight:700}
+  h1{font-size:1.55rem}
+  h2{font-size:1.25rem;border-bottom:2px solid var(--accent);padding-bottom:.2em}
+  h3{font-size:1.08rem}
+  strong{color:var(--accent)}
+  a{color:var(--primary);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.88em}
+  :not(pre)>code{background:#1a4a8c14;color:#0d3a6b;padding:.1em .35em;border-radius:4px}
+  pre{margin:1em 0;border-left:4px solid var(--primary);border-radius:0 8px 8px 0;overflow:hidden}
+  pre code.hljs{border-radius:0 8px 8px 0}
+  table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.95rem}
+  th,td{border:1px solid var(--line);padding:.4em .6em;text-align:left}
+  th{background:var(--bg-soft)}
+  blockquote{border-left:3px solid #b8b0a0;margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
+  nav.top{font-size:.88rem;margin-bottom:1rem;font-family:system-ui,sans-serif}
+  /* 提示框 (emoji 触发, 构建时包裹) */
+  .callout{border-left:4px solid;border-radius:0 8px 8px 0;padding:.5em .9em;margin:1.1em 0;background:#00000008}
+  .callout>:first-child{margin-top:0}
+  .callout>:last-child{margin-bottom:0}
+  .callout-info{border-color:#1a4a8c;background:#1a4a8c12}
+  .callout-warn{border-color:#c77d00;background:#c77d0014}
+  .callout-good{border-color:#1a7f4b;background:#1a7f4b12}
+  .callout-bad{border-color:#b8390e;background:#b8390e10}
+  .toc{border:1px solid var(--line);border-radius:8px;padding:.4em .9em;margin:1.2em 0;font-size:.92rem;background:var(--bg-soft);font-family:system-ui,sans-serif}
+  .toc summary{cursor:pointer;color:var(--primary);font-weight:600}
   .toc ul{margin:.5em 0 .2em;padding-left:1.2em;list-style:none}
   .toc li{margin:.15em 0}
   .toc li.lv3{padding-left:1.1em;font-size:.95em;opacity:.8}
-  .toc a{color:inherit;text-decoration:none}
-  .toc a:hover{color:#0a7;text-decoration:underline}
+  .toc a{color:inherit}
+  .toc a:hover{color:var(--primary);text-decoration:underline}
   /* 引用 (gwern/Tufte 式, 零 JS): [N] 上标可点跳底部; .cite-note gist 宽屏(≥1180px)浮右页边、窄屏隐藏 */
   .cite-wrap{display:inline}
-  .cite{color:#0a7;font-weight:600;font-size:.72em;vertical-align:super;padding:0 .12em;white-space:nowrap;text-decoration:none}
+  .cite{color:var(--primary);font-weight:600;font-size:.72em;vertical-align:super;padding:0 .12em;white-space:nowrap;text-decoration:none}
   .cite::before{content:"["}
   .cite::after{content:"]"}
   .cite:hover{text-decoration:underline}
   .cite-note{display:none}
   ol.refs{font-size:.95rem;padding-left:1.6em}
   ol.refs li{margin:.4em 0}
-  ol.refs li:target{background:#0a72;border-radius:4px}
+  ol.refs li:target{background:#b8390e1a;border-radius:4px}
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
-  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}}
+  @media(prefers-color-scheme:dark){
+    :root{--bg:#16181c;--bg-soft:#22262c;--ink:#dcdcdc;--muted:#9aa6b0;--accent:#e8845c;--primary:#7fb0e8;--line:#ffffff33}
+    h1,h2,h3,h4{color:#ededed}
+    :not(pre)>code{background:#7fb0e820;color:#a9cdf5}
+    blockquote{background:#ffffff0a}
+    .callout{background:#ffffff0a}
+  }
   @media (min-width:1180px){
     body.has-sn{max-width:1200px}
     body.has-sn #out{max-width:720px}
-    body.has-sn .cite-note{display:block;float:right;clear:right;width:320px;margin:.15em -360px .9em 0;padding:0 0 0 .8em;border-left:2px solid #0a7;font-size:.8rem;line-height:1.55;font-weight:400;color:#555}
+    body.has-sn .cite-note{display:block;float:right;clear:right;width:320px;margin:.15em -360px .9em 0;padding:0 0 0 .8em;border-left:2px solid var(--primary);font-size:.8rem;line-height:1.55;font-weight:400;color:var(--muted)}
   }
-  @media (min-width:1180px) and (prefers-color-scheme:dark){body.has-sn .cite-note{color:#aaa}}
 </style>
 </head>
 <body class="has-sn">
@@ -82,9 +105,9 @@
 <li>可靠性 = 合适的工具 + 清晰反馈 + 代表性场景测试 + 按失败模式迭代。</li>
 </ul>
 <h2 id="sec-2">3. 【前沿】长程 / agentic 的训练范式(论文口径,未成工业标准)</h2>
-<blockquote>
+<div class="callout callout-warn">
 <p>⚠️ 以下是<strong>研究</strong>口径,非某产品的生产部署声明。面试可讲&quot;我跟踪到 X 方向&quot;,别说&quot;这是工业标准&quot;。</p>
-</blockquote>
+</div>
 <h3 id="sec-3">3.1 稀疏 / 长程奖励 + 难度带设计(高频系统设计题)</h3>
 <p>长程任务奖励稀疏(常只有最终成败)。反复出现的工程原则:<strong>有效 RL 信号只在中间难度带</strong>,要显式防止训练数据退化到两端。</p>
 <p><strong>Self-Play SWE-RL</strong><span class="cite-wrap"><a class="cite" id="fnref-6" href="#ref-6">6</a><span class="cite-note">同一 LLM 注入并修 bug 的自对弈 RL;难度带分段奖励(本页只取奖励设计)。<a href="https://arxiv.org/abs/2512.18552">Wei 2025 ↗</a></span></span>:同一 LLM 既注入 bug 又修 bug,用测试套件当奖励。bug 注入奖励是分段函数(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span> = 修复者解出该 bug 的比例,即 solve rate):</p>
@@ -97,9 +120,9 @@
 <h3 id="sec-5">3.3 与现有页的接点</h3>
 <p>GRPO 改进(Clip-Higher、去 KL loss)源自字节 <strong>DAPO</strong><span class="cite-wrap"><a class="cite" id="fnref-9" href="#ref-9">9</a><span class="cite-note">字节的 GRPO 改进:Clip-Higher、去 KL loss。<a href="https://arxiv.org/abs/2503.14476">ByteDance 2025 ↗</a></span></span>、被 MiMo 采用 —— 详见 <a href="cheatsheet-reasoning-rl-frontier.html">reasoning-rl-frontier</a>,本页不重复。</p>
 <h2 id="sec-6">4. 【前沿·最不成熟】自进化 / self-evolving(最需谨慎)</h2>
-<blockquote>
+<div class="callout callout-warn">
 <p>⚠️ 这块<strong>绝大多数是研究</strong>,生产证据弱。面试别声称工业标准,更别报未核实数字。</p>
-</blockquote>
+</div>
 <ul>
 <li>思路:让 agent 用<strong>自生成数据 / self-play / 从失败造新任务 / reflection-self-correction</strong> 自我提升,绕开人工标注。</li>
 <li>现状口径:有论文探索(自动课程、self-play 搜索等),但&quot;无监督全自动扩展&quot;的强表述常<strong>经不起核实</strong>;当<strong>开放问题</strong>讲,而非成熟方案。深度处理留给独立的 <a href="https://github.com/fzhiy/agent-post-training-playbook">agent-post-training-playbook</a>。</li>
