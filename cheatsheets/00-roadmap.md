@@ -28,6 +28,9 @@
 - [ml-system-design](cheatsheet-ml-system-design.html) — 微调流水线 / RLHF 分布式 / 评测体系
 - [coding-and-algorithms](cheatsheet-coding-and-algorithms.html) — 算法题型 + ML 实现题
 
+## 7 · 持续 / 终身 / Continual
+- [continual-post-training](cheatsheet-continual-post-training.html) — 灾难性遗忘 / replay / 模型合并 / KL · 只收生产验证方法
+
 ---
 
 **复习法**:每题复习后标 ✅ 熟练 / ⚠️ 模糊 / ❌ 不会;之后只重刷 ⚠️/❌。面试前用首页搜索框直接跳到薄弱主题。

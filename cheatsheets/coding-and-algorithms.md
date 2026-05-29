@@ -639,3 +639,111 @@ for i in range(1, n + 1):
 | LC 42 | 单调栈 / 接雨水 | Hard | | |
 
 > **状态标记：** ✅ 熟练 | ⚠️ 模糊 | ❌ 不会 — 仅对 ⚠️/❌ 安排复习。
+
+
+## 更多 L3 深挖 / Extended L3
+
+**Q26. LoRA 的低秩假设（low-rank assumption）在理论上基于什么前提？哪些场景下该假设可能不成立？**
+
+**A:** LoRA 假设权重更新 $\Delta W$ 的有效秩（effective rank）远小于参数维度——即任务适配信息集中在少数方向上。理论基础是"内在维度（intrinsic dimensionality）"概念：预训练模型在高维参数空间中，任务适配实际只发生在低维子流形上。
+
+失效场景：
+- 下游任务与预训练分布差距大，需修改高秩结构（如跨语言、跨模态迁移）
+- 多任务场景中各任务的低秩子空间不重叠，叠加后秩升高
+- 模型本身较小，低秩约束成为容量瓶颈
+
+**追问：** 除了单纯增大 $r$，还有哪些结构化方案突破低秩限制？
+**答：** AdaLoRA 按层自适应分配秩（重要层更高秩）；Adapter 在 FFN 中插入带非线性激活的 bottleneck，突破纯线性低秩的表达限制；(IA)^3 等向量缩放方法以不同的效率-容量曲线提供额外表达力。
+
+---
+
+**Q27. Transformer 中为什么用 LayerNorm 而非 BatchNorm？从统计量计算的角度分析二者的根本区别。**
+
+**A:** BatchNorm 沿 **batch 维度** 计算均值和方差，LayerNorm 沿 **特征维度** 计算。根本区别在于：
+
+1. **序列长度可变性：** NLP 中同 batch 内序列长度不同，padding 位置对 BatchNorm 统计量引入噪声
+2. **自回归生成：** 推理时 batch size 常为 1，BatchNorm 的统计量极不稳定
+3. **每个 token 独立归一化：** LayerNorm 使各层输入分布稳定，不依赖 batch 中其他样本
+
+**追问：** Pre-LN 和 Post-LN 有什么区别？为什么现代大模型多采用 Pre-LN？
+**答：** Post-LN：$\text{LN}(x + \text{Sublayer}(x))$；Pre-LN：$x + \text{Sublayer}(\text{LN}(x))$。Pre-LN 使梯度通过残差路径直接回传（residual stream），不经过 LN 的非线性变换，训练更稳定，通常不需要 learning rate warmup；Post-LN 在深层网络中梯度需经过 LN，容易导致训练不稳定。
+
+---
+
+**Q28. FlashAttention 的核心思想是什么？为什么它能在不改变数学结果的前提下显著提升效率？**
+
+**A:** 核心是 **IO-aware 分块计算（tiling）**：将 $Q, K, V$ 分成小块（tile），在 SRAM（片上缓存）中完成 softmax 与矩阵乘的融合计算，避免将 $N \times N$ 注意力矩阵写回 HBM（高带宽内存）。
+
+关键技巧：
+- **Online softmax：** 利用 softmax 的可分解性，逐块计算时维护 running max 和 running sum，每块结果通过缩放因子校正，最终与全局 softmax 数学等价
+- **重计算（recomputation）：** 反向传播时不存储注意力矩阵，从 $Q, K, V$ 重新计算——以计算换内存
+
+**追问：** FlashAttention 的 recomputation 与通用 gradient checkpointing 有什么异同？
+**答：** 二者都是"以计算换内存"思想。Gradient checkpointing 是通用策略：选择性不保存中间激活，反向时重新前向计算。FlashAttention 的 recomputation 更特化：专门针对注意力矩阵这一大张量，且与 tiling 策略结合，不仅减少内存还减少了 HBM 访问次数（IO 复杂度从 $O(N^2)$ 降至 $O(N^2 d^2 / M)$，$M$ 为 SRAM 大小）。二者可组合使用。
+
+---
+
+**Q29. RMSNorm 去掉了 LayerNorm 中的均值中心化（mean centering），为什么这样做在实践中仍然有效？**
+
+**A:** LayerNorm 的完整操作：$y_i = \gamma \cdot \frac{x_i - \mu}{\sigma} + \beta$；RMSNorm 简化为：$y_i = \gamma \cdot \frac{x_i}{\text{RMS}(x)}$，去掉 $\mu$ 和 $\beta$。
+
+仍然有效的理论直觉：
+- 深度网络中，经大量线性变换和激活后，特征均值往往已在合理范围，或可被后续层的 bias 补偿
+- 归一化对训练稳定性起关键作用的是 **re-scaling**（控制方差），而非 re-centering（减均值）
+- 去掉均值计算减少了一个 reduce 操作，在大规模模型中累积起来有显著效率提升
+
+**追问：** 什么情况下去掉均值中心化可能有害？
+**答：** 若某层输入有系统性偏移（systematic bias）且后续层无法轻易补偿，则偏移会传播。在小模型或浅层网络中影响可能更明显。但大规模 Transformer 的残差连接和深层堆叠提供了足够容量来补偿，实践中几乎未观察到退化。
+
+---
+
+**Q30. Multi-Head Attention 中如果多个 head 学到了近似的 pattern（head collapse），会有什么后果？如何检测和缓解？**
+
+**A:** Head collapse 导致多头表达冗余——虽有 $h$ 个头的参数，但有效头数远少于 $h$，浪费了计算和模型容量，相当于降低了注意力的"有效秩"。
+
+检测方法：
+- 计算不同 head 注意力分布之间的 KL 散度或余弦相似度
+- 分析 $W^Q, W^K$ 投影矩阵之间的子空间重叠度（如 principal angle）
+
+**追问：** 如何从训练层面缓解 head collapse？
+**答：**
+- **Diversity regularization：** 在损失函数中加入鼓励不同 head 注意力分布差异的正则项（如惩罚相似度）
+- **Attention dropout：** 对注意力权重施加 dropout，防止某些 head 过早主导
+- **Head pruning + retraining：** 训练后裁剪冗余 head 再微调，迫使剩余 head 承担更多职责；这也是一种隐式的正则化
+
+---
+
+**Q31. 对 Cross-Entropy Loss 施加 label smoothing 后，梯度形式有什么变化？为什么能提高泛化？**
+
+**A:** 标准 CE 中目标 $q$ 为 one-hot（$q_y = 1, q_{j \neq y} = 0$），label smoothing 令 $q_y = 1 - \epsilon, q_{j \neq y} = \frac{\epsilon}{C-1}$。
+
+梯度变化（$\nabla_{z_i} \mathcal{L} = p_i - q_i$）：
+- 标准 CE：$\nabla_{z_y} \mathcal{L} = p_y - 1$，$\nabla_{z_j} \mathcal{L} = p_j$
+- Label smoothing：$\nabla_{z_y} \mathcal{L} = p_y - (1-\epsilon)$，$\nabla_{z_j} \mathcal{L} = p_j - \frac{\epsilon}{C-1}$
+
+即模型不再被鼓励将 logits 推向无穷大，防止 over-confidence。
+
+泛化改善：防止模型对训练标签过于自信（过拟合噪声标签），隐式地对 logits 施加了 soft 约束。
+
+**追问：** Label smoothing 和 knowledge distillation 有什么联系？
+**答：** 二者本质都是用"软目标（soft target）"替代 hard target 训练。Label smoothing 用均匀分布软化目标；distillation 用 teacher 输出分布作为软目标。可以认为 label smoothing 是"无 teacher 的、目标为均匀分布的 distillation"。Distillation 的优势在于 teacher 的 soft target 包含类别间相似性的结构信息（如猫 vs 狗的 logit 高于猫 vs 飞机），而非无结构的均匀分布。
+
+---
+
+**Q32. K-Means 和 Gaussian Mixture Model (GMM) 的 EM 算法之间有什么数学联系？**
+
+**A:** K-Means 是 GMM-EM 在"各向同性、等协方差、$\sigma \to 0$"极限下的硬指派特例。
+
+对 GMM $p(x) = \sum_k \pi_k \mathcal{N}(x \mid \mu_k, \Sigma_k)$ 施加约束：所有分量共享固定的各向同性协方差 $\Sigma_k = \sigma^2 I$、等权重 $\pi_k = 1/K$。此时 E 步的软责任是温度为 $\sigma^2$ 的 softmax（等权重、等协方差使归一化常数约掉），令 $\sigma \to 0$ 即退化为硬指派：
+
+$$
+\gamma_{ik} = \frac{\exp\!\big(-\|x_i - \mu_k\|^2 / 2\sigma^2\big)}{\sum_j \exp\!\big(-\|x_i - \mu_j\|^2 / 2\sigma^2\big)} \;\xrightarrow{\;\sigma \to 0\;}\; \mathbf{1}\big[\,k = \arg\min_j \|x_i - \mu_j\|^2\,\big]
+$$
+
+由此两步一一对应：
+- **E 步：** GMM 的软责任 $\gamma_{ik}$ → K-Means"分到最近质心"的硬指派（上式 $\sigma \to 0$ 极限）。
+- **M 步：** GMM 的加权均值 $\mu_k = \frac{\sum_i \gamma_{ik} x_i}{\sum_i \gamma_{ik}}$ 在硬 $\gamma$ 下退化为簇内点的算术平均——即 K-Means 的质心更新；两者都只更新均值。
+- **目标函数：** 该极限下 GMM 的负对数似然（去掉与 $\sigma$ 相关的常数）正比于 K-Means 的簇内平方和 $\sum_i \min_k \|x_i - \mu_k\|^2$。
+
+**追问：** 既然 K-Means 是 GMM 的特例，什么时候该用 GMM？
+**答：** 当簇非球形、大小/密度差异大、或需要软（概率化）成员归属时。GMM 额外学习每个分量的协方差 $\Sigma_k$ 与权重 $\pi_k$，能拟合不同朝向/尺度的椭圆簇，并用 $\gamma_{ik}$ 给出软归属与不确定性；K-Means 因假设各向同性等协方差，只能产生球形（Voronoi）硬划分。代价是 GMM 参数更多、对初始化与奇异协方差（某分量塌缩到单点使似然发散）更敏感，常需协方差下限或正则化。

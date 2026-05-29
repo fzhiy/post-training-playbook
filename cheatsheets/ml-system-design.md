@@ -1019,3 +1019,144 @@ $$
 
 ---
 
+
+
+## 更多 L3 深挖 / Extended L3
+
+**Q26: Explain the IO-aware tiling strategy in FlashAttention. Why does standard attention have a memory access bottleneck, and how does the online softmax trick enable block-wise computation without materializing the full N×N attention matrix?**
+
+标准 attention 需要将完整的 $N \times N$ attention matrix 写入 HBM（High Bandwidth Memory），IO 成为瓶颈。FlashAttention 利用 GPU SRAM（速度快但容量小）做 tiling：
+
+1. 将 $Q, K, V$ 分成大小为 $B_r \times d$ 和 $B_c \times d$ 的块，每次只将一个块载入 SRAM
+2. 对每个 Q 块，遍历所有 K/V 块，在 SRAM 中计算局部 attention
+3. 利用 **online softmax** 维护 running max $m$ 和 running sum $\ell$：处理第 $j$ 个 KV 块后，用修正因子 $e^{m_{j-1} - m_j}$ 更新之前累积的输出 $O_j$，避免需要全局归一化
+
+$$O_j = \text{diag}(\ell_j)^{-1}\Big(e^{m_{j-1}-m_j}\,\ell_{j-1}\,O_{j-1} + \tilde{P}_j V_j\Big)$$
+
+IO 复杂度从 $O(N^2 d)$ 次 HBM 访问降至 $O(N^2 d^2 / M)$（$M$ 为 SRAM 大小），显存从 $O(N^2)$ 降为 $O(N)$（无需物化完整 attention matrix）。
+
+> **追问：** FlashAttention 反向传播需要重新计算 attention matrix（recomputation），这与 gradient checkpointing 的异同是什么？在超长序列场景下，FlashAttention v2 引入了哪些进一步的并行化优化？
+
+---
+
+**Q27: RoPE 的 NTK-aware interpolation 如何解决长序列外推问题？为什么简单的 position interpolation 会损失高频信息？**
+
+简单的 position interpolation（PI）将位置 $m$ 统一缩放为 $m \cdot L_{\text{train}} / L_{\text{target}}$，问题在于 RoPE 频率 $\theta_j = 10000^{-2j/d}$ 跨越多个数量级：
+- **低维度**（$j$ 小）→ 高频，编码近距离精细位置关系
+- **高维度**（$j$ 大）→ 低频，编码远距离粗略位置关系
+
+统一缩放后，高频维度的旋转角度变化过于密集，模型无法区分相邻 token（高频信息被"挤在一起"），相当于对图像做低通滤波后丢失边缘细节。
+
+**NTK-aware interpolation** 将基频从 $b$ 重新缩放为 $b' = b \cdot \alpha^{d/(d-2)}$（$\alpha = L_{\text{target}}/L_{\text{train}}$）：
+- 低维度高频部分几乎不变 → 保持局部分辨率
+- 高维度低频部分被拉伸 → 编码更长距离
+
+类比 NTK 理论中高频 vs 低频特征的学习难度差异：高频特征需要更高分辨率，低频特征可以安全外推。
+
+> **追问：** YaRN 在 NTK-aware 基础上进一步对 attention score 施加 temperature scaling，其动机是什么？为什么仅修改位置编码不足以完全恢复长上下文任务的性能？
+
+---
+
+**Q28: 在 Mixture of Experts (MoE) 架构中，如何设计 auxiliary load balancing loss 来防止 expert collapse？capacity factor 的作用是什么？**
+
+MoE 中的 **expert collapse**（路由坍缩）：少数 expert 被高频选中，其余几乎闲置，模型有效容量浪费。
+
+**Auxiliary load balancing loss：**
+
+$$\mathcal{L}_{\text{aux}} = \alpha \cdot N \cdot \sum_{i=1}^{N} f_i \cdot P_i$$
+
+- $N$ = expert 数，$f_i$ = 被路由到 expert $i$ 的 token 比例（离散统计），$P_i$ = router 对 expert $i$ 的平均概率（连续可微）
+- $f_i \cdot P_i$ 项鼓励二者均匀分布：当某 expert 被频繁选中且 router 对其信心也高时，惩罚最大
+- $\alpha$ 设较小值，防止主导主训练 loss
+
+**Capacity factor (CF)：** 限制每个 expert 单次处理 token 上限 = $\text{CF} \times T/N$。CF 过小 → token 被丢弃（overflow）→ 信息损失；CF 过大 → 计算浪费（padding）。CF 需根据负载不均匀程度动态调整。
+
+> **追问：** DeepSeek-MoE 提出 fine-grained expert segmentation（将大 expert 拆为多个小 expert）与 shared expert 机制。这种设计如何从根本上缓解负载均衡（要求均匀）与模型能力（要求专精）之间的张力？
+
+---
+
+**Q29: ZeRO-3 的 All-Gather 通信如何与前向/反向计算重叠（overlap）？为什么 naive 实现会导致显著的通信瓶颈？**
+
+ZeRO-3 每层前向需 All-Gather 完整参数才能计算。**Naive 实现**：All-Gather → 等待 → 计算 → 释放，通信与计算串行，GPU 空闲等待时间长。
+
+**Overlap 策略（以反向为例的依赖图分析）：**
+
+```
+前向：compute(L) ← All-Gather(L)          compute(L+1) ← All-Gather(L+1)
+       ↓ 可重叠：compute(L) 执行时，异步 prefetch All-Gather(L+1)
+```
+
+- **前向：** 计算第 $l$ 层时，异步启动第 $l+1$ 层参数的 All-Gather（prefetch）。要求：第 $l$ 层计算时间 ≥ 第 $l+1$ 层通信时间。
+- **反向：** 类似地，计算第 $l$ 层梯度时 prefetch 第 $l-1$ 层参数，同时 Reduce-Scatter 第 $l$ 层梯度也可与下一层计算重叠。
+
+**代价：** 同时持有的参数副本增加（当前层 + prefetch 层），显存压力上升。总通信量约 $3 \times |\theta|$ per step（高于 DP 的 $2 \times |\theta|$），在跨节点带宽有限时可能成为瓶颈。
+
+> **追问：** 在什么模型规模和硬件条件下，ZeRO-3 的通信开销会变得不可接受，使得 TP（节点内 NVLink）+ ZeRO-2 成为更优选择？请从通信量与计算量的比值角度分析。
+
+---
+
+**Q30: DPO 的训练数据是 off-policy 的（由 $\pi_{\text{ref}}$ 生成），这会导致什么理论偏差？Iterative DPO 如何缓解这个问题？**
+
+DPO loss 中的 $\log \frac{\pi_\theta(y|x)}{\pi_{\text{ref}}(y|x)}$ 本质上是 importance-weighted reward 估计。
+
+**Off-policy 偏差来源：**
+- 当 $\pi_\theta$ 与 $\pi_{\text{ref}}$ 分布差距增大时，importance weight 方差增大，梯度估计不稳定
+- 训练数据覆盖的 $y$ 空间固定在 $\pi_{\text{ref}}$ 的支撑集上。$\pi_\theta$ 可能已学会生成训练数据中未见过的 response，但这些 response 无法被 DPO loss 评估 → 优化信号存在盲区
+- 类似 off-policy RL 中的 distribution shift：策略越偏离数据收集策略，估计越不可靠
+
+**Iterative DPO 的缓解：**
+1. 用当前 $\pi_\theta$ 采样新的 response
+2. 用 reward model 或人工标注偏好
+3. 以新 $\pi_\theta$ 作为新 $\pi_{\text{ref}}$，重新训练 DPO
+4. 重复 → 训练数据逐步 on-policy
+
+**Online DPO** 更进一步：在训练循环中实时采样 $\pi_\theta$ 的 output，用 RM 打分后立即更新。
+
+> **追问：** Online DPO 中，如果 reward model 本身存在系统性偏差（如偏好冗长回答），online 迭代会如何放大这个问题？这与 PPO 中的 reward hacking 在机制上有何异同？
+
+---
+
+**Q31: RLHF 中 reward model 过优化（overoptimization）的现象如何用理论解释？proxy reward 与真实质量的分歧如何随 KL 增大而变化？**
+
+这是 **Goodhart's Law** 的体现：当优化一个 proxy 指标到极致时，该指标与真实目标脱钩。
+
+**理论直觉：**
+- 设真实 reward $r^*(x,y)$，proxy RM $r_\phi(x,y)$，二者之差为 $\delta(x,y) = r_\phi - r^*$
+- $\pi_\theta$ 沿 $\nabla_\theta \mathbb{E}[r_\phi]$ 方向优化时，不仅提升了 $r^*$，也同时在"钻 $\delta$ 的空子"——进入 $r_\phi$ 高估的区域
+- 随 $\text{KL}(\pi_\theta \| \pi_{\text{ref}})$ 增大，策略偏离训练分布越远，$r_\phi$ 的泛化误差（$|\delta|$）单调增大
+- 定性观察：proxy reward 持续上升，真实质量先升后降，两条曲线的交叉点即为"过优化拐点"
+
+**影响分歧速率的因素：**
+- RM 容量越大、偏好数据越多样 → 拐点出现越晚
+- 策略探索空间越大（生成越长、越多样）→ 越容易找到 reward hacking 的路径
+
+**缓解策略：** KL 惩罚、RM ensemble（取多个 RM 的 min 或 variance penalty）、定期更新 RM。
+
+> **追问：** Reward model ensemble 在实践中如何利用多个 RM 之间的一致性与不一致性？取 min、取均值、还是用 disagreement 作为 uncertainty signal 各自的优劣是什么？计算开销如何影响其可行性？
+
+---
+
+**Q32: Multi-head Latent Attention (MLA) 如何通过低秩压缩减少 KV cache 显存？与 GQA 在压缩机制上有何本质区别？**
+
+MLA 不再存储完整的 $K, V$，而是存储低维 **latent vector** $c_t^{KV}$，推理时再解压：
+
+$$c_t^{KV} = W^{DKV} h_t \in \mathbb{R}^{d_c}, \quad d_c \ll n_h \cdot d_h$$
+
+KV cache 仅保存 $c_t^{KV}$（维度 $d_c$），计算 attention 时投影回：
+
+$$k_t = W^{UK} c_t^{KV}, \quad v_t = W^{UV} c_t^{KV}$$
+
+KV cache 大小从 $2 \times L \times n_h \times d_h \times s$ 降为 $L \times d_c \times s$（$d_c$ 可远小于 $2 n_h d_h$）。
+
+**与 GQA 的本质区别：**
+
+| 维度 | GQA | MLA |
+|------|-----|-----|
+| 压缩对象 | head 维度（减少 KV head 数） | feature 维度（低秩投影） |
+| 压缩性质 | 离散的、结构化的（head 分组） | 连续的、灵活的（可学习子空间） |
+| cache 内容 | 真实 K, V 值（只是 head 少了） | 压缩后的 latent vector（需解压） |
+| 多样性保持 | 直接保留独立 head | 依赖低秩子空间的表达能力 |
+
+MLA 的优势：可以在保持较多 Q head 数的同时大幅压缩 cache（head 数不再直接决定 cache 大小）。代价：推理时需额外投影计算，且低秩约束可能限制不同 head 的 pattern 多样性。
+
+> **追问：** MLA 的低秩压缩是否会导致不同 head 的 attention pattern 趋同（loss of head diversity）？投影矩阵 $W^{UK}$ 的高秩性是否能完全缓解这种风险？实践中有什么信号可以检测 head 多样性的退化？

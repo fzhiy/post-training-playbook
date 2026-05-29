@@ -713,3 +713,59 @@ $$D_{\text{KL}} = -\frac{1}{2}\sum_j (1 + \log\sigma_j^2 - \mu_j^2 - \sigma_j^2)
 ---
 
 *Last updated: 2025 | 本手册仅供学习参考，公式以原始文献为准。*
+
+## 更多 L3 深挖 / Extended L3
+
+- **Q26**: **Fisher 信息矩阵 (Fisher Information Matrix, FIM) 与自然梯度 (Natural Gradient) 有什么内在联系？为什么说 natural gradient 是 KL 意义下的最速下降？**
+
+  **答**：Fisher 信息矩阵定义为对数似然梯度的协方差：$F(\theta) = E_{x \sim p_\theta}\!\left[\nabla_\theta \log p_\theta(x)\, \nabla_\theta \log p_\theta(x)^\top\right]$。它同时也是对数似然 Hessian 的负期望（在 MLE 处），并与 KL 散度的局部二次展开密切相关：$D_{\text{KL}}(p_\theta \| p_{\theta + \delta}) \approx \frac{1}{2}\delta^\top F(\theta)\,\delta$。因此 FIM 是 KL 散度在参数空间的局部度量张量 (metric tensor)。自然梯度定义为 $\tilde{\nabla} = F^{-1}\nabla L$，即在 KL 球约束 $\{δ : D_{\text{KL}}(p_\theta \| p_{\theta+\delta}) \leq \epsilon\}$ 下使损失下降最快的方向。直观理解：普通梯度在欧氏空间中最速下降，但参数空间中等距移动并不对应等概率分布变化；natural gradient 用 FIM 修正了这个"扭曲"，使优化步长在分布空间中是均匀的。
+
+  **追问**：为什么实际训练中通常不直接使用 natural gradient？近似方法有哪些？（提示：K-FAC、EKFAC 对 FIM 进行分块对角近似，降低求逆的计算开销。）
+
+---
+
+- **Q27**: **重参数化技巧 (Reparameterization Trick) 的数学本质是什么？为什么它能降低梯度估计的方差？**
+
+  **答**：在 VAE 中，ELBO 的期望 $E_{z \sim q_\phi(z|x)}[\cdot]$ 的梯度无法直接通过采样节点反向传播（采样操作不可微）。重参数化技巧将 $z \sim q_\phi = \mathcal{N}(\mu_\phi, \sigma_\phi^2)$ 改写为 $z = \mu_\phi + \sigma_\phi \odot \epsilon$，其中 $\epsilon \sim \mathcal{N}(0, I)$。这样随机性来源从参数 $\phi$ 转移到了无参数的噪声 $\epsilon$，而 $z$ 关于 $\phi$ 是确定性可微的，梯度可以通过标准反向传播传递到 $\mu_\phi$ 和 $\sigma_\phi$。相比 score function estimator（REINFORCE）$\nabla_\phi E_q[f(z)] = E_q[f(z)\nabla_\phi \log q_\phi(z)]$，重参数化将梯度信息直接编码到计算图中，不依赖 $f(z)$ 作为标量乘子，因此方差显著更低。本质上，score function estimator 只用 $f(z)$ 的标量值作为权重，而重参数化利用了 $f$ 对 $z$ 的局部梯度 $\partial f / \partial z$，提供了更丰富的信号。
+
+  **追问**：对于离散隐变量（如离散 VAE），重参数化技巧不直接适用，有哪些替代方案？（提示：Gumbel-Softmax / Concrete 分布用连续松弛近似离散采样，保持可微性。）
+
+---
+
+- **Q28**: **矩阵的谱范数 (Spectral Norm) $\|W\|_2 = \sigma_1$ 如何控制神经网络的 Lipschitz 常数？这对训练稳定性有何意义？**
+
+  **答**：一个函数 $f$ 的 Lipschitz 常数 $L$ 满足 $\|f(x) - f(y)\| \leq L\|x - y\|$。对于线性层 $f(x) = Wx$，Lipschitz 常数恰好等于 $\|W\|_2 = \sigma_1$（最大奇异值）。对于 $k$ 层网络 $f = W_k \cdots W_1$，整体 Lipschitz 常数 $L \leq \prod_i \|W_i\|_2$，即各层谱范数之积。如果 $L$ 过大，输入的微小扰动会在前向传播中指数放大（exploding activations），梯度也会在反向传播中指数放大（exploding gradients），导致训练不稳定。Spectral normalization（将每层权重除以其谱范数：$\hat{W} = W / \sigma_1$）将每层 Lipschitz 常数约束为 1，广泛用于 GAN 的判别器训练以防止模式崩溃 (mode collapse)。谱范数可通过幂迭代 (power iteration) 高效近似，无需完整 SVD。
+
+  **追问**：为什么 GAN 训练中对判别器施加 Lipschitz 约束（如 spectral normalization 或 gradient penalty）是必要的？如果不约束会出现什么问题？（提示：Wasserstein 距离要求判别器属于 1-Lipschitz 函数类，否则目标无界。）
+
+---
+
+- **Q29**: **矩阵求迹技巧 (Trace Trick) 的核心等式是什么？它在推导哪些 ML 公式时不可或缺？**
+
+  **答**：核心等式是 $\text{tr}(AB) = \text{tr}(BA)$（循环置换不变性）以及标量等于其自身的迹：$x^\top A x = \text{tr}(x^\top A x) = \text{tr}(A x x^\top)$。这使得对含矩阵乘积的标量函数求导变得可行。典型应用：(1) 线性回归的矩阵微分 $\nabla_W \|Y - XW\|_F^2 = \nabla_W \text{tr}((Y-XW)^\top(Y-XW))$，展开后利用 $\nabla_W \text{tr}(AW) = A^\top$ 得到闭合解；(2) 多元高斯对数似然中 $\log |\Sigma|$ 和 $x^\top \Sigma^{-1} x$ 的求导；(3) 协方差矩阵的 MLE 推导 $\hat{\Sigma} = \frac{1}{N}\sum_i (x_i - \mu)(x_i - \mu)^\top$；(4) 线性动态系统 (Kalman filter) 中矩阵 Riccati 方程的推导。总之，任何涉及矩阵二次型求导的场景，trace trick 都是核心工具。
+
+  **追问**：试用 trace trick 推导多元高斯 $\mathcal{N}(\mu, \Sigma)$ 关于 $\Sigma^{-1}$（精度矩阵 $\Lambda$）的 MLE。提示：对数似然中含 $\text{tr}(\Lambda S)$ 和 $\log|\Lambda|$ 两项。（答：$\hat{\Lambda} = S^{-1}$，即 MLE 精度矩阵为样本协方差的逆。）
+
+---
+
+- **Q30**: **Schur 补 (Schur Complement) 与多元高斯的条件分布 (Conditional Distribution) 之间有什么精确的数学对应？**
+
+  **答**：设联合分布 $(x_a, x_b) \sim \mathcal{N}(\mu, \Sigma)$，将协方差矩阵分块为 $\Sigma = \begin{pmatrix} \Sigma_{aa} & \Sigma_{ab} \\ \Sigma_{ba} & \Sigma_{bb} \end{pmatrix}$。条件分布 $P(x_a \mid x_b)$ 仍为高斯，其精度矩阵（逆协方差）中 $\Sigma_{aa|b}^{-1}$ 的左上角块恰好是联合精度矩阵 $\Sigma^{-1}$ 的对应块 $\Sigma^{aa}$，这就是 Schur 补：$\Sigma^{aa} = (\Sigma_{aa} - \Sigma_{ab}\Sigma_{bb}^{-1}\Sigma_{ba})^{-1}$。条件均值为 $\mu_{a|b} = \mu_a + \Sigma_{ab}\Sigma_{bb}^{-1}(x_b - \mu_b)$。这个对应有深远意义：(1) 高斯图模型 (Gaussian Markov Random Field) 中，精度矩阵的零元素对应条件独立关系，比协方差矩阵更直接编码了条件结构；(2) 高斯过程 (GP) 的后验预测本质上就是条件高斯，利用 Schur 补给出闭合解；(3) Kalman filter 的更新步也可以从 Schur 补角度理解。
+
+  **追问**：为什么在高斯图模型中用精度矩阵而不是协方差矩阵来编码图结构？条件独立与精度矩阵零元素的关系是什么？（答：$x_i \perp x_j \mid \text{rest}$ 当且仅当 $\Sigma^{-1}_{ij} = 0$，即精度矩阵的非零模式直接对应图的边结构。）
+
+---
+
+- **Q31**: **Wasserstein 距离 (Wasserstein Distance) 与 KL 散度在度量分布差异时有何本质区别？为什么 WGAN 要用 Wasserstein 而非 KL？**
+
+  **答**：KL 散度 $D_{\text{KL}}(P \| Q)$ 在两个分布的支撑不重叠时为无穷大（即使它们在几何上很"近"），这在高维空间中几乎总是成立，因为两个低维流形支撑集重叠的概率极低。Wasserstein 距离（推土机距离, Earth Mover's Distance）基于最优传输 (optimal transport)，定义为 $W(P, Q) = \inf_{\gamma \in \Pi(P,Q)} E_{(x,y)\sim\gamma}[\|x - y\|]$，即使支撑不重叠也能给出有意义的有限距离。直观类比：KL 只看比值 $P/Q$（如果 $Q$ 在 $P$ 有质量的地方为 0，就"爆炸"了），Wasserstein 看把一堆"土"搬到另一堆需要的最少"工作量"。因此 Wasserstein 在分布不重叠时仍有平滑的梯度信号，而 KL 或 JS 散度会导致梯度消失。WGAN 用 Wasserstein-1 距离作为生成器目标，通过 Kantorovich-Rubinstein 对偶转化为对 1-Lipschitz 判别器的优化，解决了经典 GAN 训练不稳定的问题。
+
+  **追问**：Wasserstein 距离的计算代价通常高于 KL 散度，在高维情况下如何近似？（提示：Sinkhorn 算法在最优传输中加入熵正则化，将线性规划转化为可并行化的矩阵缩放迭代；Sliced Wasserstein 通过随机投影将高维问题降为多个一维问题。）
+
+---
+
+- **Q32**: **Hessian 矩阵的谱性质 (spectrum) 如何刻画损失函数的局部几何结构？这对理解优化中的鞍点和逃离策略有何帮助？**
+
+  **答**：在临界点（梯度为零处），Hessian $H$ 的特征值分布决定了局部几何：(1) 所有特征值 $> 0$（正定）→ 局部极小，曲面呈碗状；(2) 所有特征值 $< 0$（负定）→ 局部极大；(3) 有正有负（不定）→ 鞍点，沿负曲率方向是下降方向。在高维参数空间中，鞍点远多于局部极小（因为特征值全部为正的"概率"指数衰减），这是非凸优化的主要障碍。逃离鞍点的策略：(1) SGD 的梯度噪声自然提供沿负曲率方向的扰动，帮助逃离——这是 SGD 噪声的隐式正则化效应的几何解释；(2) 动量 (momentum) 帮助穿越平坦区域；(3) 显式方法如添加 Hessian 负曲率方向的扰动（尚不常用但理论上有效）。Hessian 的特征值谱还与泛化相关：极小值处 Hessian 的特征值越大（曲面越"尖锐"），该极小值的泛化能力通常越差——这启发了 sharpness-aware minimization (SAM) 等方法。
+
+  **追问**：为什么在极高维空间中，鞍点问题比局部极小问题更严重？如何从 Hessian 的特征值分布来解释？（答：在 $n$ 维空间中，Hessian 有 $n$ 个特征值；在随机临界点处，每个特征值等概率正或负，全部为正的概率为 $2^{-n}$，指数级小，因此几乎任何临界点都是鞍点而非极小值。）
