@@ -4,141 +4,114 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RMSNorm 从零实现学习练习 / From-Scratch RMSNorm Study Drill</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 <style>
-  :root { color-scheme: light dark; }
-  body { max-width: 820px; margin: 0 auto; padding: 1rem 1.1rem 4rem;
-         font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-         word-wrap: break-word; }
-  h1,h2,h3 { line-height: 1.3; margin-top: 1.6em; }
-  h1 { font-size: 1.5rem; } h2 { font-size: 1.25rem; border-bottom: 1px solid #8884; padding-bottom: .2em; }
-  code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: .9em; }
-  :not(pre) > code { background: #8882; padding: .1em .35em; border-radius: 4px; }
-  pre { background: #2b2b2b08; padding: .9rem; border-radius: 8px; overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
-  th,td { border: 1px solid #8886; padding: .4em .6em; text-align: left; }
-  blockquote { border-left: 3px solid #8888; margin: 1em 0; padding: .2em 1em; color: #666; }
-  a { color: #0a7; }
+  :root{color-scheme:light dark}
+  body{max-width:820px;margin:0 auto;padding:1rem 1.1rem 4rem;
+       font:16px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;word-wrap:break-word}
+  h1,h2,h3{line-height:1.3;margin-top:1.6em}
+  h1{font-size:1.5rem}
+  h2{font-size:1.25rem;border-bottom:1px solid #8884;padding-bottom:.2em}
+  code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.9em}
+  :not(pre)>code{background:#8882;padding:.1em .35em;border-radius:4px}
+  pre{background:#2b2b2b0d;padding:.9rem;border-radius:8px;overflow-x:auto}
+  pre code{display:block;white-space:pre}
+  table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
+  th,td{border:1px solid #8886;padding:.4em .6em;text-align:left}
+  blockquote{border-left:3px solid #8888;margin:1em 0;padding:.2em 1em;color:#888}
+  a{color:#0a7}
+  nav.top{font-size:.88rem;margin-bottom:1rem}
+  .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
+  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}pre{background:#ffffff12}}
 </style>
-<script>
-  window.MathJax = {
-    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
-    startup: { typeset: false }
-  };
-</script>
-<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
 </head>
 <body>
-<nav style="max-width:820px;margin:0 auto 1rem;font-size:.88rem"><a href="index.html" style="color:#0a7;text-decoration:none">← 复习索引 / Study Index</a></nav>
-<article id="out"></article>
-<!-- 原始 markdown 嵌在下面;渲染器只替换 # RMSNorm 从零实现学习练习 / From-Scratch RMSNorm Study Drill
-
-
-
-> 从零手写 **RMSNorm (Root-Mean-Square Layer Normalization)**，与 PyTorch `nn.RMSNorm` 对比验证，加深对归一化层的理解。
-
----
-
-## 1. 数学原理 / The Math
-
-给定输入向量 $\mathbf{x} \in \mathbb{R}^d$，RMSNorm 的计算过程如下：
-
-**Step 1 — 计算均方根 (Root Mean Square)**：
-
-$$\text{RMS}(\mathbf{x}) = \sqrt{\frac{1}{d}\sum_{i=1}^{d} x_i^2 + \epsilon}$$
-
-**Step 2 — 归一化并缩放 (Normalize & Scale)**：
-
-$$\text{RMSNorm}(\mathbf{x}) = \frac{\mathbf{x}}{\text{RMS}(\mathbf{x})} \odot \boldsymbol{\gamma}$$
-
-其中：
-- $\boldsymbol{\gamma} \in \mathbb{R}^d$ 是可学习的增益向量 (learnable gain vector)，初始化为全 $\mathbf{1}$
-- $\epsilon$ 是防止除零的极小常数 (代码中默认 $10^{-6}$)
-- $\odot$ 表示逐元素乘法 (element-wise multiplication)
-
-**与 LayerNorm 的对比**：LayerNorm 会先减均值 (re-centering) 再除以标准差；RMSNorm 省去了减均值这一步，也不含 bias 项，仅通过 RMS 缩放。计算更轻量，实践中效果相当。
-
----
-
-## 2. 直觉与复杂度 / Intuition & Complexity
-
-**直觉**：RMSNorm 的核心思想是——"不需要把数据居中，只要把向量的长度 (scale) 统一就行"。每个 token 在 hidden dimension 上的向量被缩放到相似的幅度，使后续层的权重能够更稳定地工作。可以把 $\boldsymbol{\gamma}$ 想象为归一化后给每个特征重新"调音量"的旋钮。
-
-**复杂度**：
-- **时间复杂度**：$O(d)$，对最后一维做一次逐元素平方、一次求和、一次开方、一次除法，加上逐元素乘 $\boldsymbol{\gamma}$
-- **空间复杂度**：$O(1)$ 额外空间（`keepdim=True` 产生的中间张量形状为 $(B, S, 1)$，不随 $d$ 增长）
-- 对比 LayerNorm，省去了均值计算与减法，理论 FLOPs 约减少 20–30%
-
----
-
-## 3. 文件说明 / Files
-
-本练习目录下**仅含**以下三个文件：
-
-| 文件 | 说明 |
-|---|---|
-| `from_scratch.py` | RMSNorm 手写实现 (`RMSNorm` 类) 及简易自测脚本 |
-| `test_rmsnorm.py` | 完整测试套件：形状、数值、与 `nn.RMSNorm` 对比、梯度等 |
-| `README.md` | 本说明文档 |
-
----
-
-## 4. 运行方式 / Run
-
-```bash
-# 运行演示与自测 / Demo & self-test
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<article id="out"><h1>RMSNorm 从零实现学习练习 / From-Scratch RMSNorm Study Drill</h1>
+<blockquote>
+<p>从零手写 <strong>RMSNorm (Root-Mean-Square Layer Normalization)</strong>，与 PyTorch <code>nn.RMSNorm</code> 对比验证，加深对归一化层的理解。</p>
+</blockquote>
+<hr>
+<h2>1. 数学原理 / The Math</h2>
+<p>给定输入向量 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold">x</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mi>d</mi></msup></mrow><annotation encoding="application/x-tex">\mathbf{x} \in \mathbb{R}^d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathbf">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">d</span></span></span></span></span></span></span></span></span></span></span>，RMSNorm 的计算过程如下：</p>
+<p><strong>Step 1 — 计算均方根 (Root Mean Square)</strong>：</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>RMS</mtext><mo stretchy="false">(</mo><mi mathvariant="bold">x</mi><mo stretchy="false">)</mo><mo>=</mo><msqrt><mrow><mfrac><mn>1</mn><mi>d</mi></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>d</mi></munderover><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup><mo>+</mo><mi>ϵ</mi></mrow></msqrt></mrow><annotation encoding="application/x-tex">\text{RMS}(\mathbf{x}) = \sqrt{\frac{1}{d}\sum_{i=1}^{d} x_i^2 + \epsilon}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">RMS</span></span><span class="mopen">(</span><span class="mord mathbf">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3.3415em;vertical-align:-1.2777em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.0639em;"><span class="svg-align" style="top:-5.3015em;"><span class="pstrut" style="height:5.3015em;"></span><span class="mord" style="padding-left:1.056em;"><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">d</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8361em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">d</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7959em;"><span style="top:-2.4231em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span><span style="top:-3.0448em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2769em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">ϵ</span></span></span><span style="top:-4.0239em;"><span class="pstrut" style="height:5.3015em;"></span><span class="hide-tail" style="min-width:0.742em;height:3.3815em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="3.3815em" viewBox="0 0 400000 3381" preserveAspectRatio="xMinYMin slice"><path d="M702 80H40000040
+H742v3247l-4 4-4 4c-.667.7 -2 1.5-4 2.5s-4.167 1.833-6.5 2.5-5.5 1-9.5 1
+h-12l-28-84c-16.667-52-96.667 -294.333-240-727l-212 -643 -85 170
+c-4-3.333-8.333-7.667-13 -13l-13-13l77-155 77-156c66 199.333 139 419.667
+219 661 l218 661zM702 80H400000v40H742z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span></span></span></span></span></p>
+<p><strong>Step 2 — 归一化并缩放 (Normalize &amp; Scale)</strong>：</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>RMSNorm</mtext><mo stretchy="false">(</mo><mi mathvariant="bold">x</mi><mo stretchy="false">)</mo><mo>=</mo><mfrac><mi mathvariant="bold">x</mi><mrow><mtext>RMS</mtext><mo stretchy="false">(</mo><mi mathvariant="bold">x</mi><mo stretchy="false">)</mo></mrow></mfrac><mo>⊙</mo><mi mathvariant="bold-italic">γ</mi></mrow><annotation encoding="application/x-tex">\text{RMSNorm}(\mathbf{x}) = \frac{\mathbf{x}}{\text{RMS}(\mathbf{x})} \odot \boldsymbol{\gamma}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">RMSNorm</span></span><span class="mopen">(</span><span class="mord mathbf">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0574em;vertical-align:-0.936em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.1214em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">RMS</span></span><span class="mopen">(</span><span class="mord mathbf">x</span><span class="mclose">)</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathbf">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⊙</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord"><span class="mord boldsymbol" style="margin-right:0.0639em;">γ</span></span></span></span></span></span></span></p>
+<p>其中：</p>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold-italic">γ</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mi>d</mi></msup></mrow><annotation encoding="application/x-tex">\boldsymbol{\gamma} \in \mathbb{R}^d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7335em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord"><span class="mord boldsymbol" style="margin-right:0.0639em;">γ</span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">d</span></span></span></span></span></span></span></span></span></span></span> 是可学习的增益向量 (learnable gain vector)，初始化为全 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn mathvariant="bold">1</mn></mrow><annotation encoding="application/x-tex">\mathbf{1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord mathbf">1</span></span></span></span></li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">ϵ</span></span></span></span> 是防止除零的极小常数 (代码中默认 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>10</mn><mrow><mo>−</mo><mn>6</mn></mrow></msup></mrow><annotation encoding="application/x-tex">10^{-6}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">6</span></span></span></span></span></span></span></span></span></span></span></span>)</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>⊙</mo></mrow><annotation encoding="application/x-tex">\odot</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord">⊙</span></span></span></span> 表示逐元素乘法 (element-wise multiplication)</li>
+</ul>
+<p><strong>与 LayerNorm 的对比</strong>：LayerNorm 会先减均值 (re-centering) 再除以标准差；RMSNorm 省去了减均值这一步，也不含 bias 项，仅通过 RMS 缩放。计算更轻量，实践中效果相当。</p>
+<hr>
+<h2>2. 直觉与复杂度 / Intuition &amp; Complexity</h2>
+<p><strong>直觉</strong>：RMSNorm 的核心思想是——&quot;不需要把数据居中，只要把向量的长度 (scale) 统一就行&quot;。每个 token 在 hidden dimension 上的向量被缩放到相似的幅度，使后续层的权重能够更稳定地工作。可以把 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold-italic">γ</mi></mrow><annotation encoding="application/x-tex">\boldsymbol{\gamma}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord"><span class="mord boldsymbol" style="margin-right:0.0639em;">γ</span></span></span></span></span></span> 想象为归一化后给每个特征重新&quot;调音量&quot;的旋钮。</p>
+<p><strong>复杂度</strong>：</p>
+<ul>
+<li><strong>时间复杂度</strong>：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span>，对最后一维做一次逐元素平方、一次求和、一次开方、一次除法，加上逐元素乘 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold-italic">γ</mi></mrow><annotation encoding="application/x-tex">\boldsymbol{\gamma}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord"><span class="mord boldsymbol" style="margin-right:0.0639em;">γ</span></span></span></span></span></span></li>
+<li><strong>空间复杂度</strong>：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(1)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord">1</span><span class="mclose">)</span></span></span></span> 额外空间（<code>keepdim=True</code> 产生的中间张量形状为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mi>B</mi><mo separator="true">,</mo><mi>S</mi><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(B, S, 1)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">S</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">)</span></span></span></span>，不随 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span> 增长）</li>
+<li>对比 LayerNorm，省去了均值计算与减法，理论 FLOPs 约减少 20–30%</li>
+</ul>
+<hr>
+<h2>3. 文件说明 / Files</h2>
+<p>本练习目录下<strong>仅含</strong>以下三个文件：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>from_scratch.py</code></td>
+<td>RMSNorm 手写实现 (<code>RMSNorm</code> 类) 及简易自测脚本</td>
+</tr>
+<tr>
+<td><code>test_rmsnorm.py</code></td>
+<td>完整测试套件：形状、数值、与 <code>nn.RMSNorm</code> 对比、梯度等</td>
+</tr>
+<tr>
+<td><code>README.md</code></td>
+<td>本说明文档</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. 运行方式 / Run</h2>
+<pre><code class="language-bash"># 运行演示与自测 / Demo &amp; self-test
 python from_scratch.py
 
 # 运行完整测试 / Full test suite
 python test_rmsnorm.py
-```
-
----
-
-## 5. 追问分层 / Stratified Follow-ups
-
-### L1 — 基础 / Basic
-
-1. **RMSNorm 和 LayerNorm 最核心的区别是什么？** 为什么去掉 mean subtraction 在实践中仍然有效？
-2. **$\epsilon$ 的作用是什么？** 如果设为 0 会出现什么问题？
-3. **$\boldsymbol{\gamma}$ 初始化为全 1 的意义是什么？** 这使得网络在训练初期的行为等价于什么操作？
-4. 代码中 `mean(dim=-1, keepdim=True)` 的 `keepdim=True` 起什么作用？去掉会怎样？
-
-### L2 — 进阶 / Intermediate
-
-5. **RMSNorm 的梯度公式是什么？** 请手动推导 $\frac{\partial \text{RMSNorm}(\mathbf{x})_j}{\partial x_i}$，并解释其物理含义。
-6. 为什么 RMSNorm 在大语言模型（如 LLaMA、Gemma）中几乎取代了 LayerNorm？从 **计算效率** 和 **训练稳定性** 两个角度分析。
-7. 如果输入 $\mathbf{x}$ 的数值范围差异极大（某维度数值为 $10^6$ 级，另一维度为 $10^{-6}$ 级），RMSNorm 会如何处理？这与 z-score normalization 有何不同？
-8. **能否把 RMSNorm 用在第一维 (batch dimension) 而非最后一维？** 为什么实际中从不这样做？
-
-### L3 — 深入 / Deep
-
-9. **RMSNorm 与 $\ell_2$ 归一化 (unit normalization) 的关系**：当 $\boldsymbol{\gamma} = \mathbf{1}$ 时，$\text{RMSNorm}(\mathbf{x})$ 的范数是多少？它和 $\frac{\mathbf{x}}{\|\mathbf{x}\|_2}$ 差一个什么常数因子？这个因子随 $d$ 如何变化？
-10. **对 Softmax 的影响**：如果把 Transformer 中的 RMSNorm 换成 LayerNorm，在 attention score 的分布上会产生什么可观察的差异？请从理论上推导或给出直觉解释。
-11. **RMSNorm 对梯度缩放的影响**：在深层 Transformer 中，RMSNorm 对反向传播中的梯度范数起到什么调节作用？能否从 Jacobian 矩阵的谱范数角度分析？
-12. **并行化视角**：RMSNorm 的计算是否适合和 attention / FFN 做 **fused parallel**（如 Parallel Transformer）？为什么？在硬件层面（GPU warp-level），RMSNorm 的 reduction 操作是瓶颈吗？,内容里的 </script> 须转义为 <\/script> -->
-<script id="doc" type="text/markdown">{{MARKDOWN}}</script>
-<script>
-  window.addEventListener('DOMContentLoaded', () => {
-    const raw = document.getElementById('doc').textContent;
-    // 保护 LaTeX,避免被 markdown 解析吃掉
-    const math = [];
-    const keep = (m) => { math.push(m); return `@@M${math.length - 1}@@`; };
-    const protectedText = raw
-      .replace(/\$\$([\s\S]+?)\$\$/g, keep)
-      .replace(/\\\[([\s\S]+?)\\\]/g, keep)
-      .replace(/\\\(([\s\S]+?)\\\)/g, keep)
-      .replace(/\$([^\$\n]+?)\$/g, keep);
-    let html = marked.parse(protectedText);
-    html = html.replace(/@@M(\d+)@@/g, (_, i) => math[+i]);
-    document.getElementById('out').innerHTML = html;
-    document.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
-    if (window.MathJax && MathJax.startup) {
-      MathJax.startup.promise.then(() => MathJax.typesetPromise());
-    }
-  });
-</script>
+</code></pre>
+<hr>
+<h2>5. 追问分层 / Stratified Follow-ups</h2>
+<h3>L1 — 基础 / Basic</h3>
+<ol>
+<li><strong>RMSNorm 和 LayerNorm 最核心的区别是什么？</strong> 为什么去掉 mean subtraction 在实践中仍然有效？</li>
+<li><strong><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">ϵ</span></span></span></span> 的作用是什么？</strong> 如果设为 0 会出现什么问题？</li>
+<li><strong><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold-italic">γ</mi></mrow><annotation encoding="application/x-tex">\boldsymbol{\gamma}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord"><span class="mord boldsymbol" style="margin-right:0.0639em;">γ</span></span></span></span></span></span> 初始化为全 1 的意义是什么？</strong> 这使得网络在训练初期的行为等价于什么操作？</li>
+<li>代码中 <code>mean(dim=-1, keepdim=True)</code> 的 <code>keepdim=True</code> 起什么作用？去掉会怎样？</li>
+</ol>
+<h3>L2 — 进阶 / Intermediate</h3>
+<ol start="5">
+<li><strong>RMSNorm 的梯度公式是什么？</strong> 请手动推导 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mi mathvariant="normal">∂</mi><mtext>RMSNorm</mtext><mo stretchy="false">(</mo><mi mathvariant="bold">x</mi><msub><mo stretchy="false">)</mo><mi>j</mi></msub></mrow><mrow><mi mathvariant="normal">∂</mi><msub><mi>x</mi><mi>i</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">\frac{\partial \text{RMSNorm}(\mathbf{x})_j}{\partial x_i}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.4774em;vertical-align:-0.4451em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.0323em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight" style="margin-right:0.0556em;">∂</span><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3281em;"><span style="top:-2.357em;margin-left:0em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.5073em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight" style="margin-right:0.0556em;">∂</span><span class="mord text mtight"><span class="mord mtight">RMSNorm</span></span><span class="mopen mtight">(</span><span class="mord mathbf mtight">x</span><span class="mclose mtight"><span class="mclose mtight">)</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3281em;"><span style="top:-2.357em;margin-left:0em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2819em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.4451em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span>，并解释其物理含义。</li>
+<li>为什么 RMSNorm 在大语言模型（如 LLaMA、Gemma）中几乎取代了 LayerNorm？从 <strong>计算效率</strong> 和 <strong>训练稳定性</strong> 两个角度分析。</li>
+<li>如果输入 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold">x</mi></mrow><annotation encoding="application/x-tex">\mathbf{x}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4444em;"></span><span class="mord mathbf">x</span></span></span></span> 的数值范围差异极大（某维度数值为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>10</mn><mn>6</mn></msup></mrow><annotation encoding="application/x-tex">10^6</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">6</span></span></span></span></span></span></span></span></span></span></span> 级，另一维度为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>10</mn><mrow><mo>−</mo><mn>6</mn></mrow></msup></mrow><annotation encoding="application/x-tex">10^{-6}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">6</span></span></span></span></span></span></span></span></span></span></span></span> 级），RMSNorm 会如何处理？这与 z-score normalization 有何不同？</li>
+<li><strong>能否把 RMSNorm 用在第一维 (batch dimension) 而非最后一维？</strong> 为什么实际中从不这样做？</li>
+</ol>
+<h3>L3 — 深入 / Deep</h3>
+<ol start="9">
+<li><strong>RMSNorm 与 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">ℓ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\ell_2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">ℓ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 归一化 (unit normalization) 的关系</strong>：当 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="bold-italic">γ</mi><mo>=</mo><mn mathvariant="bold">1</mn></mrow><annotation encoding="application/x-tex">\boldsymbol{\gamma} = \mathbf{1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord"><span class="mord boldsymbol" style="margin-right:0.0639em;">γ</span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord mathbf">1</span></span></span></span> 时，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext>RMSNorm</mtext><mo stretchy="false">(</mo><mi mathvariant="bold">x</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\text{RMSNorm}(\mathbf{x})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">RMSNorm</span></span><span class="mopen">(</span><span class="mord mathbf">x</span><span class="mclose">)</span></span></span></span> 的范数是多少？它和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mi mathvariant="bold">x</mi><mrow><mi mathvariant="normal">∥</mi><mi mathvariant="bold">x</mi><msub><mi mathvariant="normal">∥</mi><mn>2</mn></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">\frac{\mathbf{x}}{\|\mathbf{x}\|_2}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.2251em;vertical-align:-0.52em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7051em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∥</span><span class="mord mathbf mtight">x</span><span class="mord mtight"><span class="mord mtight">∥</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3173em;"><span style="top:-2.357em;margin-left:0em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathbf mtight">x</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.52em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span> 差一个什么常数因子？这个因子随 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span> 如何变化？</li>
+<li><strong>对 Softmax 的影响</strong>：如果把 Transformer 中的 RMSNorm 换成 LayerNorm，在 attention score 的分布上会产生什么可观察的差异？请从理论上推导或给出直觉解释。</li>
+<li><strong>RMSNorm 对梯度缩放的影响</strong>：在深层 Transformer 中，RMSNorm 对反向传播中的梯度范数起到什么调节作用？能否从 Jacobian 矩阵的谱范数角度分析？</li>
+<li><strong>并行化视角</strong>：RMSNorm 的计算是否适合和 attention / FFN 做 <strong>fused parallel</strong>（如 Parallel Transformer）？为什么？在硬件层面（GPU warp-level），RMSNorm 的 reduction 操作是瓶颈吗？</li>
+</ol>
+</article>
 </body>
 </html>

@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// Build the static site into docs/ (served by GitHub Pages → Deploy from /docs).
-//   node build.js
+// Build a FULLY STATIC site into docs/ — markdown + math are pre-rendered at
+// BUILD time (marked + KaTeX); KaTeX CSS/fonts are vendored under
+// docs/vendor/katex/. No runtime CDN → works in mainland China and offline.
 //
-// Reads cheatsheets/*.md and drills/*/README.md, wraps each into _template.html
-// (markdown embedded inline so each page is single-file & opens from file://),
-// and writes a searchable, responsive index hub.
+//   npm install        # marked + katex (build-only)
+//   node build.js
 
 const fs = require('fs');
 const path = require('path');
+const _m = require('marked');
+const marked = _m.marked || _m;            // works across marked v4 / v5+
+const katex = require('katex');
 
 const ROOT = __dirname;
 const OUT = path.join(ROOT, 'docs');
@@ -18,9 +21,30 @@ function titleOf(md, fallback) {
   const m = md.match(/^#\s+(.+)$/m);
   return m ? m[1].trim() : fallback;
 }
+
+// Pre-render math with KaTeX at build time → static HTML (no runtime MathJax).
+function renderWithMath(md) {
+  const slots = [];
+  const tex = (s, display) => {
+    let html;
+    try { html = katex.renderToString(s.trim(), { displayMode: display, throwOnError: false }); }
+    catch (e) { html = '<code>' + s.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code>'; }
+    slots.push(html);
+    return '@@KMATH' + (slots.length - 1) + '@@';
+  };
+  md = md
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_, s) => tex(s, true))
+    .replace(/\\\[([\s\S]+?)\\\]/g, (_, s) => tex(s, true))
+    .replace(/\\\(([\s\S]+?)\\\)/g, (_, s) => tex(s, false))
+    .replace(/\$([^\$\n]+?)\$/g, (_, s) => tex(s, false));
+  let html = marked.parse(md, { async: false });
+  html = html.replace(/@@KMATH(\d+)@@/g, (_, i) => slots[+i]);
+  return html;
+}
+
 function renderDoc(md, title, outFile) {
-  const safe = md.replace(/<\/script>/gi, '<\\/script>');
-  const html = tpl.replace('{{TITLE}}', () => title).replace('{{MARKDOWN}}', () => safe);
+  const content = renderWithMath(md);
+  const html = tpl.replace('{{TITLE}}', () => title).replace('{{CONTENT}}', () => content);
   fs.writeFileSync(path.join(OUT, outFile), html);
 }
 
@@ -41,6 +65,7 @@ for (const d of fs.readdirSync(path.join(ROOT, 'drills')).sort()) {
   items.push({ section: 'Drills 手撕', title: titleOf(md, d), href: out });
 }
 
+// Index hub — pure HTML + vanilla JS search (no CDN, no markdown render needed).
 function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 function buildIndex(items) {
   const groups = {};
@@ -68,30 +93,24 @@ h2{font-size:1rem;margin:1.4rem 0 .6rem;color:#0a7}
 h2 small{color:#999;font-weight:400}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.6rem}
 .card{display:block;padding:.7rem .8rem;border:1px solid #e6e6e6;border-radius:10px;background:#fff;text-decoration:none;color:inherit;font-size:.9rem;line-height:1.35}
-.card:hover{border-color:#0a7;transform:translateY(-1px)}
+.card:hover{border-color:#0a7}
 footer{max-width:980px;margin:1rem auto 3rem;padding:0 1rem;color:#999;font-size:.78rem}
 .hidden{display:none}
-@media(prefers-color-scheme:dark){
- body{color:#ddd;background:#16181c}
- header{background:#1b1e23;border-color:#2c2f36}
- .card{background:#22262c;border-color:#2c2f36}
-}
+@media(prefers-color-scheme:dark){body{color:#ddd;background:#16181c}header{background:#1b1e23;border-color:#2c2f36}.card{background:#22262c;border-color:#2c2f36}}
 </style></head>
 <body>
 <header>
 <h1>Post-Training Playbook</h1>
-<div class="sub">${items.length} 篇 · LLM 后训练面试复习 · 公式 MathJax + 代码高亮 · 手机/电脑均可读 · 输入关键词实时过滤</div>
+<div class="sub">${items.length} 篇 · LLM 后训练面试复习 · 公式/代码已静态渲染(零外部 CDN,国内直连)· 输入关键词过滤</div>
 <input id="q" type="search" placeholder="搜索主题… / filter topics…" autocomplete="off" autofocus>
 </header>
 <main>${sections}</main>
-<footer>AI 辅助整理的学习笔记,WIP,欢迎 issue/PR 纠错。由 <code>node build.js</code> 生成。</footer>
+<footer>AI 辅助整理的学习笔记,WIP,欢迎 issue/PR 纠错。由 <code>node build.js</code> 生成(marked + KaTeX 构建时渲染)。</footer>
 <script>
 const q=document.getElementById('q');
 q.addEventListener('input',function(){
   const v=q.value.trim().toLowerCase();
-  document.querySelectorAll('.card').forEach(function(c){
-    c.classList.toggle('hidden', v.length>0 && c.dataset.t.indexOf(v)<0);
-  });
+  document.querySelectorAll('.card').forEach(function(c){c.classList.toggle('hidden', v.length>0 && c.dataset.t.indexOf(v)<0);});
   document.querySelectorAll('main section').forEach(function(s){
     const any=Array.prototype.some.call(s.querySelectorAll('.card'),function(c){return !c.classList.contains('hidden');});
     s.classList.toggle('hidden', !any);
@@ -102,4 +121,4 @@ q.addEventListener('input',function(){
 }
 
 fs.writeFileSync(path.join(OUT, 'index.html'), buildIndex(items));
-console.log('Built ' + items.length + ' pages into docs/');
+console.log('Built ' + items.length + ' static pages into docs/ (markdown + math pre-rendered, zero runtime CDN)');

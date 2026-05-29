@@ -4,141 +4,102 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PPO Clipped Surrogate Objective 学习演练</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 <style>
-  :root { color-scheme: light dark; }
-  body { max-width: 820px; margin: 0 auto; padding: 1rem 1.1rem 4rem;
-         font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-         word-wrap: break-word; }
-  h1,h2,h3 { line-height: 1.3; margin-top: 1.6em; }
-  h1 { font-size: 1.5rem; } h2 { font-size: 1.25rem; border-bottom: 1px solid #8884; padding-bottom: .2em; }
-  code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: .9em; }
-  :not(pre) > code { background: #8882; padding: .1em .35em; border-radius: 4px; }
-  pre { background: #2b2b2b08; padding: .9rem; border-radius: 8px; overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
-  th,td { border: 1px solid #8886; padding: .4em .6em; text-align: left; }
-  blockquote { border-left: 3px solid #8888; margin: 1em 0; padding: .2em 1em; color: #666; }
-  a { color: #0a7; }
+  :root{color-scheme:light dark}
+  body{max-width:820px;margin:0 auto;padding:1rem 1.1rem 4rem;
+       font:16px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;word-wrap:break-word}
+  h1,h2,h3{line-height:1.3;margin-top:1.6em}
+  h1{font-size:1.5rem}
+  h2{font-size:1.25rem;border-bottom:1px solid #8884;padding-bottom:.2em}
+  code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.9em}
+  :not(pre)>code{background:#8882;padding:.1em .35em;border-radius:4px}
+  pre{background:#2b2b2b0d;padding:.9rem;border-radius:8px;overflow-x:auto}
+  pre code{display:block;white-space:pre}
+  table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
+  th,td{border:1px solid #8886;padding:.4em .6em;text-align:left}
+  blockquote{border-left:3px solid #8888;margin:1em 0;padding:.2em 1em;color:#888}
+  a{color:#0a7}
+  nav.top{font-size:.88rem;margin-bottom:1rem}
+  .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
+  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}pre{background:#ffffff12}}
 </style>
-<script>
-  window.MathJax = {
-    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
-    startup: { typeset: false }
-  };
-</script>
-<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
 </head>
 <body>
-<nav style="max-width:820px;margin:0 auto 1rem;font-size:.88rem"><a href="index.html" style="color:#0a7;text-decoration:none">← 复习索引 / Study Index</a></nav>
-<article id="out"></article>
-<!-- 原始 markdown 嵌在下面;渲染器只替换 # PPO Clipped Surrogate Objective 学习演练
-
-本仓库通过一个独立的实现文件，从零开始研究 PPO（Proximal Policy Optimization）的裁剪代理目标函数。这是一个聚焦于理解 PPO 核心数学与实现细节的专项练习。
-
----
-
-## 1. 数学基础 / Mathematical Foundation
-
-PPO 的裁剪代理目标旨在限制策略更新幅度，其核心公式如下。
-
-**概率比 $r_t$**:
-$$ r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} $$
-代码实现: `ratio = torch.exp(action_logprobs - old_action_logprobs)`
-
-**裁剪代理目标 $L^{CLIP}$**:
-$$ L^{CLIP}(\theta) = \mathbb{E}_t \left[ \min\left( r_t(\theta) \hat{A}_t, \ \text{clip}\left(r_t(\theta), 1-\epsilon, 1+\epsilon\right) \hat{A}_t \right) \right] $$
-其中 $\hat{A}_t$ 为优势函数估计，$\epsilon$ 为裁剪超参数。
-
-**代码实现对应**:
-```python
-surrogate_unclipped = ratio * advantages
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<article id="out"><h1>PPO Clipped Surrogate Objective 学习演练</h1>
+<p>本仓库通过一个独立的实现文件，从零开始研究 PPO（Proximal Policy Optimization）的裁剪代理目标函数。这是一个聚焦于理解 PPO 核心数学与实现细节的专项练习。</p>
+<hr>
+<h2>1. 数学基础 / Mathematical Foundation</h2>
+<p>PPO 的裁剪代理目标旨在限制策略更新幅度，其核心公式如下。</p>
+<p><strong>概率比 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">r_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></strong>:
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mi>t</mi></msub><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo><mo>=</mo><mfrac><mrow><msub><mi>π</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>a</mi><mi>t</mi></msub><mi mathvariant="normal">∣</mi><msub><mi>s</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><mrow><msub><mi>π</mi><msub><mi>θ</mi><mtext>old</mtext></msub></msub><mo stretchy="false">(</mo><msub><mi>a</mi><mi>t</mi></msub><mi mathvariant="normal">∣</mi><msub><mi>s</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex">r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.3689em;vertical-align:-0.9419em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.0278em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">old</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2559em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">∣</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord">∣</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.9419em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span>
+代码实现: <code>ratio = torch.exp(action_logprobs - old_action_logprobs)</code></p>
+<p><strong>裁剪代理目标 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>L</mi><mrow><mi>C</mi><mi>L</mi><mi>I</mi><mi>P</mi></mrow></msup></mrow><annotation encoding="application/x-tex">L^{CLIP}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8413em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8413em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0715em;">C</span><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight" style="margin-right:0.0785em;">I</span><span class="mord mathnormal mtight" style="margin-right:0.1389em;">P</span></span></span></span></span></span></span></span></span></span></span></span></strong>:
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msup><mi>L</mi><mrow><mi>C</mi><mi>L</mi><mi>I</mi><mi>P</mi></mrow></msup><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo><mo>=</mo><msub><mi mathvariant="double-struck">E</mi><mi>t</mi></msub><mrow><mo fence="true">[</mo><mi>min</mi><mo>⁡</mo><mrow><mo fence="true">(</mo><msub><mi>r</mi><mi>t</mi></msub><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo><msub><mover accent="true"><mi>A</mi><mo>^</mo></mover><mi>t</mi></msub><mo separator="true">,</mo><mtext> clip</mtext><mrow><mo fence="true">(</mo><msub><mi>r</mi><mi>t</mi></msub><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo><mo separator="true">,</mo><mn>1</mn><mo>−</mo><mi>ϵ</mi><mo separator="true">,</mo><mn>1</mn><mo>+</mo><mi>ϵ</mi><mo fence="true">)</mo></mrow><msub><mover accent="true"><mi>A</mi><mo>^</mo></mover><mi>t</mi></msub><mo fence="true">)</mo></mrow><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">L^{CLIP}(\theta) = \mathbb{E}_t \left[ \min\left( r_t(\theta) \hat{A}_t, \ \text{clip}\left(r_t(\theta), 1-\epsilon, 1+\epsilon\right) \hat{A}_t \right) \right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.1413em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0715em;">C</span><span class="mord mathnormal mtight">L</span><span class="mord mathnormal mtight" style="margin-right:0.0785em;">I</span><span class="mord mathnormal mtight" style="margin-right:0.1389em;">P</span></span></span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.8em;vertical-align:-0.65em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size2">[</span></span><span class="mop">min</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size2">(</span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span><span class="mord"><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9468em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span style="top:-3.2523em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1111em;"><span class="mord">^</span></span></span></span></span></span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace"> </span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord text"><span class="mord">clip</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">ϵ</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">ϵ</span><span class="mclose delimcenter" style="top:0em;">)</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9468em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span style="top:-3.2523em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1111em;"><span class="mord">^</span></span></span></span></span></span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size2">)</span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size2">]</span></span></span></span></span></span></span>
+其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover accent="true"><mi>A</mi><mo>^</mo></mover><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">\hat{A}_t</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0968em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9468em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span style="top:-3.2523em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1111em;"><span class="mord">^</span></span></span></span></span></span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">t</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 为优势函数估计，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">ϵ</span></span></span></span> 为裁剪超参数。</p>
+<p><strong>代码实现对应</strong>:</p>
+<pre><code class="language-python">surrogate_unclipped = ratio * advantages
 ratio_clipped = torch.clamp(ratio, 1.0 - clip_epsilon, 1.0 + clip_epsilon)
 surrogate_clipped = ratio_clipped * advantages
 surrogate_per_sample = torch.min(surrogate_unclipped, surrogate_clipped)
 loss = -surrogate_per_sample.mean()  # 因为优化器最小化损失，故取负
-```
-
-**诊断指标**:
-- **近似 KL 散度**: $\approx \mathbb{E}[r - 1 - \log r]$ (Schulman blog)
-- **裁剪比例**: $|\ r - 1\ | > \epsilon$ 的样本比例
-
----
-
-## 2. 直觉与复杂度 / Intuition & Complexity
-
-**直觉**:
-- PPO 通过 `min` 操作选择一个保守的目标，防止策略在每次更新中发生过大变化。
-- 当优势 $A > 0$（好的动作），$r$ 会被限制不超过 $1+\epsilon$，避免过度提升该动作概率。
-- 当优势 $A < 0$（坏的动作），$r$ 会被限制不低于 $1-\epsilon$，避免过度降低该动作概率。
-- 这种对称约束使得策略更新保持在“信任域”内。
-
-**实现复杂度**:
-- **时间复杂度**: $O(B)$，其中 $B$ 为 batch size。所有操作均为逐元素。
-- **空间复杂度**: $O(B)$，存储中间张量 `ratio`, `surrogate_unclipped` 等。
-- **数值稳定性**: 代码使用 `log_ratio` 避免直接计算概率比，防止数值溢出。
-
----
-
-## 3. 文件 / Files
-
-- `from_scratch.py`: 包含 PPO 裁剪代理目标和 GAE 的从零实现，以及一个简单的演示。
-- `test_ppo_clip.py`: 包含针对裁剪代理目标函数的单元测试。
-- `README.md`: 本说明文件。
-
----
-
-## 4. 运行 / Run
-
-运行演示与自检：
-```bash
-python from_scratch.py
-```
-
-运行测试套件：
-```bash
-python test_ppo_clip.py
-```
-
----
-
-## 5. 追问分层 / Stratified Follow-ups
-
-### L1 基础
-1. 为什么 PPO 要对策略更新进行裁剪（clipping）？如果不裁剪，可能会发生什么？
-2. 解释 `ratio` 为什么在代码中通过 `exp(log_ratio)` 计算，而不是直接计算概率的比值。
-3. 在 `min` 操作中，为什么要对 `surrogate_unclipped` 和 `surrogate_clipped` 取较小值？
-
-### L2 中级
-1. 代码中 `approx_kl` 的计算公式 `((ratio - 1) - log_ratio).mean()` 的来源是什么？它近似了什么量？
-2. 解释超参数 `clip_epsilon` 的作用。如果将其设为 0 或非常大（如 100），优化行为会如何变化？
-3. GAE（Generalized Advantage Estimation）函数中的 `lam`（$\lambda$）参数有什么作用？它如何权衡偏差（bias）与方差（variance）？
-
-### L3 深入
-1. 讨论 PPO 裁剪目标与 TRPO（Trust Region Policy Optimization）中 KL 散度约束在数学形式和实际行为上的异同。
-2. 在反向传播时，梯度如何通过 `min` 操作流回 `cur_logprobs`？从自动微分的角度分析其行为。
-3. 代码中 `advantages` 在演示部分进行了白化（whitening）。为什么需要对优势函数进行归一化？如果不这样做，对训练稳定性可能产生什么影响？,内容里的 </script> 须转义为 <\/script> -->
-<script id="doc" type="text/markdown">{{MARKDOWN}}</script>
-<script>
-  window.addEventListener('DOMContentLoaded', () => {
-    const raw = document.getElementById('doc').textContent;
-    // 保护 LaTeX,避免被 markdown 解析吃掉
-    const math = [];
-    const keep = (m) => { math.push(m); return `@@M${math.length - 1}@@`; };
-    const protectedText = raw
-      .replace(/\$\$([\s\S]+?)\$\$/g, keep)
-      .replace(/\\\[([\s\S]+?)\\\]/g, keep)
-      .replace(/\\\(([\s\S]+?)\\\)/g, keep)
-      .replace(/\$([^\$\n]+?)\$/g, keep);
-    let html = marked.parse(protectedText);
-    html = html.replace(/@@M(\d+)@@/g, (_, i) => math[+i]);
-    document.getElementById('out').innerHTML = html;
-    document.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
-    if (window.MathJax && MathJax.startup) {
-      MathJax.startup.promise.then(() => MathJax.typesetPromise());
-    }
-  });
-</script>
+</code></pre>
+<p><strong>诊断指标</strong>:</p>
+<ul>
+<li><strong>近似 KL 散度</strong>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><mi>r</mi><mo>−</mo><mn>1</mn><mo>−</mo><mi>log</mi><mo>⁡</mo><mi>r</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">\approx \mathbb{E}[r - 1 - \log r]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4831em;"></span><span class="mrel">≈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mclose">]</span></span></span></span> (Schulman blog)</li>
+<li><strong>裁剪比例</strong>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">∣</mi><mtext> </mtext><mi>r</mi><mo>−</mo><mn>1</mn><mtext> </mtext><mi mathvariant="normal">∣</mi><mo>&gt;</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">|\ r - 1\ | &gt; \epsilon</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mspace"> </span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1</span><span class="mspace"> </span><span class="mord">∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">ϵ</span></span></span></span> 的样本比例</li>
+</ul>
+<hr>
+<h2>2. 直觉与复杂度 / Intuition &amp; Complexity</h2>
+<p><strong>直觉</strong>:</p>
+<ul>
+<li>PPO 通过 <code>min</code> 操作选择一个保守的目标，防止策略在每次更新中发生过大变化。</li>
+<li>当优势 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">A &gt; 0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span>（好的动作），<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">r</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span></span></span> 会被限制不超过 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>+</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">1+\epsilon</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">ϵ</span></span></span></span>，避免过度提升该动作概率。</li>
+<li>当优势 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>&lt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">A &lt; 0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span>（坏的动作），<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">r</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span></span></span> 会被限制不低于 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">1-\epsilon</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">ϵ</span></span></span></span>，避免过度降低该动作概率。</li>
+<li>这种对称约束使得策略更新保持在“信任域”内。</li>
+</ul>
+<p><strong>实现复杂度</strong>:</p>
+<ul>
+<li><strong>时间复杂度</strong>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>B</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(B)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">)</span></span></span></span>，其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi></mrow><annotation encoding="application/x-tex">B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span> 为 batch size。所有操作均为逐元素。</li>
+<li><strong>空间复杂度</strong>: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>B</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(B)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">)</span></span></span></span>，存储中间张量 <code>ratio</code>, <code>surrogate_unclipped</code> 等。</li>
+<li><strong>数值稳定性</strong>: 代码使用 <code>log_ratio</code> 避免直接计算概率比，防止数值溢出。</li>
+</ul>
+<hr>
+<h2>3. 文件 / Files</h2>
+<ul>
+<li><code>from_scratch.py</code>: 包含 PPO 裁剪代理目标和 GAE 的从零实现，以及一个简单的演示。</li>
+<li><code>test_ppo_clip.py</code>: 包含针对裁剪代理目标函数的单元测试。</li>
+<li><code>README.md</code>: 本说明文件。</li>
+</ul>
+<hr>
+<h2>4. 运行 / Run</h2>
+<p>运行演示与自检：</p>
+<pre><code class="language-bash">python from_scratch.py
+</code></pre>
+<p>运行测试套件：</p>
+<pre><code class="language-bash">python test_ppo_clip.py
+</code></pre>
+<hr>
+<h2>5. 追问分层 / Stratified Follow-ups</h2>
+<h3>L1 基础</h3>
+<ol>
+<li>为什么 PPO 要对策略更新进行裁剪（clipping）？如果不裁剪，可能会发生什么？</li>
+<li>解释 <code>ratio</code> 为什么在代码中通过 <code>exp(log_ratio)</code> 计算，而不是直接计算概率的比值。</li>
+<li>在 <code>min</code> 操作中，为什么要对 <code>surrogate_unclipped</code> 和 <code>surrogate_clipped</code> 取较小值？</li>
+</ol>
+<h3>L2 中级</h3>
+<ol>
+<li>代码中 <code>approx_kl</code> 的计算公式 <code>((ratio - 1) - log_ratio).mean()</code> 的来源是什么？它近似了什么量？</li>
+<li>解释超参数 <code>clip_epsilon</code> 的作用。如果将其设为 0 或非常大（如 100），优化行为会如何变化？</li>
+<li>GAE（Generalized Advantage Estimation）函数中的 <code>lam</code>（<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi></mrow><annotation encoding="application/x-tex">\lambda</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">λ</span></span></span></span>）参数有什么作用？它如何权衡偏差（bias）与方差（variance）？</li>
+</ol>
+<h3>L3 深入</h3>
+<ol>
+<li>讨论 PPO 裁剪目标与 TRPO（Trust Region Policy Optimization）中 KL 散度约束在数学形式和实际行为上的异同。</li>
+<li>在反向传播时，梯度如何通过 <code>min</code> 操作流回 <code>cur_logprobs</code>？从自动微分的角度分析其行为。</li>
+<li>代码中 <code>advantages</code> 在演示部分进行了白化（whitening）。为什么需要对优势函数进行归一化？如果不这样做，对训练稳定性可能产生什么影响？</li>
+</ol>
+</article>
 </body>
 </html>

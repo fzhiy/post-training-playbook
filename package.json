@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "katex": "^0.17.0",
+    "marked": "^18.0.4"
+  }
+}

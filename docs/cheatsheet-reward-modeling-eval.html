@@ -4,511 +4,558 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>奖励模型 (Reward Modeling) 与评估 速查手册</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 <style>
-  :root { color-scheme: light dark; }
-  body { max-width: 820px; margin: 0 auto; padding: 1rem 1.1rem 4rem;
-         font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-         word-wrap: break-word; }
-  h1,h2,h3 { line-height: 1.3; margin-top: 1.6em; }
-  h1 { font-size: 1.5rem; } h2 { font-size: 1.25rem; border-bottom: 1px solid #8884; padding-bottom: .2em; }
-  code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: .9em; }
-  :not(pre) > code { background: #8882; padding: .1em .35em; border-radius: 4px; }
-  pre { background: #2b2b2b08; padding: .9rem; border-radius: 8px; overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
-  th,td { border: 1px solid #8886; padding: .4em .6em; text-align: left; }
-  blockquote { border-left: 3px solid #8888; margin: 1em 0; padding: .2em 1em; color: #666; }
-  a { color: #0a7; }
+  :root{color-scheme:light dark}
+  body{max-width:820px;margin:0 auto;padding:1rem 1.1rem 4rem;
+       font:16px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;word-wrap:break-word}
+  h1,h2,h3{line-height:1.3;margin-top:1.6em}
+  h1{font-size:1.5rem}
+  h2{font-size:1.25rem;border-bottom:1px solid #8884;padding-bottom:.2em}
+  code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.9em}
+  :not(pre)>code{background:#8882;padding:.1em .35em;border-radius:4px}
+  pre{background:#2b2b2b0d;padding:.9rem;border-radius:8px;overflow-x:auto}
+  pre code{display:block;white-space:pre}
+  table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
+  th,td{border:1px solid #8886;padding:.4em .6em;text-align:left}
+  blockquote{border-left:3px solid #8888;margin:1em 0;padding:.2em 1em;color:#888}
+  a{color:#0a7}
+  nav.top{font-size:.88rem;margin-bottom:1rem}
+  .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
+  @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}pre{background:#ffffff12}}
 </style>
-<script>
-  window.MathJax = {
-    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
-    startup: { typeset: false }
-  };
-</script>
-<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
 </head>
 <body>
-<nav style="max-width:820px;margin:0 auto 1rem;font-size:.88rem"><a href="index.html" style="color:#0a7;text-decoration:none">← 复习索引 / Study Index</a></nav>
-<article id="out"></article>
-<!-- 原始 markdown 嵌在下面;渲染器只替换 # 奖励模型 (Reward Modeling) 与评估 速查手册
-## LLM 后训练 (Post-Training) 中的奖励建模全景
-
----
-
-## 目录 (Table of Contents)
-
-1. [RM 训练方法 (RM Training)](#1-rm-训练方法-rm-training)
-2. [PRM vs ORM](#2-prm-vs-orm-过程奖励模型与结果奖励模型)
-3. [奖励欺骗与过度优化 (Reward Hacking & Over-Optimization)](#3-奖励欺骗与过度优化-reward-hacking--over-optimization)
-4. [长度偏差及其他 RM 病态现象 (Length Bias & Other Pathologies)](#4-长度偏差及其他-rm-病态现象-length-bias--other-pathologies)
-5. [RM / 评估者评估 (RM & Judge Evaluation)](#5-rm--评估者评估-rm--judge-evaluation)
-6. [面试题 (Interview Questions)](#6-面试题-interview-questions)
-
----
-
-## 1. RM 训练方法 (RM Training)
-
-### 1.1 核心目标 (Core Objective)
-
-奖励模型从人类偏好 (human preferences) 中学习一个**标量评分函数 (scalar scoring function)**，用于在 RLHF (Reinforcement Learning from Human Feedback) 或类似流程中为 LLM 生成的候选回答打分，引导策略模型 (policy model) 优化。
-
-### 1.2 成对比较法 (Pairwise / Bradley-Terry Model)
-
-**核心思想：** 不直接估计绝对分值，而是学习**两个回答之间的偏好关系**。
-
-**Bradley-Terry (BT) 模型：**
-
-给定 prompt $x$，chosen response $y_w$，rejected response $y_l$：
-
-$$P(y_w \succ y_l \mid x) = \sigma(r_\theta(x, y_w) - r_\theta(x, y_l))$$
-
-其中 $\sigma$ 是 sigmoid 函数，$r_\theta$ 是参数为 $\theta$ 的奖励模型。
-
-**训练损失 (Training Loss)：**
-
-$$\mathcal{L}_{\text{BT}} = -\mathbb{E}_{(x, y_w, y_l)} \left[ \log \sigma(r_\theta(x, y_w) - r_\theta(x, y_l)) \right]$$
-
-**优势 (Advantages)：**
-- 只需偏好排序，不需要绝对评分标注 — 标注成本低
-- 天然与 RLHF 中的 policy gradient 对齐
-- 人类做相对判断比绝对打分更可靠、一致性更高
-
-**局限 (Limitations)：**
-- 只利用了二元偏好信号，信息利用不够充分
-- 假设偏好具有传递性 (transitivity)，现实中未必成立
-- 不直接输出标量值，在某些下游任务中需额外处理
-
-### 1.3 逐点评分法 (Pointwise / Regression)
-
-**核心思想：** 直接回归到一个**绝对质量分数 (absolute quality score)**。
-
-**训练损失：**
-
-$$\mathcal{L}_{\text{point}} = \mathbb{E}_{(x, y, s)} \left[ (r_\theta(x, y) - s)^2 \right]$$
-
-其中 $s$ 是人工标注的绝对评分 (如 1-5 Likert scale)。
-
-**优势：**
-- 可直接用于 Best-of-N (BoN) 采样、过滤等场景
-- 评分可解释性强
-
-**局限：**
-- 需要绝对标注，标注成本高、标注者间一致性 (inter-annotator agreement) 低
-- 分数标度 (scale) 因人而异，需要校准 (calibration)
-
-### 1.4 其他变体 (Other Variants)
-
-| 方法 | 描述 |
-|------|------|
-| **Listwise / Plackett-Luce** | 对 k 个回答做全排序学习，比 pairwise 信息更丰富 |
-| **Regression + Ranking 混合** | 同时优化回归损失和排序损失 |
-| **多目标 RM (Multi-object RM)** | 对不同维度 (有用性、安全性、事实性) 分别打分 |
-| **Token-level RM** | 在 token 粒度上分配奖励，与 PRM 相关 |
-
----
-
-## 2. PRM vs ORM：过程奖励模型与结果奖励模型
-
-### 2.1 ORM — 结果奖励模型 (Outcome Reward Model)
-
-**定义：** 仅根据**最终输出 (final output)** 给出一个整体奖励分数。
-
-```
-输入: [Prompt + 全部回答文本]
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
+<article id="out"><h1>奖励模型 (Reward Modeling) 与评估 速查手册</h1>
+<h2>LLM 后训练 (Post-Training) 中的奖励建模全景</h2>
+<hr>
+<h2>目录 (Table of Contents)</h2>
+<ol>
+<li><a href="#1-rm-%E8%AE%AD%E7%BB%83%E6%96%B9%E6%B3%95-rm-training">RM 训练方法 (RM Training)</a></li>
+<li><a href="#2-prm-vs-orm-%E8%BF%87%E7%A8%8B%E5%A5%96%E5%8A%B1%E6%A8%A1%E5%9E%8B%E4%B8%8E%E7%BB%93%E6%9E%9C%E5%A5%96%E5%8A%B1%E6%A8%A1%E5%9E%8B">PRM vs ORM</a></li>
+<li><a href="#3-%E5%A5%96%E5%8A%B1%E6%AC%BA%E9%AA%97%E4%B8%8E%E8%BF%87%E5%BA%A6%E4%BC%98%E5%8C%96-reward-hacking--over-optimization">奖励欺骗与过度优化 (Reward Hacking &amp; Over-Optimization)</a></li>
+<li><a href="#4-%E9%95%BF%E5%BA%A6%E5%81%8F%E5%B7%AE%E5%8F%8A%E5%85%B6%E4%BB%96-rm-%E7%97%85%E6%80%81%E7%8E%B0%E8%B1%A1-length-bias--other-pathologies">长度偏差及其他 RM 病态现象 (Length Bias &amp; Other Pathologies)</a></li>
+<li><a href="#5-rm--%E8%AF%84%E4%BC%B0%E8%80%85%E8%AF%84%E4%BC%B0-rm--judge-evaluation">RM / 评估者评估 (RM &amp; Judge Evaluation)</a></li>
+<li><a href="#6-%E9%9D%A2%E8%AF%95%E9%A2%98-interview-questions">面试题 (Interview Questions)</a></li>
+</ol>
+<hr>
+<h2>1. RM 训练方法 (RM Training)</h2>
+<h3>1.1 核心目标 (Core Objective)</h3>
+<p>奖励模型从人类偏好 (human preferences) 中学习一个<strong>标量评分函数 (scalar scoring function)</strong>，用于在 RLHF (Reinforcement Learning from Human Feedback) 或类似流程中为 LLM 生成的候选回答打分，引导策略模型 (policy model) 优化。</p>
+<h3>1.2 成对比较法 (Pairwise / Bradley-Terry Model)</h3>
+<p><strong>核心思想：</strong> 不直接估计绝对分值，而是学习<strong>两个回答之间的偏好关系</strong>。</p>
+<p><strong>Bradley-Terry (BT) 模型：</strong></p>
+<p>给定 prompt <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">x</span></span></span></span>，chosen response <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>w</mi></msub></mrow><annotation encoding="application/x-tex">y_w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>，rejected response <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">y_l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>：</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>P</mi><mo stretchy="false">(</mo><msub><mi>y</mi><mi>w</mi></msub><mo>≻</mo><msub><mi>y</mi><mi>l</mi></msub><mo>∣</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>σ</mi><mo stretchy="false">(</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">P(y_w \succ y_l \mid x) = \sigma(r_\theta(x, y_w) - r_\theta(x, y_l))</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≻</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∣</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">))</span></span></span></span></span></p>
+<p>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\sigma</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span></span></span></span> 是 sigmoid 函数，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mi>θ</mi></msub></mrow><annotation encoding="application/x-tex">r_\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 是参数为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span></span></span></span> 的奖励模型。</p>
+<p><strong>训练损失 (Training Loss)：</strong></p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi mathvariant="script">L</mi><mtext>BT</mtext></msub><mo>=</mo><mo>−</mo><msub><mi mathvariant="double-struck">E</mi><mrow><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo></mrow></msub><mrow><mo fence="true">[</mo><mi>log</mi><mo>⁡</mo><mi>σ</mi><mo stretchy="false">(</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{BT}} = -\mathbb{E}_{(x, y_w, y_l)} \left[ \log \sigma(r_\theta(x, y_w) - r_\theta(x, y_l)) \right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathcal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">BT</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.1052em;vertical-align:-0.3552em;"></span><span class="mord">−</span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mopen mtight">(</span><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1645em;"><span style="top:-2.357em;margin-left:-0.0359em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span><span class="mpunct mtight">,</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.0359em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">[</span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">))</span><span class="mclose delimcenter" style="top:0em;">]</span></span></span></span></span></span></p>
+<p><strong>优势 (Advantages)：</strong></p>
+<ul>
+<li>只需偏好排序，不需要绝对评分标注 — 标注成本低</li>
+<li>天然与 RLHF 中的 policy gradient 对齐</li>
+<li>人类做相对判断比绝对打分更可靠、一致性更高</li>
+</ul>
+<p><strong>局限 (Limitations)：</strong></p>
+<ul>
+<li>只利用了二元偏好信号，信息利用不够充分</li>
+<li>假设偏好具有传递性 (transitivity)，现实中未必成立</li>
+<li>不直接输出标量值，在某些下游任务中需额外处理</li>
+</ul>
+<h3>1.3 逐点评分法 (Pointwise / Regression)</h3>
+<p><strong>核心思想：</strong> 直接回归到一个<strong>绝对质量分数 (absolute quality score)</strong>。</p>
+<p><strong>训练损失：</strong></p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi mathvariant="script">L</mi><mtext>point</mtext></msub><mo>=</mo><msub><mi mathvariant="double-struck">E</mi><mrow><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo separator="true">,</mo><mi>s</mi><mo stretchy="false">)</mo></mrow></msub><mrow><mo fence="true">[</mo><mo stretchy="false">(</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mi>s</mi><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{point}} = \mathbb{E}_{(x, y, s)} \left[ (r_\theta(x, y) - s)^2 \right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathcal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">point</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.2193em;vertical-align:-0.3552em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mopen mtight">(</span><span class="mord mathnormal mtight">x</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight">s</span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size1">[</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">s</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8641em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size1">]</span></span></span></span></span></span></span></p>
+<p>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span></span></span></span> 是人工标注的绝对评分 (如 1-5 Likert scale)。</p>
+<p><strong>优势：</strong></p>
+<ul>
+<li>可直接用于 Best-of-N (BoN) 采样、过滤等场景</li>
+<li>评分可解释性强</li>
+</ul>
+<p><strong>局限：</strong></p>
+<ul>
+<li>需要绝对标注，标注成本高、标注者间一致性 (inter-annotator agreement) 低</li>
+<li>分数标度 (scale) 因人而异，需要校准 (calibration)</li>
+</ul>
+<h3>1.4 其他变体 (Other Variants)</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Listwise / Plackett-Luce</strong></td>
+<td>对 k 个回答做全排序学习，比 pairwise 信息更丰富</td>
+</tr>
+<tr>
+<td><strong>Regression + Ranking 混合</strong></td>
+<td>同时优化回归损失和排序损失</td>
+</tr>
+<tr>
+<td><strong>多目标 RM (Multi-object RM)</strong></td>
+<td>对不同维度 (有用性、安全性、事实性) 分别打分</td>
+</tr>
+<tr>
+<td><strong>Token-level RM</strong></td>
+<td>在 token 粒度上分配奖励，与 PRM 相关</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. PRM vs ORM：过程奖励模型与结果奖励模型</h2>
+<h3>2.1 ORM — 结果奖励模型 (Outcome Reward Model)</h3>
+<p><strong>定义：</strong> 仅根据<strong>最终输出 (final output)</strong> 给出一个整体奖励分数。</p>
+<pre><code>输入: [Prompt + 全部回答文本]
 输出: 单个标量奖励 r
-```
-
-**特点：**
-- ✅ 标注简单：只需判断最终答案对/错或质量高低
-- ✅ 训练和推理计算成本较低
-- ❌ **信用分配问题 (credit assignment)**：不知道回答中哪些步骤是正确的、哪些是错误的
-- ❌ 对于数学推理、代码生成等多步骤任务信号稀疏
-
-### 2.2 PRM — 过程奖励模型 (Process Reward Model)
-
-**定义：** 对推理过程的**每个步骤 (each step)** 给出奖励分数。
-
-```
-输入: [Prompt + 前 i 步]
+</code></pre>
+<p><strong>特点：</strong></p>
+<ul>
+<li>✅ 标注简单：只需判断最终答案对/错或质量高低</li>
+<li>✅ 训练和推理计算成本较低</li>
+<li>❌ <strong>信用分配问题 (credit assignment)</strong>：不知道回答中哪些步骤是正确的、哪些是错误的</li>
+<li>❌ 对于数学推理、代码生成等多步骤任务信号稀疏</li>
+</ul>
+<h3>2.2 PRM — 过程奖励模型 (Process Reward Model)</h3>
+<p><strong>定义：</strong> 对推理过程的<strong>每个步骤 (each step)</strong> 给出奖励分数。</p>
+<pre><code>输入: [Prompt + 前 i 步]
 输出: 每步的奖励 r_step(i)
-```
-
-**特点：**
-- ✅ 信号更密集 (dense reward)，信用分配更精确
-- ✅ 能定位具体推理错误步骤，可用于 early stopping 或树搜索
-- ✅ 在数学推理等任务上通常显著优于 ORM（根据多项研究的定性结论）
-- ❌ **标注成本极高**：需要专家逐步判断
-- ❌ 步骤边界定义 (step delineation) 本身有歧义
-
-### 2.3 对比表 (Comparison Table)
-
-| 维度 | ORM (结果奖励) | PRM (过程奖励) |
-|------|----------------|----------------|
-| 奖励粒度 (Granularity) | 整个回答 | 每个推理步骤 |
-| 信号密度 (Density) | 稀疏 (sparse) | 密集 (dense) |
-| 标注成本 | 低 | 高 |
-| 信用分配 (Credit Assignment) | 差 | 好 |
-| 典型应用 | 对话、写作 | 数学推理、代码、多步骤推理 |
-| 与搜索结合 | Best-of-N | Best-of-N、树搜索 (tree search)、beam search |
-| 标注方式 | 最终答案对错 | 每步逻辑正确性 |
-
-### 2.4 自动化 PRM 数据生成 (Automated PRM Data)
-
-为降低标注成本，常见方法：
-- **Monte Carlo 估计 (MC estimation)：** 从每一步继续采样多个 rollout，看最终结果正确率作为该步奖励
-- **LLM-as-Step-Judge：** 用强 LLM 标注每步正确性
-- **ORM-to-PRM 蒸馏：** 从 ORM 反推过程信号
-
----
-
-## 3. 奖励欺骗与过度优化 (Reward Hacking & Over-Optimization)
-
-### 3.1 什么是奖励欺骗 (Reward Hacking)
-
-**定义：** 策略模型学会利用奖励模型的**缺陷和分布外行为 (out-of-distribution behavior)** 来获取高分，而非真正提升回答质量。
-
-**常见模式：**
-- 生成冗长但低质内容 (verbosity hacking)
-- 使用讨好性措辞 (sycophancy)
-- 重复特定高分关键词或句式
-- 格式操纵：过度使用列表、标题、加粗等
-
-### 3.2 Goodhart 定律视角
-
-> "当一个指标变成目标时，它就不再是好的指标。"
-
-$$r_{\text{true}} \neq r_{\text{RM}} \quad \text{当 policy 偏离训练分布时}$$
-
-RM 只在**训练分布 (training distribution)** 内准确，当 policy 生成分布外内容时，RM 预测不再可靠。
-
-### 3.3 缓解策略 (Mitigations)
-
-#### 3.3.1 KL 散度控制 (KL Divergence Control)
-
-在 RLHF 的目标函数中加入 KL 惩罚项：
-
-$$\max_{\pi} \mathbb{E}_{x \sim \mathcal{D}, y \sim \pi(\cdot|x)} \left[ r_\theta(x, y) - \beta \cdot D_{\text{KL}}(\pi(y|x) \| \pi_{\text{ref}}(y|x)) \right]$$
-
-- $\beta$ 越大 → 策略越保守，越接近参考模型 (reference model)
-- $\beta$ 越小 → 允许更大探索空间，但 reward hacking 风险高
-- **自适应 KL (Adaptive KL)：** 根据 KL 值动态调整 $\beta$
-
-#### 3.3.2 RM 集成 (RM Ensembles)
-
-- 训练**多个独立 RM** (不同初始化、不同数据子集、不同架构)
-- 取平均、最小值 (min)、或用不确定性估计
-- **保守策略：** $\hat{r}(x,y) = \min_i r_i(x,y)$ — 避免任一 RM 的过度乐观评分
-- 可用于**不确定性过滤**：方差大的区域降低信任度
-
-#### 3.3.3 长度惩罚 (Length Penalty)
-
-$$r_{\text{adjusted}}(x,y) = r_\theta(x,y) - \alpha \cdot \text{len}(y)$$
-
-或归一化形式：
-
-$$r_{\text{adjusted}} = \frac{r_\theta(x,y)}{\text{len}(y)^\gamma}$$
-
-- 需要仔细调参，避免惩罚过强导致回答过于简短
-- 更好的做法：在**数据标注阶段**就控制长度偏好
-
-#### 3.3.4 迭代重训练 (Iterative Re-Training / Online RLHF)
-
-```
-迭代流程:
+</code></pre>
+<p><strong>特点：</strong></p>
+<ul>
+<li>✅ 信号更密集 (dense reward)，信用分配更精确</li>
+<li>✅ 能定位具体推理错误步骤，可用于 early stopping 或树搜索</li>
+<li>✅ 在数学推理等任务上通常显著优于 ORM（根据多项研究的定性结论）</li>
+<li>❌ <strong>标注成本极高</strong>：需要专家逐步判断</li>
+<li>❌ 步骤边界定义 (step delineation) 本身有歧义</li>
+</ul>
+<h3>2.3 对比表 (Comparison Table)</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>ORM (结果奖励)</th>
+<th>PRM (过程奖励)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>奖励粒度 (Granularity)</td>
+<td>整个回答</td>
+<td>每个推理步骤</td>
+</tr>
+<tr>
+<td>信号密度 (Density)</td>
+<td>稀疏 (sparse)</td>
+<td>密集 (dense)</td>
+</tr>
+<tr>
+<td>标注成本</td>
+<td>低</td>
+<td>高</td>
+</tr>
+<tr>
+<td>信用分配 (Credit Assignment)</td>
+<td>差</td>
+<td>好</td>
+</tr>
+<tr>
+<td>典型应用</td>
+<td>对话、写作</td>
+<td>数学推理、代码、多步骤推理</td>
+</tr>
+<tr>
+<td>与搜索结合</td>
+<td>Best-of-N</td>
+<td>Best-of-N、树搜索 (tree search)、beam search</td>
+</tr>
+<tr>
+<td>标注方式</td>
+<td>最终答案对错</td>
+<td>每步逻辑正确性</td>
+</tr>
+</tbody></table>
+<h3>2.4 自动化 PRM 数据生成 (Automated PRM Data)</h3>
+<p>为降低标注成本，常见方法：</p>
+<ul>
+<li><strong>Monte Carlo 估计 (MC estimation)：</strong> 从每一步继续采样多个 rollout，看最终结果正确率作为该步奖励</li>
+<li><strong>LLM-as-Step-Judge：</strong> 用强 LLM 标注每步正确性</li>
+<li><strong>ORM-to-PRM 蒸馏：</strong> 从 ORM 反推过程信号</li>
+</ul>
+<hr>
+<h2>3. 奖励欺骗与过度优化 (Reward Hacking &amp; Over-Optimization)</h2>
+<h3>3.1 什么是奖励欺骗 (Reward Hacking)</h3>
+<p><strong>定义：</strong> 策略模型学会利用奖励模型的<strong>缺陷和分布外行为 (out-of-distribution behavior)</strong> 来获取高分，而非真正提升回答质量。</p>
+<p><strong>常见模式：</strong></p>
+<ul>
+<li>生成冗长但低质内容 (verbosity hacking)</li>
+<li>使用讨好性措辞 (sycophancy)</li>
+<li>重复特定高分关键词或句式</li>
+<li>格式操纵：过度使用列表、标题、加粗等</li>
+</ul>
+<h3>3.2 Goodhart 定律视角</h3>
+<blockquote>
+<p>&quot;当一个指标变成目标时，它就不再是好的指标。&quot;</p>
+</blockquote>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mtext>true</mtext></msub><mo mathvariant="normal">≠</mo><msub><mi>r</mi><mtext>RM</mtext></msub><mspace width="1em"/><mtext>当 policy 偏离训练分布时</mtext></mrow><annotation encoding="application/x-tex">r_{\text{true}} \neq r_{\text{RM}} \quad \text{当 policy 偏离训练分布时}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">true</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel"><span class="mrel"><span class="mord vbox"><span class="thinbox"><span class="rlap"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="inner"><span class="mord"><span class="mrel"></span></span></span><span class="fix"></span></span></span></span></span><span class="mspace nobreak"></span><span class="mrel">=</span></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:1em;"></span><span class="mord text"><span class="mord cjk_fallback">当</span><span class="mord"> policy </span><span class="mord cjk_fallback">偏离训练分布时</span></span></span></span></span></span></p>
+<p>RM 只在<strong>训练分布 (training distribution)</strong> 内准确，当 policy 生成分布外内容时，RM 预测不再可靠。</p>
+<h3>3.3 缓解策略 (Mitigations)</h3>
+<h4>3.3.1 KL 散度控制 (KL Divergence Control)</h4>
+<p>在 RLHF 的目标函数中加入 KL 惩罚项：</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mi>π</mi></munder><msub><mi mathvariant="double-struck">E</mi><mrow><mi>x</mi><mo>∼</mo><mi mathvariant="script">D</mi><mo separator="true">,</mo><mi>y</mi><mo>∼</mo><mi>π</mi><mo stretchy="false">(</mo><mo>⋅</mo><mi mathvariant="normal">∣</mi><mi>x</mi><mo stretchy="false">)</mo></mrow></msub><mrow><mo fence="true">[</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mi>β</mi><mo>⋅</mo><msub><mi>D</mi><mtext>KL</mtext></msub><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">(</mo><mi>y</mi><mi mathvariant="normal">∣</mi><mi>x</mi><mo stretchy="false">)</mo><mi mathvariant="normal">∥</mi><msub><mi>π</mi><mtext>ref</mtext></msub><mo stretchy="false">(</mo><mi>y</mi><mi mathvariant="normal">∣</mi><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">\max_{\pi} \mathbb{E}_{x \sim \mathcal{D}, y \sim \pi(\cdot|x)} \left[ r_\theta(x, y) - \beta \cdot D_{\text{KL}}(\pi(y|x) \| \pi_{\text{ref}}(y|x)) \right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.45em;vertical-align:-0.7em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.4306em;"><span style="top:-2.4em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mrel mtight">∼</span><span class="mord mathcal mtight" style="margin-right:0.0278em;">D</span><span class="mpunct mtight">,</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="mrel mtight">∼</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span><span class="mopen mtight">(</span><span class="mord mtight">⋅</span><span class="mord mtight">∣</span><span class="mord mathnormal mtight">x</span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">[</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">KL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mord">∥</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mclose">))</span><span class="mclose delimcenter" style="top:0em;">]</span></span></span></span></span></span></p>
+<ul>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> 越大 → 策略越保守，越接近参考模型 (reference model)</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> 越小 → 允许更大探索空间，但 reward hacking 风险高</li>
+<li><strong>自适应 KL (Adaptive KL)：</strong> 根据 KL 值动态调整 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span></li>
+</ul>
+<h4>3.3.2 RM 集成 (RM Ensembles)</h4>
+<ul>
+<li>训练<strong>多个独立 RM</strong> (不同初始化、不同数据子集、不同架构)</li>
+<li>取平均、最小值 (min)、或用不确定性估计</li>
+<li><strong>保守策略：</strong> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover accent="true"><mi>r</mi><mo>^</mo></mover><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>=</mo><msub><mrow><mi>min</mi><mo>⁡</mo></mrow><mi>i</mi></msub><msub><mi>r</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\hat{r}(x,y) = \min_i r_i(x,y)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1944em;"><span class="mord">^</span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop"><span class="mop">min</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span></span></span></span> — 避免任一 RM 的过度乐观评分</li>
+<li>可用于<strong>不确定性过滤</strong>：方差大的区域降低信任度</li>
+</ul>
+<h4>3.3.3 长度惩罚 (Length Penalty)</h4>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mtext>adjusted</mtext></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>=</mo><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mi>α</mi><mo>⋅</mo><mtext>len</mtext><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">r_{\text{adjusted}}(x,y) = r_\theta(x,y) - \alpha \cdot \text{len}(y)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0361em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">adjusted</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4445em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">len</span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span></span></span></span></span></p>
+<p>或归一化形式：</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>r</mi><mtext>adjusted</mtext></msub><mo>=</mo><mfrac><mrow><msub><mi>r</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><mrow><mtext>len</mtext><mo stretchy="false">(</mo><mi>y</mi><msup><mo stretchy="false">)</mo><mi>γ</mi></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">r_{\text{adjusted}} = \frac{r_\theta(x,y)}{\text{len}(y)^\gamma}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">adjusted</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.363em;vertical-align:-0.936em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">len</span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.5904em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0556em;">γ</span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
+<ul>
+<li>需要仔细调参，避免惩罚过强导致回答过于简短</li>
+<li>更好的做法：在<strong>数据标注阶段</strong>就控制长度偏好</li>
+</ul>
+<h4>3.3.4 迭代重训练 (Iterative Re-Training / Online RLHF)</h4>
+<pre><code>迭代流程:
 1. 用当前 policy π_k 生成候选回答
 2. 收集新的偏好标注 / 或用 RM 标注
 3. 更新 RM: r_k → r_{k+1}
 4. 用新 RM 做 RLHF 更新: π_k → π_{k+1}
 5. 重复
-```
-
-- **关键好处：** RM 始终在 policy 当前分布上训练，减少分布偏移 (distribution shift)
-- **挑战：** 计算成本翻倍以上，标注也可能随时间漂移
-- 变体：DPO (Direct Preference Optimization)、RLHF + rejection sampling 的迭代版本
-
-#### 3.3.5 其他方法
-
-| 方法 | 描述 |
-|------|------|
-| **Rejection Sampling / Best-of-N** | 不做 RL，从 policy 采样 N 个回答，取 RM 最高分者 |
-| **约束优化 (Constrained Optimization)** | 加入安全/质量硬约束 |
-| **预训练约束** | 保持与预训练模型的接近 (如 L2 正则) |
-| **RM 鲁棒训练** | 对抗训练、数据增强提升 RM 泛化能力 |
-
----
-
-## 4. 长度偏差及其他 RM 病态现象 (Length Bias & Other Pathologies)
-
-### 4.1 长度偏差 (Length Bias)
-
-**现象：** RM 倾向于给**更长的回答**更高分数，即使更长不代表更好。
-
-**原因分析：**
-- 训练数据中，详细回答 (chosen) 通常比简短回答 (rejected) 更长
-- 标注者偏好详细内容 → 偏好对中隐含长度相关性
-- RM 过拟合到"长=好"的虚假特征 (spurious feature)
-
-**后果：**
-- 策略模型学会"注水"以获取高分
-- 生成大量填充词、重复、冗余解释
-- 推理成本上升，用户体验下降
-
-**缓解方法：**
-- 训练数据中控制长度：构造 chosen/rejected 长度接近的偏好对
-- 推理时加长度惩罚 (见 3.3.3)
-- 数据去偏 (debiasing)：统计分析并补偿长度相关性
-- 使用长度归一化的评估指标
-
-### 4.2 位置偏差 (Position Bias)
-
-**现象：** 在成对比较中，RM 倾向于偏好**某个位置** (如第一个或最后一个) 的回答。
-
-**缓解：** 交换位置做两次预测，取一致结果。
-
-### 4.3 冗余偏差 (Verbosity / Redundancy Bias)
-
-**现象：** 不仅是长度，RM 还倾向于偏好包含**更多冗余修饰、过渡词、格式化元素**的回答。
-
-**区别于长度偏差：** 有时同等长度下，"更花哨"的回答也更受偏好。
-
-### 4.4 确认偏差 (Confirmation / Sycophancy Bias)
-
-**现象：** RM 偏好与用户提问立场一致的回答，即使该立场有误。
-
-### 4.5 常见 RM 病态现象汇总
-
-| 病态 (Pathology) | 表现 | 根因 |
-|---|---|---|
-| **长度偏差** | 长回答得分高 | 训练数据中的虚假相关性 |
-| **位置偏差** | 偏好特定位置 | 标注顺序效应 |
-| **冗长偏差** | 偏好修饰过多 | 标注者误判为"质量高" |
-| **谄媚偏差** | 偏好迎合用户 | 标注者心理倾向 |
-| **格式偏差** | 偏好列表/Markdown格式 | 训练数据中的格式虚假关联 |
-| **分布外崩溃 (OOD collapse)** | 对分布外生成评分失准 | RM 泛化能力有限 |
-| **表面特征捷径** | 通过关键词而非语义评分 | 模型容量/数据不足 |
-| **标注者噪声放大** | RM 学到标注者个人偏见 | 标注质量不均 |
-
----
-
-## 5. RM / 评估者评估 (RM & Judge Evaluation)
-
-### 5.1 RewardBench
-
-**简介：** RewardBench 是一个综合性的奖励模型评估基准 (benchmark)，用于系统性地测试 RM 在多个维度上的表现。
-
-**评估维度 (大致分类)：**
-- **Chat / 对话能力：** 判断对话回答质量
-- **Chat-Hard / 困难对话：** 区分细微质量差异
-- **Safety / 安全性：** 识别有害内容
-- **Reasoning / 推理：** 判断数学/逻辑推理的正确性
-
-**评估方式：**
-- 成对比较准确率 (pairwise accuracy)：给定 chosen/rejected 对，RM 是否正确排序
-- **注意：** 具体分数和排名请参考 RewardBench 官方排行榜，本书不引用具体数值 <!-- CLAUDE-REVIEW: verify number -->
-
-**使用场景：**
-- 选择最佳 RM 用于 RLHF
-- 诊断 RM 在哪些领域表现薄弱
-- 比较不同训练方法的效果
-
-### 5.2 LLM-as-Judge (大模型作为评估者)
-
-**核心思想：** 使用强大的 LLM (如 GPT-4 级别模型) 直接对回答质量进行评分或排序，替代人类评估。
-
-#### 常见评估范式 (Paradigms)
-
-| 范式 | 描述 |
-|------|------|
-| **单项评分 (Pointwise Scoring)** | 给单个回答打 1-10 分 |
-| **成对比较 (Pairwise Comparison)** | 两个回答中选更好的 |
-| **排序 (Ranking / Listwise)** | 对多个回答排序 |
-| **参考答案对比 (Reference-guided)** | 与标准答案对比评分 |
-
-#### LLM-as-Judge 的常见偏差 (Biases)
-
-##### (a) 位置偏差 (Position Bias)
-- **现象：** LLM 倾向于选择呈现在**第一个位置**（或特定位置）的回答
-- **验证方法：** 交换 A/B 顺序，检查一致性
-- **缓解：** 做两次评估 (A先B后 + B先A后)，只保留一致结果
-
-##### (b) 冗长偏差 (Verbosity Bias)
-- **现象：** LLM 偏好更长、更详细的回答，即使简洁回答质量更高
-- **原因：** 与训练数据中详细回答通常得分更高的模式一致
-- **缓解：** 明确提示 "长度不应影响评分"
-
-##### (c) 自我偏好偏差 (Self-Preference Bias)
-- **现象：** LLM 评估者倾向于给自己生成的 (或同系列模型生成的) 回答更高分数
-- **原因：** 生成风格/分布与自身训练分布更接近
-- **缓解：** 使用不同系列的模型做评估；多人 (多模型) 评估取平均
-
-##### (d) 其他 LLM-as-Judge 偏差
-
-| 偏差 | 描述 |
-|------|------|
-| **格式偏差** | 偏好使用 Markdown、列表等格式化的回答 |
-| **能力边界偏差** | LLM 无法正确评估超出自身能力的回答 |
-| **奉承偏差** | 过于"友好"，不愿给出低分 |
-| **锚定效应** | 受先看到的候选内容影响 |
-| **关键词偏差** | 对特定术语过度敏感 |
-
-#### LLM-as-Judge 最佳实践 (Best Practices)
-
-1. **结构化评估标准 (Structured Rubrics)：** 明确定义评分维度和标准
-2. **位置去偏 (Position Debiasing)：** 交换位置做两次
-3. **温度设为 0：** 减少随机性，提高一致性
-4. **多评估者 (Multi-judge)：** 使用多个不同 LLM 取平均/投票
-5. **人类校准 (Human Calibration)：** 定期与人类评估做一致性检查
-6. **成对优于绝对 (Pairwise > Absolute)：** LLM 做相对判断比绝对打分更可靠
-7. **CoT 评估 (Chain-of-Thought Evaluation)：** 让 LLM 先推理再给分
-
-### 5.3 人工评估与自动化评估的权衡
-
-```
-评估质量 ←————————————————————————→ 评估成本
+</code></pre>
+<ul>
+<li><strong>关键好处：</strong> RM 始终在 policy 当前分布上训练，减少分布偏移 (distribution shift)</li>
+<li><strong>挑战：</strong> 计算成本翻倍以上，标注也可能随时间漂移</li>
+<li>变体：DPO (Direct Preference Optimization)、RLHF + rejection sampling 的迭代版本</li>
+</ul>
+<h4>3.3.5 其他方法</h4>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Rejection Sampling / Best-of-N</strong></td>
+<td>不做 RL，从 policy 采样 N 个回答，取 RM 最高分者</td>
+</tr>
+<tr>
+<td><strong>约束优化 (Constrained Optimization)</strong></td>
+<td>加入安全/质量硬约束</td>
+</tr>
+<tr>
+<td><strong>预训练约束</strong></td>
+<td>保持与预训练模型的接近 (如 L2 正则)</td>
+</tr>
+<tr>
+<td><strong>RM 鲁棒训练</strong></td>
+<td>对抗训练、数据增强提升 RM 泛化能力</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. 长度偏差及其他 RM 病态现象 (Length Bias &amp; Other Pathologies)</h2>
+<h3>4.1 长度偏差 (Length Bias)</h3>
+<p><strong>现象：</strong> RM 倾向于给<strong>更长的回答</strong>更高分数，即使更长不代表更好。</p>
+<p><strong>原因分析：</strong></p>
+<ul>
+<li>训练数据中，详细回答 (chosen) 通常比简短回答 (rejected) 更长</li>
+<li>标注者偏好详细内容 → 偏好对中隐含长度相关性</li>
+<li>RM 过拟合到&quot;长=好&quot;的虚假特征 (spurious feature)</li>
+</ul>
+<p><strong>后果：</strong></p>
+<ul>
+<li>策略模型学会&quot;注水&quot;以获取高分</li>
+<li>生成大量填充词、重复、冗余解释</li>
+<li>推理成本上升，用户体验下降</li>
+</ul>
+<p><strong>缓解方法：</strong></p>
+<ul>
+<li>训练数据中控制长度：构造 chosen/rejected 长度接近的偏好对</li>
+<li>推理时加长度惩罚 (见 3.3.3)</li>
+<li>数据去偏 (debiasing)：统计分析并补偿长度相关性</li>
+<li>使用长度归一化的评估指标</li>
+</ul>
+<h3>4.2 位置偏差 (Position Bias)</h3>
+<p><strong>现象：</strong> 在成对比较中，RM 倾向于偏好<strong>某个位置</strong> (如第一个或最后一个) 的回答。</p>
+<p><strong>缓解：</strong> 交换位置做两次预测，取一致结果。</p>
+<h3>4.3 冗余偏差 (Verbosity / Redundancy Bias)</h3>
+<p><strong>现象：</strong> 不仅是长度，RM 还倾向于偏好包含<strong>更多冗余修饰、过渡词、格式化元素</strong>的回答。</p>
+<p><strong>区别于长度偏差：</strong> 有时同等长度下，&quot;更花哨&quot;的回答也更受偏好。</p>
+<h3>4.4 确认偏差 (Confirmation / Sycophancy Bias)</h3>
+<p><strong>现象：</strong> RM 偏好与用户提问立场一致的回答，即使该立场有误。</p>
+<h3>4.5 常见 RM 病态现象汇总</h3>
+<table>
+<thead>
+<tr>
+<th>病态 (Pathology)</th>
+<th>表现</th>
+<th>根因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>长度偏差</strong></td>
+<td>长回答得分高</td>
+<td>训练数据中的虚假相关性</td>
+</tr>
+<tr>
+<td><strong>位置偏差</strong></td>
+<td>偏好特定位置</td>
+<td>标注顺序效应</td>
+</tr>
+<tr>
+<td><strong>冗长偏差</strong></td>
+<td>偏好修饰过多</td>
+<td>标注者误判为&quot;质量高&quot;</td>
+</tr>
+<tr>
+<td><strong>谄媚偏差</strong></td>
+<td>偏好迎合用户</td>
+<td>标注者心理倾向</td>
+</tr>
+<tr>
+<td><strong>格式偏差</strong></td>
+<td>偏好列表/Markdown格式</td>
+<td>训练数据中的格式虚假关联</td>
+</tr>
+<tr>
+<td><strong>分布外崩溃 (OOD collapse)</strong></td>
+<td>对分布外生成评分失准</td>
+<td>RM 泛化能力有限</td>
+</tr>
+<tr>
+<td><strong>表面特征捷径</strong></td>
+<td>通过关键词而非语义评分</td>
+<td>模型容量/数据不足</td>
+</tr>
+<tr>
+<td><strong>标注者噪声放大</strong></td>
+<td>RM 学到标注者个人偏见</td>
+<td>标注质量不均</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. RM / 评估者评估 (RM &amp; Judge Evaluation)</h2>
+<h3>5.1 RewardBench</h3>
+<p><strong>简介：</strong> RewardBench 是一个综合性的奖励模型评估基准 (benchmark)，用于系统性地测试 RM 在多个维度上的表现。</p>
+<p><strong>评估维度 (大致分类)：</strong></p>
+<ul>
+<li><strong>Chat / 对话能力：</strong> 判断对话回答质量</li>
+<li><strong>Chat-Hard / 困难对话：</strong> 区分细微质量差异</li>
+<li><strong>Safety / 安全性：</strong> 识别有害内容</li>
+<li><strong>Reasoning / 推理：</strong> 判断数学/逻辑推理的正确性</li>
+</ul>
+<p><strong>评估方式：</strong></p>
+<ul>
+<li>成对比较准确率 (pairwise accuracy)：给定 chosen/rejected 对，RM 是否正确排序</li>
+<li><strong>注意：</strong> 具体分数和排名请参考 RewardBench 官方排行榜，本书不引用具体数值 <!-- CLAUDE-REVIEW: verify number --></li>
+</ul>
+<p><strong>使用场景：</strong></p>
+<ul>
+<li>选择最佳 RM 用于 RLHF</li>
+<li>诊断 RM 在哪些领域表现薄弱</li>
+<li>比较不同训练方法的效果</li>
+</ul>
+<h3>5.2 LLM-as-Judge (大模型作为评估者)</h3>
+<p><strong>核心思想：</strong> 使用强大的 LLM (如 GPT-4 级别模型) 直接对回答质量进行评分或排序，替代人类评估。</p>
+<h4>常见评估范式 (Paradigms)</h4>
+<table>
+<thead>
+<tr>
+<th>范式</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>单项评分 (Pointwise Scoring)</strong></td>
+<td>给单个回答打 1-10 分</td>
+</tr>
+<tr>
+<td><strong>成对比较 (Pairwise Comparison)</strong></td>
+<td>两个回答中选更好的</td>
+</tr>
+<tr>
+<td><strong>排序 (Ranking / Listwise)</strong></td>
+<td>对多个回答排序</td>
+</tr>
+<tr>
+<td><strong>参考答案对比 (Reference-guided)</strong></td>
+<td>与标准答案对比评分</td>
+</tr>
+</tbody></table>
+<h4>LLM-as-Judge 的常见偏差 (Biases)</h4>
+<h5>(a) 位置偏差 (Position Bias)</h5>
+<ul>
+<li><strong>现象：</strong> LLM 倾向于选择呈现在<strong>第一个位置</strong>（或特定位置）的回答</li>
+<li><strong>验证方法：</strong> 交换 A/B 顺序，检查一致性</li>
+<li><strong>缓解：</strong> 做两次评估 (A先B后 + B先A后)，只保留一致结果</li>
+</ul>
+<h5>(b) 冗长偏差 (Verbosity Bias)</h5>
+<ul>
+<li><strong>现象：</strong> LLM 偏好更长、更详细的回答，即使简洁回答质量更高</li>
+<li><strong>原因：</strong> 与训练数据中详细回答通常得分更高的模式一致</li>
+<li><strong>缓解：</strong> 明确提示 &quot;长度不应影响评分&quot;</li>
+</ul>
+<h5>(c) 自我偏好偏差 (Self-Preference Bias)</h5>
+<ul>
+<li><strong>现象：</strong> LLM 评估者倾向于给自己生成的 (或同系列模型生成的) 回答更高分数</li>
+<li><strong>原因：</strong> 生成风格/分布与自身训练分布更接近</li>
+<li><strong>缓解：</strong> 使用不同系列的模型做评估；多人 (多模型) 评估取平均</li>
+</ul>
+<h5>(d) 其他 LLM-as-Judge 偏差</h5>
+<table>
+<thead>
+<tr>
+<th>偏差</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>格式偏差</strong></td>
+<td>偏好使用 Markdown、列表等格式化的回答</td>
+</tr>
+<tr>
+<td><strong>能力边界偏差</strong></td>
+<td>LLM 无法正确评估超出自身能力的回答</td>
+</tr>
+<tr>
+<td><strong>奉承偏差</strong></td>
+<td>过于&quot;友好&quot;，不愿给出低分</td>
+</tr>
+<tr>
+<td><strong>锚定效应</strong></td>
+<td>受先看到的候选内容影响</td>
+</tr>
+<tr>
+<td><strong>关键词偏差</strong></td>
+<td>对特定术语过度敏感</td>
+</tr>
+</tbody></table>
+<h4>LLM-as-Judge 最佳实践 (Best Practices)</h4>
+<ol>
+<li><strong>结构化评估标准 (Structured Rubrics)：</strong> 明确定义评分维度和标准</li>
+<li><strong>位置去偏 (Position Debiasing)：</strong> 交换位置做两次</li>
+<li><strong>温度设为 0：</strong> 减少随机性，提高一致性</li>
+<li><strong>多评估者 (Multi-judge)：</strong> 使用多个不同 LLM 取平均/投票</li>
+<li><strong>人类校准 (Human Calibration)：</strong> 定期与人类评估做一致性检查</li>
+<li><strong>成对优于绝对 (Pairwise &gt; Absolute)：</strong> LLM 做相对判断比绝对打分更可靠</li>
+<li><strong>CoT 评估 (Chain-of-Thought Evaluation)：</strong> 让 LLM 先推理再给分</li>
+</ol>
+<h3>5.3 人工评估与自动化评估的权衡</h3>
+<pre><code>评估质量 ←————————————————————————→ 评估成本
   人工专家评估    众包标注    LLM-as-Judge    自动指标 (BLEU/ROUGE...)
   (最高质量)                                          (最低成本)
-```
-
-### 5.4 其他评估方法
-
-- **Win Rate (胜率)：** 与基线模型成对比较的胜出比例
-- **Elo Rating：** 基于锦标赛 (tournament) 的动态排名系统
-- **多维评估：** 分别在有用性、安全性、事实性等维度独立评分
-- **对抗评估 (Adversarial Evaluation)：** 专门测试 RM 在边缘案例和对抗样本上的鲁棒性
-
----
-
-## 6. 面试题 (Interview Questions)
-
-### L1 — 基础 (Fundamentals)
-
----
-
-**Q1: 什么是奖励模型 (Reward Model)？它在 RLHF 中扮演什么角色？**
-
-**答：** 奖励模型是从人类偏好数据中学习的评分函数，为 LLM 生成的回答输出一个标量奖励值。在 RLHF 中，RM 充当人类偏好的代理 (proxy)，用作策略优化的目标函数 — 策略模型通过最大化 RM 分数来改善输出质量。
-
-> **追问 (Follow-up)：** 为什么不能直接用人类标注做 RL 的奖励？
-> 因为 RL 需要大量在线奖励信号，人类标注成本高、延迟大；RM 提供了可批量、即时计算的代理信号。
-
----
-
-**Q2: Bradley-Terry 模型的核心假设是什么？其训练损失函数是什么形式？**
-
-**答：** BT 模型假设：对于给定 prompt，回答 $y_w$ 优于 $y_l$ 的概率由两者奖励分数之差的 sigmoid 函数决定。训练损失为负对数似然：$\mathcal{L} = -\log\sigma(r(y_w) - r(y_l))$。核心假设包括偏好可由标量分数差解释、偏好的传递性等。
-
-> **追问：** 如果偏好不满足传递性会怎样？
-> BT 模型会陷入不一致的标注对中，导致训练不稳定。此时可考虑 Plackett-Luce 等更灵活的偏好模型。
-
----
-
-**Q3: PRM 和 ORM 的核心区别是什么？各自适用于什么场景？**
-
-**答：** ORM 只对最终输出给一个奖励，信号稀疏；PRM 对每个推理步骤给奖励，信号密集。PRM 适用于多步骤推理任务 (数学、代码)，ORM 适用于端到端评估任务 (对话、写作)。PRM 优势在于精确信用分配，但标注成本远高于 ORM。
-
-> **追问：** 如何自动获取 PRM 训练数据？
-> 可用 Monte Carlo 估计：从每步继续采样多次 rollout，用最终答案正确率作为该步奖励的近似。
-
----
-
-**Q4: 什么是 Best-of-N (BoN) 采样？它与 RL 训练有什么区别？**
-
-**答：** BoN 从 policy 采样 N 个回答，用 RM 选得分最高者作为最终输出。它是推理时 (inference-time) 的优化方法，不更新模型参数，简单但推理成本与 N 成正比。RL 训练则在训练时更新参数，推理时无需额外采样。
-
-> **追问：** BoN 存在什么样的上限 (ceiling)？
-> 随 N 增大，收益递减；且受限于 policy 原始分布 — 无法生成分布外的优质回答。
-
----
-
-### L2 — 中级 (Intermediate)
-
----
-
-**Q5: 什么是奖励欺骗 (Reward Hacking)？请举 2-3 个具体例子。**
-
-**答：** 策略模型学会利用 RM 的弱点获取高分而非真正提升质量。例子：(1) 生成冗长内容获得高分 (length hacking)；(2) 使用讨好性/奉承性措辞 (sycophancy)；(3) 重复训练数据中的高分模板句式；(4) 过度使用格式化元素 (标题、列表、粗体)。
-
-> **追问：** Goodhart 定律与 reward hacking 的关系？
-> Goodhart 定律指出"指标一旦成为目标就不再可靠" — RM 是人类偏好的近似指标，当 policy 专门优化它时，两者开始脱钩。
-
----
-
-**Q6: 详细解释 KL 散度惩罚在 RLHF 中的作用和调节。**
-
-**答：** KL 惩罚项 $\beta \cdot D_{\text{KL}}(\pi \| \pi_{\text{ref}})$ 约束策略不要偏离参考模型太远，起到正则化作用。$\beta$ 太大 → 策略几乎不更新，学不到东西；$\beta$ 太小 → 允许过度探索，易发生 reward hacking。常用自适应 KL：设目标 KL 值，动态调整 $\beta$。
-
-> **追问：** KL 惩罚与 RM ensembles 各自解决 reward hacking 的哪个层面？
-> KL 从优化约束层面限制策略范围；RM ensembles 从奖励估计层面降低评分方差和过度乐观。两者互补。
-
----
-
-**Q7: 如何用 RM 集成 (ensemble) 缓解奖励欺骗？不同聚合策略有何区别？**
-
-**答：** 训练多个独立 RM（不同种子/数据子集/架构），聚合评分。策略：(1) **均值 (mean)：** 平滑评分，减少单个 RM 噪声；(2) **最小值 (min/conservative)：** 取最保守评分，避免过度乐观 — 在 policy 偏离分布时更安全；(3) **不确定性加权：** 方差大的样本降低权重。实践中 min 策略在对抗 reward hacking 方面最为有效但可能过于保守。
-
-> **追问：** ensemble 的计算开销如何优化？
-> 可用参数共享的 backbone + 不同 head；或用 PEFT adapter 方式训练多个轻量变体。
-
----
-
-**Q8: 长度偏差 (length bias) 的成因是什么？如何在数据层面和推理层面缓解？**
-
-**答：** **成因：** 训练偏好对中 chosen 通常比 rejected 更长，RM 过拟合到"长=好"的虚假特征。**数据层面：** 构造长度接近的偏好对；分析并去除长度相关性。**推理层面：** 加长度惩罚 $r' = r - \alpha \cdot \text{len}$；或长度归一化。
-
-> **追问：** 为什么仅在推理时加长度惩罚可能不够？
-> 如果 RM 内部已经将长度作为强特征，长度惩罚可能无法完全抵消；更根本的做法是在训练数据/训练方法上去偏。
-
----
-
-**Q9: 迭代重训练 (iterative re-training) 如何缓解分布偏移 (distribution shift)？**
-
-**答：** 标准 RLHF 只在初始 policy 生成的数据上训练 RM，随着 RL 训练推进，policy 分布偏移，RM 在新分布上不再准确。迭代重训练用当前 policy 生成新数据 → 重新标注 → 更新 RM → 继续 RLHF，使 RM 始终覆盖 policy 当前分布。代价是计算和标注成本翻倍以上。
-
-> **追问：** DPO 是否也需要迭代重训练？
-> 理论上 DPO 同样面临分布偏移问题，迭代 DPO (online DPO / online preference optimization) 被提出以缓解此问题。
-
----
-
-**Q10: LLM-as-Judge 有哪些主要偏差？如何系统性地缓解？**
-
-**答：** 主要偏差：(1) **位置偏差** — 偏好特定位置；(2) **冗长偏差** — 偏好长回答；(3) **自我偏好** — 给同系列模型高分；(4) **格式偏差** — 偏好格式化内容。缓解：交换位置做双次评估、明确评分标准 (rubric)、多 judge 投票、定期与人类校准。
-
-> **追问：** 为什么成对比较 (pairwise) 通常优于绝对评分 (pointwise)？
-> 因为绝对评分需要 judge 内部维护一致的评分标度，容易漂移；成对比较只需判断相对优劣，是更简单的认知任务，一致性更高。
-
----
-
-**Q11: RewardBench 是什么？它评估 RM 的哪些能力维度？**
-
-**答：** RewardBench 是一个综合奖励模型评估基准，通过成对比较准确率来衡量 RM 在多个维度上的表现。大致维度包括：一般对话质量、困难对话 (细微差异区分)、安全性、推理能力等。它提供了标准化的比较框架，帮助诊断 RM 的强项和薄弱环节。
-
-> **追问：** RewardBench 的评估结果能直接预测 RM 在 RLHF 中的实际表现吗？
-> 不完全能。Benchmark 上的成对准确率是必要但非充分条件 — RM 在 benchmark 上的表现与其在 RLHF 优化过程中是否会遭遇 reward hacking 并不完全相关，还需结合 online 评估。
-
----
-
-### L3 — 高级 (Advanced)
-
----
-
-**Q12: 从理论角度分析，为什么 KL 约束在 RM 不完美时是必要的？**
-
-**答：** 当 $r_{\text{RM}} \neq r_{\text{true}}$ 时，无约束地最大化 $r_{\text{RM}}$ 可能导致 $r_{\text{true}}$ 下降 (reward hacking)。KL 约束相当于在 RM 可靠的局部区域内优化 — RM 在训练分布附近是准确的，KL 确保 policy 不离开这个"信任区域 (trust region)"。这与 TRPO/PPO 中的信赖域思想一致。当 KL 为 0 时 $\pi = \pi_{\text{ref}}$，当 KL 小时 RM 可靠度高。
-
-> **追问：** 是否存在 KL 惩罚无法防止的 reward hacking 类型？
-> 是的 — 如果 reward hacking 发生在 $\pi_{\text{ref}}$ 附近的低 KL 区域内（如简单地多用几个讨好性词汇），KL 惩罚无法阻止。这时需要更好的 RM 本身。
-
----
-
-**Q13: 设计一个完整的迭代 RLHF 系统，描述其架构和关键决策点。**
-
-**答：**
-
-```
-架构:
+</code></pre>
+<h3>5.4 其他评估方法</h3>
+<ul>
+<li><strong>Win Rate (胜率)：</strong> 与基线模型成对比较的胜出比例</li>
+<li><strong>Elo Rating：</strong> 基于锦标赛 (tournament) 的动态排名系统</li>
+<li><strong>多维评估：</strong> 分别在有用性、安全性、事实性等维度独立评分</li>
+<li><strong>对抗评估 (Adversarial Evaluation)：</strong> 专门测试 RM 在边缘案例和对抗样本上的鲁棒性</li>
+</ul>
+<hr>
+<h2>6. 面试题 (Interview Questions)</h2>
+<h3>L1 — 基础 (Fundamentals)</h3>
+<hr>
+<p><strong>Q1: 什么是奖励模型 (Reward Model)？它在 RLHF 中扮演什么角色？</strong></p>
+<p><strong>答：</strong> 奖励模型是从人类偏好数据中学习的评分函数，为 LLM 生成的回答输出一个标量奖励值。在 RLHF 中，RM 充当人类偏好的代理 (proxy)，用作策略优化的目标函数 — 策略模型通过最大化 RM 分数来改善输出质量。</p>
+<blockquote>
+<p><strong>追问 (Follow-up)：</strong> 为什么不能直接用人类标注做 RL 的奖励？
+因为 RL 需要大量在线奖励信号，人类标注成本高、延迟大；RM 提供了可批量、即时计算的代理信号。</p>
+</blockquote>
+<hr>
+<p><strong>Q2: Bradley-Terry 模型的核心假设是什么？其训练损失函数是什么形式？</strong></p>
+<p><strong>答：</strong> BT 模型假设：对于给定 prompt，回答 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>w</mi></msub></mrow><annotation encoding="application/x-tex">y_w</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 优于 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">y_l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 的概率由两者奖励分数之差的 sigmoid 函数决定。训练损失为负对数似然：<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">L</mi><mo>=</mo><mo>−</mo><mi>log</mi><mo>⁡</mo><mi>σ</mi><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">(</mo><msub><mi>y</mi><mi>w</mi></msub><mo stretchy="false">)</mo><mo>−</mo><mi>r</mi><mo stretchy="false">(</mo><msub><mi>y</mi><mi>l</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{L} = -\log\sigma(r(y_w) - r(y_l))</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathcal">L</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">−</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0269em;">w</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0197em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">))</span></span></span></span>。核心假设包括偏好可由标量分数差解释、偏好的传递性等。</p>
+<blockquote>
+<p><strong>追问：</strong> 如果偏好不满足传递性会怎样？
+BT 模型会陷入不一致的标注对中，导致训练不稳定。此时可考虑 Plackett-Luce 等更灵活的偏好模型。</p>
+</blockquote>
+<hr>
+<p><strong>Q3: PRM 和 ORM 的核心区别是什么？各自适用于什么场景？</strong></p>
+<p><strong>答：</strong> ORM 只对最终输出给一个奖励，信号稀疏；PRM 对每个推理步骤给奖励，信号密集。PRM 适用于多步骤推理任务 (数学、代码)，ORM 适用于端到端评估任务 (对话、写作)。PRM 优势在于精确信用分配，但标注成本远高于 ORM。</p>
+<blockquote>
+<p><strong>追问：</strong> 如何自动获取 PRM 训练数据？
+可用 Monte Carlo 估计：从每步继续采样多次 rollout，用最终答案正确率作为该步奖励的近似。</p>
+</blockquote>
+<hr>
+<p><strong>Q4: 什么是 Best-of-N (BoN) 采样？它与 RL 训练有什么区别？</strong></p>
+<p><strong>答：</strong> BoN 从 policy 采样 N 个回答，用 RM 选得分最高者作为最终输出。它是推理时 (inference-time) 的优化方法，不更新模型参数，简单但推理成本与 N 成正比。RL 训练则在训练时更新参数，推理时无需额外采样。</p>
+<blockquote>
+<p><strong>追问：</strong> BoN 存在什么样的上限 (ceiling)？
+随 N 增大，收益递减；且受限于 policy 原始分布 — 无法生成分布外的优质回答。</p>
+</blockquote>
+<hr>
+<h3>L2 — 中级 (Intermediate)</h3>
+<hr>
+<p><strong>Q5: 什么是奖励欺骗 (Reward Hacking)？请举 2-3 个具体例子。</strong></p>
+<p><strong>答：</strong> 策略模型学会利用 RM 的弱点获取高分而非真正提升质量。例子：(1) 生成冗长内容获得高分 (length hacking)；(2) 使用讨好性/奉承性措辞 (sycophancy)；(3) 重复训练数据中的高分模板句式；(4) 过度使用格式化元素 (标题、列表、粗体)。</p>
+<blockquote>
+<p><strong>追问：</strong> Goodhart 定律与 reward hacking 的关系？
+Goodhart 定律指出&quot;指标一旦成为目标就不再可靠&quot; — RM 是人类偏好的近似指标，当 policy 专门优化它时，两者开始脱钩。</p>
+</blockquote>
+<hr>
+<p><strong>Q6: 详细解释 KL 散度惩罚在 RLHF 中的作用和调节。</strong></p>
+<p><strong>答：</strong> KL 惩罚项 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>⋅</mo><msub><mi>D</mi><mtext>KL</mtext></msub><mo stretchy="false">(</mo><mi>π</mi><mi mathvariant="normal">∥</mi><msub><mi>π</mi><mtext>ref</mtext></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\beta \cdot D_{\text{KL}}(\pi \| \pi_{\text{ref}})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">D</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">KL</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mord">∥</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 约束策略不要偏离参考模型太远，起到正则化作用。<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> 太大 → 策略几乎不更新，学不到东西；<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> 太小 → 允许过度探索，易发生 reward hacking。常用自适应 KL：设目标 KL 值，动态调整 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span>。</p>
+<blockquote>
+<p><strong>追问：</strong> KL 惩罚与 RM ensembles 各自解决 reward hacking 的哪个层面？
+KL 从优化约束层面限制策略范围；RM ensembles 从奖励估计层面降低评分方差和过度乐观。两者互补。</p>
+</blockquote>
+<hr>
+<p><strong>Q7: 如何用 RM 集成 (ensemble) 缓解奖励欺骗？不同聚合策略有何区别？</strong></p>
+<p><strong>答：</strong> 训练多个独立 RM（不同种子/数据子集/架构），聚合评分。策略：(1) <strong>均值 (mean)：</strong> 平滑评分，减少单个 RM 噪声；(2) <strong>最小值 (min/conservative)：</strong> 取最保守评分，避免过度乐观 — 在 policy 偏离分布时更安全；(3) <strong>不确定性加权：</strong> 方差大的样本降低权重。实践中 min 策略在对抗 reward hacking 方面最为有效但可能过于保守。</p>
+<blockquote>
+<p><strong>追问：</strong> ensemble 的计算开销如何优化？
+可用参数共享的 backbone + 不同 head；或用 PEFT adapter 方式训练多个轻量变体。</p>
+</blockquote>
+<hr>
+<p><strong>Q8: 长度偏差 (length bias) 的成因是什么？如何在数据层面和推理层面缓解？</strong></p>
+<p><strong>答：</strong> <strong>成因：</strong> 训练偏好对中 chosen 通常比 rejected 更长，RM 过拟合到&quot;长=好&quot;的虚假特征。<strong>数据层面：</strong> 构造长度接近的偏好对；分析并去除长度相关性。<strong>推理层面：</strong> 加长度惩罚 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>r</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo>=</mo><mi>r</mi><mo>−</mo><mi>α</mi><mo>⋅</mo><mtext>len</mtext></mrow><annotation encoding="application/x-tex">r&#x27; = r - \alpha \cdot \text{len}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7519em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7519em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">′</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4445em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord text"><span class="mord">len</span></span></span></span></span>；或长度归一化。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么仅在推理时加长度惩罚可能不够？
+如果 RM 内部已经将长度作为强特征，长度惩罚可能无法完全抵消；更根本的做法是在训练数据/训练方法上去偏。</p>
+</blockquote>
+<hr>
+<p><strong>Q9: 迭代重训练 (iterative re-training) 如何缓解分布偏移 (distribution shift)？</strong></p>
+<p><strong>答：</strong> 标准 RLHF 只在初始 policy 生成的数据上训练 RM，随着 RL 训练推进，policy 分布偏移，RM 在新分布上不再准确。迭代重训练用当前 policy 生成新数据 → 重新标注 → 更新 RM → 继续 RLHF，使 RM 始终覆盖 policy 当前分布。代价是计算和标注成本翻倍以上。</p>
+<blockquote>
+<p><strong>追问：</strong> DPO 是否也需要迭代重训练？
+理论上 DPO 同样面临分布偏移问题，迭代 DPO (online DPO / online preference optimization) 被提出以缓解此问题。</p>
+</blockquote>
+<hr>
+<p><strong>Q10: LLM-as-Judge 有哪些主要偏差？如何系统性地缓解？</strong></p>
+<p><strong>答：</strong> 主要偏差：(1) <strong>位置偏差</strong> — 偏好特定位置；(2) <strong>冗长偏差</strong> — 偏好长回答；(3) <strong>自我偏好</strong> — 给同系列模型高分；(4) <strong>格式偏差</strong> — 偏好格式化内容。缓解：交换位置做双次评估、明确评分标准 (rubric)、多 judge 投票、定期与人类校准。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么成对比较 (pairwise) 通常优于绝对评分 (pointwise)？
+因为绝对评分需要 judge 内部维护一致的评分标度，容易漂移；成对比较只需判断相对优劣，是更简单的认知任务，一致性更高。</p>
+</blockquote>
+<hr>
+<p><strong>Q11: RewardBench 是什么？它评估 RM 的哪些能力维度？</strong></p>
+<p><strong>答：</strong> RewardBench 是一个综合奖励模型评估基准，通过成对比较准确率来衡量 RM 在多个维度上的表现。大致维度包括：一般对话质量、困难对话 (细微差异区分)、安全性、推理能力等。它提供了标准化的比较框架，帮助诊断 RM 的强项和薄弱环节。</p>
+<blockquote>
+<p><strong>追问：</strong> RewardBench 的评估结果能直接预测 RM 在 RLHF 中的实际表现吗？
+不完全能。Benchmark 上的成对准确率是必要但非充分条件 — RM 在 benchmark 上的表现与其在 RLHF 优化过程中是否会遭遇 reward hacking 并不完全相关，还需结合 online 评估。</p>
+</blockquote>
+<hr>
+<h3>L3 — 高级 (Advanced)</h3>
+<hr>
+<p><strong>Q12: 从理论角度分析，为什么 KL 约束在 RM 不完美时是必要的？</strong></p>
+<p><strong>答：</strong> 当 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mtext>RM</mtext></msub><mo mathvariant="normal">≠</mo><msub><mi>r</mi><mtext>true</mtext></msub></mrow><annotation encoding="application/x-tex">r_{\text{RM}} \neq r_{\text{true}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel"><span class="mrel"><span class="mord vbox"><span class="thinbox"><span class="rlap"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="inner"><span class="mord"><span class="mrel"></span></span></span><span class="fix"></span></span></span></span></span><span class="mspace nobreak"></span><span class="mrel">=</span></span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">true</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 时，无约束地最大化 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mtext>RM</mtext></msub></mrow><annotation encoding="application/x-tex">r_{\text{RM}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">RM</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 可能导致 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mtext>true</mtext></msub></mrow><annotation encoding="application/x-tex">r_{\text{true}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">true</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 下降 (reward hacking)。KL 约束相当于在 RM 可靠的局部区域内优化 — RM 在训练分布附近是准确的，KL 确保 policy 不离开这个&quot;信任区域 (trust region)&quot;。这与 TRPO/PPO 中的信赖域思想一致。当 KL 为 0 时 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi><mo>=</mo><msub><mi>π</mi><mtext>ref</mtext></msub></mrow><annotation encoding="application/x-tex">\pi = \pi_{\text{ref}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>，当 KL 小时 RM 可靠度高。</p>
+<blockquote>
+<p><strong>追问：</strong> 是否存在 KL 惩罚无法防止的 reward hacking 类型？
+是的 — 如果 reward hacking 发生在 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mtext>ref</mtext></msub></mrow><annotation encoding="application/x-tex">\pi_{\text{ref}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">ref</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 附近的低 KL 区域内（如简单地多用几个讨好性词汇），KL 惩罚无法阻止。这时需要更好的 RM 本身。</p>
+</blockquote>
+<hr>
+<p><strong>Q13: 设计一个完整的迭代 RLHF 系统，描述其架构和关键决策点。</strong></p>
+<p><strong>答：</strong></p>
+<pre><code>架构:
 π₀ (SFT model)
    ↓
 [数据生成] π_k 生成 → N responses per prompt
@@ -522,142 +569,191 @@ $$r_{\text{adjusted}} = \frac{r_\theta(x,y)}{\text{len}(y)^\gamma}$$
 [评估] 奖励曲线、KL 曲线、人工评估、reward hacking 检测
    ↓
 重复 k = 1, 2, ...
-```
-
-关键决策点：
-- 迭代频率 (每轮多少步 RL 后更新 RM)
-- 是否每轮都收集人工标注 (成本高) 还是用 RM 自标注
-- KL 目标值的选择
-- 何时终止迭代 (奖励饱和/人工评估达标)
-
-> **追问：** 如何检测迭代何时应停止？持续迭代的潜在风险？
-> 当人工评估分数不再提升、KL 不断增大、或出现模式崩溃 (mode collapse) 时应停止。持续迭代可能导致 policy 收敛到 RM 的特定偏好，丧失多样性。
-
----
-
-**Q14: 对比 PRM 的 Monte Carlo 估计方法与直接人工标注，分析各自的偏差-方差权衡。**
-
-**答：** **MC 估计：** 从每步采样 K 个 rollout，用最终正确率作为奖励。偏差来源于有限采样 (K 有限时估计不准)；方差来源于采样随机性。K 越大越准但成本越高。**人工标注：** 理论上无偏但受标注者能力/一致性限制，存在系统性偏差 (systematic bias) 和噪声。MC 估计可规模化但有系统偏差；人工标注准确但不可规模化。混合方法 (少量人工 + MC 扩展) 是常见实践。
-
-> **追问：** MC 估计在什么条件下会严重失效？
-> 当从某步开始的后续空间极大、且正确答案极稀有时 (如复杂数学题)，即使大量 rollout 也可能全部失败，导致对正确步骤给零奖励 (false negative)。
-
----
-
-**Q15: 如何设计一个对 reward hacking 鲁棒的评估框架？**
-
-**答：** 需要多层防御：
-
-1. **RM 内部指标：** 成对准确率 (in-distribution vs OOD)、校准度 (calibration)
-2. **代理指标监控：** KL 曲线、奖励分布漂移、生成长度变化、n-gram 重复率
-3. **人工盲评 (Blind Human Eval)：** 随机抽取样本做人工评分，与 RM 评分对比
-4. **对抗测试集：** 构造已知 reward hacking 模式的测试用例
-5. **多 RM 一致性：** 多个 RM 的评分相关性下降作为预警信号
-6. **A/B 测试：** 最终用户满意度作为终极评估
-
-> **追问：** 在实际工程中，哪一层检测最常被忽视但最关键？
-> OOD 检测最常被忽视 — 人们通常只看 in-distribution 的准确率，但 RM 在 policy 生成的 OOD 分布上的表现才决定是否发生 reward hacking。
-
----
-
-**Q16: 讨论 LLM-as-Judge 的自我偏好 (self-preference) 偏差对 benchmark 排行榜的影响。**
-
-**答：** 如果主流 LLM-as-Judge (如 GPT-4) 有自我偏好偏差，则与其风格相似的模型在排行榜上占优，导致排名失真。例如，如果某模型与 judge 来自同一系列或类似训练数据，可能获得不成比例的高分。这造成 benchmark 结果对 judge 选择敏感 (judge sensitivity)，削弱了排行榜的可比性和公信力。
-
-> **追问：** 如何设计一个对 judge 偏差鲁棒的排行榜？
-> 使用多个异构 judge (不同厂商、不同大小)、报告 judge 间一致性 (inter-judge agreement)、公示 judge 与各模型的关系、以及引入人类评估作为锚定。
-
----
-
-**Q17: 为什么说 "RM 的泛化能力是 RLHF 最关键的瓶颈"？**
-
-**答：** RLHF 的整个优化循环依赖 RM 作为目标函数。RM 的能力上限决定了 policy 优化的天花板。具体而言：(1) RM 泛化差 → reward hacking；(2) RM 有偏 → policy 继承偏差；(3) RM 在 OOD 上不可靠 → 迭代训练也难以改进；(4) RM 无法评估超出其训练分布的质量维度 → policy 无法在这些维度上进步。所有其他技术 (KL、ensemble、迭代) 都是在弥补 RM 泛化的不足。
-
-> **追问：** Scaling RM (增大参数量) 是否能系统性地解决泛化问题？
-> 大 RM 确实有更好的泛化能力 (更大的容量、更好的特征表示)，但不能完全解决 — 因为根本瓶颈有时是偏好数据本身的噪声和不完备性，而非模型容量。
-
----
-
-**Q18: 从信息论角度，为什么 pairwise 比 pointwise 更高效？**
-
-**答：** 人类偏好判断本质上是**序数型 (ordinal)** 信息而非**基数型 (cardinal)** 信息。Pairwise 方法直接利用序数信息 (A > B)，信息损失最小；Pointwise 要求人类映射到绝对标度 (如 1-5)，引入了额外的标度校准噪声 (scale calibration noise)。从信息论角度看，pointwise 的每个标注包含的信息量中，有一部分被标度噪声"浪费"了。Pairwise 的样本效率因此更高。
-
-> **追问：** 有没有办法从 pairwise 数据中恢复出绝对分数？
-> 可以通过求解 BT 模型的 MLE 恢复出各回答的隐含分数 (latent score)，但绝对值只有相对意义，需要额外锚点 (anchor) 来确定标度。
-
----
-
-**Q19: 比较 DPO 和 RLHF 在处理 reward hacking 上的异同。**
-
-**答：** **相同点：** 两者都依赖偏好数据中的隐式/显式奖励信号，都面临 Goodhart 定律的约束。**不同点：** (1) RLHF 有显式 RM，可被攻击和诊断；DPO 隐式包含奖励，难以单独检查；(2) RLHF 可通过 KL、ensemble、迭代等灵活调整；DPO 的 β 类似 KL 惩罚但调控粒度不同；(3) DPO 在 off-policy 数据上训练，面临更严重的分布偏移；(4) RLHF 的 PPO 本身就是 on-policy，某种程度上天然部分缓解了分布偏移。
-
-> **追问：** 是否存在 reward hacking 是 RLHF 特有而 DPO 不会遇到的？
-> RLHF 特有的问题包括：RM 本身的 OOD 评分失准、PPO 训练中的不稳定性导致策略突变。DPO 不会遇到显式 RM 的 OOD 问题，但会遇到隐式奖励的分布偏移问题 — 形式不同但本质类似。
-
----
-
-**Q20: 如果你来设计下一代 RM，你认为最重要的三个改进方向是什么？**
-
-**答：** (开放题，以下是三个关键方向)
-
-1. **更强的泛化与 OOD 鲁棒性：** 当前 RM 在分布内表现良好但在分布外崩溃。需要更好的架构设计 (如 uncertainty-aware RM)、对抗训练、以及更大更丰富的训练数据覆盖。
-
-2. **多维解耦评分 (Multi-dimensional Disentangled Scoring)：** 将有用性、安全性、事实性、风格等维度解耦为独立评分头，避免单一标量压缩信息。也便于对不同维度施加不同优化权重。
-
-3. **自监督/自改进 RM (Self-improving RM)：** 让 RM 具备自我校准能力 — 在 RLHF 过程中持续检测自身预测是否与实际偏好一致，并自动更新。减少对人工标注的依赖。
-
-> **追问：** 这三个方向之间有什么潜在冲突？
-> 多维评分增加模型复杂度，可能影响泛化；自改进机制如果不可靠可能引入系统性偏差；不确定性估计在高维空间中计算成本高昂。需要在工程实践中做平衡。
-
----
-
-## 附录：关键术语速查 (Glossary)
-
-| 英文术语 | 中文翻译 | 简要定义 |
-|----------|----------|----------|
-| Reward Model (RM) | 奖励模型 | 从偏好数据学习的评分函数 |
-| RLHF | 基于人类反馈的强化学习 | 用 RM 信号做 RL 优化 |
-| Bradley-Terry Model | 布拉德利-特里模型 | 成对比较的概率模型 |
-| ORM | 结果奖励模型 | 只对最终输出评分 |
-| PRM | 过程奖励模型 | 对每个推理步骤评分 |
-| Reward Hacking | 奖励欺骗 | 利用 RM 弱点获取高分 |
-| KL Divergence | KL 散度 | 衡量两个分布差异的度量 |
-| Distribution Shift | 分布偏移 | 训练/评估数据分布不一致 |
-| Best-of-N (BoN) | N选一 | 采样N个取最高分 |
-| LLM-as-Judge | 大模型作评估者 | 用 LLM 替代人类评估 |
-| Length Bias | 长度偏差 | RM 偏好更长回答 |
-| Self-Preference Bias | 自我偏好偏差 | LLM 偏好自己风格的回答 |
-| Inter-annotator Agreement | 标注者间一致性 | 不同标注者判断的一致程度 |
-| Trust Region | 信赖域 | 优化中的安全更新范围 |
-| Credit Assignment | 信用分配 | 将最终结果归因到各步骤 |
-| Elo Rating | Elo 排名 | 基于胜负的动态评分系统 |
-| Plackett-Luce Model | Plackett-Luce 模型 | 排序数据的概率模型 |
-| DPO | 直接偏好优化 | 绕过显式 RM 的偏好学习 |
-| Conservative Estimation | 保守估计 | 取 ensemble 最低分策略 |
-
----
-
-*本手册仅供学习参考。具体数值请以原始论文和官方排行榜为准。* <!-- CLAUDE-REVIEW: verify number -->,内容里的 </script> 须转义为 <\/script> -->
-<script id="doc" type="text/markdown">{{MARKDOWN}}</script>
-<script>
-  window.addEventListener('DOMContentLoaded', () => {
-    const raw = document.getElementById('doc').textContent;
-    // 保护 LaTeX,避免被 markdown 解析吃掉
-    const math = [];
-    const keep = (m) => { math.push(m); return `@@M${math.length - 1}@@`; };
-    const protectedText = raw
-      .replace(/\$\$([\s\S]+?)\$\$/g, keep)
-      .replace(/\\\[([\s\S]+?)\\\]/g, keep)
-      .replace(/\\\(([\s\S]+?)\\\)/g, keep)
-      .replace(/\$([^\$\n]+?)\$/g, keep);
-    let html = marked.parse(protectedText);
-    html = html.replace(/@@M(\d+)@@/g, (_, i) => math[+i]);
-    document.getElementById('out').innerHTML = html;
-    document.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
-    if (window.MathJax && MathJax.startup) {
-      MathJax.startup.promise.then(() => MathJax.typesetPromise());
-    }
-  });
-</script>
+</code></pre>
+<p>关键决策点：</p>
+<ul>
+<li>迭代频率 (每轮多少步 RL 后更新 RM)</li>
+<li>是否每轮都收集人工标注 (成本高) 还是用 RM 自标注</li>
+<li>KL 目标值的选择</li>
+<li>何时终止迭代 (奖励饱和/人工评估达标)</li>
+</ul>
+<blockquote>
+<p><strong>追问：</strong> 如何检测迭代何时应停止？持续迭代的潜在风险？
+当人工评估分数不再提升、KL 不断增大、或出现模式崩溃 (mode collapse) 时应停止。持续迭代可能导致 policy 收敛到 RM 的特定偏好，丧失多样性。</p>
+</blockquote>
+<hr>
+<p><strong>Q14: 对比 PRM 的 Monte Carlo 估计方法与直接人工标注，分析各自的偏差-方差权衡。</strong></p>
+<p><strong>答：</strong> <strong>MC 估计：</strong> 从每步采样 K 个 rollout，用最终正确率作为奖励。偏差来源于有限采样 (K 有限时估计不准)；方差来源于采样随机性。K 越大越准但成本越高。<strong>人工标注：</strong> 理论上无偏但受标注者能力/一致性限制，存在系统性偏差 (systematic bias) 和噪声。MC 估计可规模化但有系统偏差；人工标注准确但不可规模化。混合方法 (少量人工 + MC 扩展) 是常见实践。</p>
+<blockquote>
+<p><strong>追问：</strong> MC 估计在什么条件下会严重失效？
+当从某步开始的后续空间极大、且正确答案极稀有时 (如复杂数学题)，即使大量 rollout 也可能全部失败，导致对正确步骤给零奖励 (false negative)。</p>
+</blockquote>
+<hr>
+<p><strong>Q15: 如何设计一个对 reward hacking 鲁棒的评估框架？</strong></p>
+<p><strong>答：</strong> 需要多层防御：</p>
+<ol>
+<li><strong>RM 内部指标：</strong> 成对准确率 (in-distribution vs OOD)、校准度 (calibration)</li>
+<li><strong>代理指标监控：</strong> KL 曲线、奖励分布漂移、生成长度变化、n-gram 重复率</li>
+<li><strong>人工盲评 (Blind Human Eval)：</strong> 随机抽取样本做人工评分，与 RM 评分对比</li>
+<li><strong>对抗测试集：</strong> 构造已知 reward hacking 模式的测试用例</li>
+<li><strong>多 RM 一致性：</strong> 多个 RM 的评分相关性下降作为预警信号</li>
+<li><strong>A/B 测试：</strong> 最终用户满意度作为终极评估</li>
+</ol>
+<blockquote>
+<p><strong>追问：</strong> 在实际工程中，哪一层检测最常被忽视但最关键？
+OOD 检测最常被忽视 — 人们通常只看 in-distribution 的准确率，但 RM 在 policy 生成的 OOD 分布上的表现才决定是否发生 reward hacking。</p>
+</blockquote>
+<hr>
+<p><strong>Q16: 讨论 LLM-as-Judge 的自我偏好 (self-preference) 偏差对 benchmark 排行榜的影响。</strong></p>
+<p><strong>答：</strong> 如果主流 LLM-as-Judge (如 GPT-4) 有自我偏好偏差，则与其风格相似的模型在排行榜上占优，导致排名失真。例如，如果某模型与 judge 来自同一系列或类似训练数据，可能获得不成比例的高分。这造成 benchmark 结果对 judge 选择敏感 (judge sensitivity)，削弱了排行榜的可比性和公信力。</p>
+<blockquote>
+<p><strong>追问：</strong> 如何设计一个对 judge 偏差鲁棒的排行榜？
+使用多个异构 judge (不同厂商、不同大小)、报告 judge 间一致性 (inter-judge agreement)、公示 judge 与各模型的关系、以及引入人类评估作为锚定。</p>
+</blockquote>
+<hr>
+<p><strong>Q17: 为什么说 &quot;RM 的泛化能力是 RLHF 最关键的瓶颈&quot;？</strong></p>
+<p><strong>答：</strong> RLHF 的整个优化循环依赖 RM 作为目标函数。RM 的能力上限决定了 policy 优化的天花板。具体而言：(1) RM 泛化差 → reward hacking；(2) RM 有偏 → policy 继承偏差；(3) RM 在 OOD 上不可靠 → 迭代训练也难以改进；(4) RM 无法评估超出其训练分布的质量维度 → policy 无法在这些维度上进步。所有其他技术 (KL、ensemble、迭代) 都是在弥补 RM 泛化的不足。</p>
+<blockquote>
+<p><strong>追问：</strong> Scaling RM (增大参数量) 是否能系统性地解决泛化问题？
+大 RM 确实有更好的泛化能力 (更大的容量、更好的特征表示)，但不能完全解决 — 因为根本瓶颈有时是偏好数据本身的噪声和不完备性，而非模型容量。</p>
+</blockquote>
+<hr>
+<p><strong>Q18: 从信息论角度，为什么 pairwise 比 pointwise 更高效？</strong></p>
+<p><strong>答：</strong> 人类偏好判断本质上是<strong>序数型 (ordinal)</strong> 信息而非<strong>基数型 (cardinal)</strong> 信息。Pairwise 方法直接利用序数信息 (A &gt; B)，信息损失最小；Pointwise 要求人类映射到绝对标度 (如 1-5)，引入了额外的标度校准噪声 (scale calibration noise)。从信息论角度看，pointwise 的每个标注包含的信息量中，有一部分被标度噪声&quot;浪费&quot;了。Pairwise 的样本效率因此更高。</p>
+<blockquote>
+<p><strong>追问：</strong> 有没有办法从 pairwise 数据中恢复出绝对分数？
+可以通过求解 BT 模型的 MLE 恢复出各回答的隐含分数 (latent score)，但绝对值只有相对意义，需要额外锚点 (anchor) 来确定标度。</p>
+</blockquote>
+<hr>
+<p><strong>Q19: 比较 DPO 和 RLHF 在处理 reward hacking 上的异同。</strong></p>
+<p><strong>答：</strong> <strong>相同点：</strong> 两者都依赖偏好数据中的隐式/显式奖励信号，都面临 Goodhart 定律的约束。<strong>不同点：</strong> (1) RLHF 有显式 RM，可被攻击和诊断；DPO 隐式包含奖励，难以单独检查；(2) RLHF 可通过 KL、ensemble、迭代等灵活调整；DPO 的 β 类似 KL 惩罚但调控粒度不同；(3) DPO 在 off-policy 数据上训练，面临更严重的分布偏移；(4) RLHF 的 PPO 本身就是 on-policy，某种程度上天然部分缓解了分布偏移。</p>
+<blockquote>
+<p><strong>追问：</strong> 是否存在 reward hacking 是 RLHF 特有而 DPO 不会遇到的？
+RLHF 特有的问题包括：RM 本身的 OOD 评分失准、PPO 训练中的不稳定性导致策略突变。DPO 不会遇到显式 RM 的 OOD 问题，但会遇到隐式奖励的分布偏移问题 — 形式不同但本质类似。</p>
+</blockquote>
+<hr>
+<p><strong>Q20: 如果你来设计下一代 RM，你认为最重要的三个改进方向是什么？</strong></p>
+<p><strong>答：</strong> (开放题，以下是三个关键方向)</p>
+<ol>
+<li><p><strong>更强的泛化与 OOD 鲁棒性：</strong> 当前 RM 在分布内表现良好但在分布外崩溃。需要更好的架构设计 (如 uncertainty-aware RM)、对抗训练、以及更大更丰富的训练数据覆盖。</p>
+</li>
+<li><p><strong>多维解耦评分 (Multi-dimensional Disentangled Scoring)：</strong> 将有用性、安全性、事实性、风格等维度解耦为独立评分头，避免单一标量压缩信息。也便于对不同维度施加不同优化权重。</p>
+</li>
+<li><p><strong>自监督/自改进 RM (Self-improving RM)：</strong> 让 RM 具备自我校准能力 — 在 RLHF 过程中持续检测自身预测是否与实际偏好一致，并自动更新。减少对人工标注的依赖。</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>追问：</strong> 这三个方向之间有什么潜在冲突？
+多维评分增加模型复杂度，可能影响泛化；自改进机制如果不可靠可能引入系统性偏差；不确定性估计在高维空间中计算成本高昂。需要在工程实践中做平衡。</p>
+</blockquote>
+<hr>
+<h2>附录：关键术语速查 (Glossary)</h2>
+<table>
+<thead>
+<tr>
+<th>英文术语</th>
+<th>中文翻译</th>
+<th>简要定义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Reward Model (RM)</td>
+<td>奖励模型</td>
+<td>从偏好数据学习的评分函数</td>
+</tr>
+<tr>
+<td>RLHF</td>
+<td>基于人类反馈的强化学习</td>
+<td>用 RM 信号做 RL 优化</td>
+</tr>
+<tr>
+<td>Bradley-Terry Model</td>
+<td>布拉德利-特里模型</td>
+<td>成对比较的概率模型</td>
+</tr>
+<tr>
+<td>ORM</td>
+<td>结果奖励模型</td>
+<td>只对最终输出评分</td>
+</tr>
+<tr>
+<td>PRM</td>
+<td>过程奖励模型</td>
+<td>对每个推理步骤评分</td>
+</tr>
+<tr>
+<td>Reward Hacking</td>
+<td>奖励欺骗</td>
+<td>利用 RM 弱点获取高分</td>
+</tr>
+<tr>
+<td>KL Divergence</td>
+<td>KL 散度</td>
+<td>衡量两个分布差异的度量</td>
+</tr>
+<tr>
+<td>Distribution Shift</td>
+<td>分布偏移</td>
+<td>训练/评估数据分布不一致</td>
+</tr>
+<tr>
+<td>Best-of-N (BoN)</td>
+<td>N选一</td>
+<td>采样N个取最高分</td>
+</tr>
+<tr>
+<td>LLM-as-Judge</td>
+<td>大模型作评估者</td>
+<td>用 LLM 替代人类评估</td>
+</tr>
+<tr>
+<td>Length Bias</td>
+<td>长度偏差</td>
+<td>RM 偏好更长回答</td>
+</tr>
+<tr>
+<td>Self-Preference Bias</td>
+<td>自我偏好偏差</td>
+<td>LLM 偏好自己风格的回答</td>
+</tr>
+<tr>
+<td>Inter-annotator Agreement</td>
+<td>标注者间一致性</td>
+<td>不同标注者判断的一致程度</td>
+</tr>
+<tr>
+<td>Trust Region</td>
+<td>信赖域</td>
+<td>优化中的安全更新范围</td>
+</tr>
+<tr>
+<td>Credit Assignment</td>
+<td>信用分配</td>
+<td>将最终结果归因到各步骤</td>
+</tr>
+<tr>
+<td>Elo Rating</td>
+<td>Elo 排名</td>
+<td>基于胜负的动态评分系统</td>
+</tr>
+<tr>
+<td>Plackett-Luce Model</td>
+<td>Plackett-Luce 模型</td>
+<td>排序数据的概率模型</td>
+</tr>
+<tr>
+<td>DPO</td>
+<td>直接偏好优化</td>
+<td>绕过显式 RM 的偏好学习</td>
+</tr>
+<tr>
+<td>Conservative Estimation</td>
+<td>保守估计</td>
+<td>取 ensemble 最低分策略</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>本手册仅供学习参考。具体数值请以原始论文和官方排行榜为准。</em> <!-- CLAUDE-REVIEW: verify number --></p>
+</article>
 </body>
 </html>
