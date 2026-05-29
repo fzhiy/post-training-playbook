@@ -94,30 +94,58 @@
 
 ## 更多 L3 深挖 / Extended L3
 
-11. **当用 LLM-as-judge 评估多轮、长上下文对话时，常见的困难是什么？有哪些评估方法上的改进？**
+<details>
+<summary>Q11. 当用 LLM-as-judge 评估多轮、长上下文对话时，常见的困难是什么？有哪些评估方法上的改进？</summary>
+
     评估多轮对话的核心挑战是评判模型容易出现**上下文遗忘 (context forgetting)** 或**局部偏好 (local bias)**，即只关注最近一两轮的回答质量而忽略整体对话连贯性和任务完成度。一个关键改进是设计**过程导向的评分量表 (process-oriented rubric)**，明确要求评估每一轮对最终目标的贡献，并引入**分段总结 (segment summarization)** 机制，迫使judge模型先归纳再打分，从而在一定程度上缓解其短视问题。
     **追问**: 除了改进评分量表，是否可以通过改变评测协议来降低评判难度？例如，将其拆解为一系列更简单的子任务评估？
 
-12. **LLM-as-judge 在评估事实准确性 (factual accuracy) 和逻辑严密性 (logical soundness) 方面的主要局限是什么？如何缓解？**
+</details>
+
+<details>
+<summary>Q12. LLM-as-judge 在评估事实准确性 (factual accuracy) 和逻辑严密性 (logical soundness) 方面的主要局限是什么？如何缓解？</summary>
+
     其主要局限是评判模型自身的**知识边界 (knowledge boundary)** 和**推理缺陷 (reasoning flaw)** 可能导致误判。它可能无法识别事实错误，或者错误地认为一个有逻辑跳跃的答案是严密的。缓解方法通常采用**混合评估模式 (hybrid evaluation)**：对于事实核查，结合**检索增强验证 (retrieval-augmented verification)**，即先检索权威信息再进行比对；对于逻辑评估，则尝试使用**形式化验证 (formal verification)** 工具或设计专门针对推理链的**逐步验证提示 (step-by-step verification prompts)**。
     **追问**: 在资源有限的情况下，我们应该优先改进judge模型的哪些能力（知识广度、推理能力、工具使用）来最有效地提升其评估准确性？
 
-13. **如何评估一个模型的“涌现能力” (emergent capabilities)？这和评估传统能力有何根本不同？**
+</details>
+
+<details>
+<summary>Q13. 如何评估一个模型的”涌现能力” (emergent capabilities)？这和评估传统能力有何根本不同？</summary>
+
     评估涌现能力最大的不同在于其**不可预测性 (unpredictability)** 和**非平滑性 (non-smoothness)**。传统能力通常在某个评测集上随着模型规模或训练数据量的增加呈现可预测的提升。而涌现能力表现为在某个阈值点后突然出现，且往往在多个标准 benchmark 上没有直接体现。因此，评估方法必须从**固定测试集 (fixed test sets)** 转向**开放式、程序化生成的探针任务 (open-ended, programmatically generated probe tasks)**，并关注模型在面对全新、复杂任务组合时的**行为模式突变 (behavioral pattern shift)**。
     **追问**: 能否设计一种评测框架，使其不仅能发现涌现能力，还能在一定程度上预测这种能力的出现条件？
 
-14. **对 LLM-as-judge 的输出置信度 (confidence) 进行校准有什么意义？实践中如何实现？**
-    对 judge 输出的置信度进行校准，是为了让其打分或比较结果具有**可解释的概率意义 (interpretable probabilistic meaning)**。例如，当judge表示“90%确定A比B好”时，这个数字在长期统计上应该接近真实的A优于B的频率。实践中，实现校准需要一个**带有人类标注的校准集 (human-annotated calibration set)**。通过让judge在该集合上反复评估，可以分析其评分与人类共识的偏差分布，进而通过**后处理校准算法 (post-hoc calibration algorithms)**（如Platt Scaling或Isotonic Regression）来调整其原始分数，使其更贴近人类判断的统计规律。
+</details>
+
+<details>
+<summary>Q14. 对 LLM-as-judge 的输出置信度 (confidence) 进行校准有什么意义？实践中如何实现？</summary>
+
+    对 judge 输出的置信度进行校准，是为了让其打分或比较结果具有**可解释的概率意义 (interpretable probabilistic meaning)**。例如，当judge表示”90%确定A比B好”时，这个数字在长期统计上应该接近真实的A优于B的频率。实践中，实现校准需要一个**带有人类标注的校准集 (human-annotated calibration set)**。通过让judge在该集合上反复评估，可以分析其评分与人类共识的偏差分布，进而通过**后处理校准算法 (post-hoc calibration algorithms)**（如Platt Scaling或Isotonic Regression）来调整其原始分数，使其更贴近人类判断的统计规律。
     **追问**: 如果用于校准的人类标注数据本身质量不高或规模很小，会对校准后的judge产生什么影响？有什么替代方案？
 
-15. **在评估对话模型的安全性 (safety) 时，为什么“过度拒答” (over-refusal) 是一个重要指标？它和“有害提示拒答率”构成的权衡关系如何分析？**
-    过度拒答衡量模型对**良性或边缘性查询 (benign or borderline queries)** 错误拒绝回答的程度，它直接关系到用户体验和模型的**可用性 (utility)**。一个过度拒答率很高的模型虽然安全，但会变得“无用”。分析这一权衡时，不能简单追求两个指标的帕累托最优，而应引入**风险等级分类 (risk tiering)**。将有害提示按严重程度分类，并为每一类设定不同的拒答严格度。评测时，需要分别报告每一类别的拒答率，并通过**代价敏感分析 (cost-sensitive analysis)** 来评估模型在整体风险暴露和用户体验损失之间的平衡。
-    **追问**: 如何构建一个能够自动生成覆盖各种风险等级和“灰色地带”提示的、高质量的对抗性安全评测集？
+</details>
 
-16. **如何进行“评估之评估” (meta-evaluation)，即如何判断一个评测基准或一个LLM-as-judge本身是否有效、可靠？**
+<details>
+<summary>Q15. 在评估对话模型的安全性 (safety) 时，为什么”过度拒答” (over-refusal) 是一个重要指标？它和”有害提示拒答率”构成的权衡关系如何分析？</summary>
+
+    过度拒答衡量模型对**良性或边缘性查询 (benign or borderline queries)** 错误拒绝回答的程度，它直接关系到用户体验和模型的**可用性 (utility)**。一个过度拒答率很高的模型虽然安全，但会变得”无用”。分析这一权衡时，不能简单追求两个指标的帕累托最优，而应引入**风险等级分类 (risk tiering)**。将有害提示按严重程度分类，并为每一类设定不同的拒答严格度。评测时，需要分别报告每一类别的拒答率，并通过**代价敏感分析 (cost-sensitive analysis)** 来评估模型在整体风险暴露和用户体验损失之间的平衡。
+    **追问**: 如何构建一个能够自动生成覆盖各种风险等级和”灰色地带”提示的、高质量的对抗性安全评测集？
+
+</details>
+
+<details>
+<summary>Q16. 如何进行”评估之评估” (meta-evaluation)，即如何判断一个评测基准或一个LLM-as-judge本身是否有效、可靠？</summary>
+
     对评测基准的元评估主要看其**区分度 (discriminability)**、**鲁棒性 (robustness)** 和**生态效度 (ecological validity)**。区分度指能否有效区分不同能力水平的模型；鲁棒性指对prompt微小改动是否敏感；生态效度指其评估的能力是否与现实世界需求相关。对LLM-as-judge的元评估，则重点考察其与人类判断的**一致性 (agreement)**（如Cohen's Kappa系数）和在不同子群体上的**公平性 (fairness)**。一个关键方法是**交叉验证 (cross-validation)**：用多个不同的、高质量的judge（或人类）去评估同一组数据，看目标judge或基准是否与共识一致。
     **追问**: 在发现某个广泛使用的benchmark可能存在严重偏差或过时后，作为研究者，我们有哪些责任和可行的操作来推动其迭代或警示社区？
 
-17. **在领域特定（如医疗、法律）场景下，通用LLM-as-judge的评估会遇到哪些特有挑战？构建领域专家评估流水线时，关键步骤是什么？**
-    核心挑战是**领域知识壁垒 (domain knowledge barrier)** 和**评估标准的专业化 (specialized evaluation criteria)**。通用judge可能无法理解领域术语的细微差别或专业逻辑的严谨性。构建领域评估流水线的关键步骤首先是**联合定义评估维度 (co-define evaluation dimensions)**，与领域专家共同确定如“医疗建议的保守性”、“法律引用的准确性”等维度。其次是**构建领域金标准 (domain gold-standard)**，即由专家标注的、具有权威性的参考答案或评判结果集。最后是设计**人机协同评估流程 (human-AI collaborative evaluation)**，让AI judge处理初筛，人类专家负责复核边缘案例和最终裁决。
+</details>
+
+<details>
+<summary>Q17. 在领域特定（如医疗、法律）场景下，通用LLM-as-judge的评估会遇到哪些特有挑战？构建领域专家评估流水线时，关键步骤是什么？</summary>
+
+    核心挑战是**领域知识壁垒 (domain knowledge barrier)** 和**评估标准的专业化 (specialized evaluation criteria)**。通用judge可能无法理解领域术语的细微差别或专业逻辑的严谨性。构建领域评估流水线的关键步骤首先是**联合定义评估维度 (co-define evaluation dimensions)**，与领域专家共同确定如”医疗建议的保守性”、”法律引用的准确性”等维度。其次是**构建领域金标准 (domain gold-standard)**，即由专家标注的、具有权威性的参考答案或评判结果集。最后是设计**人机协同评估流程 (human-AI collaborative evaluation)**，让AI judge处理初筛，人类专家负责复核边缘案例和最终裁决。
     **追问**: 当领域专家对同一回答的评价也存在分歧时（例如，不同流派的医生），如何设计一个能包容合理专家分歧、又能进行有效自动化评估的系统？
+
+</details>

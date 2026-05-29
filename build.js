@@ -73,6 +73,15 @@ function addTocAndIds(html) {
   return /<\/h1>/.test(html) ? html.replace('</h1>', '</h1>' + nav) : nav + html;
 }
 
+// 3a) Auto-fold long code blocks (>25 lines) into a collapsible <details> (build-time).
+function foldLongCode(html) {
+  return html.replace(/<pre>[\s\S]*?<\/pre>/g, (m) => {
+    const lines = (m.match(/\n/g) || []).length + 1;
+    if (lines < 26) return m;
+    return '<details class="code-fold"><summary>' + lines + ' 行 / lines</summary>' + m + '</details>';
+  });
+}
+
 // 3b) Wrap emoji-prefixed blockquotes as colored callouts (build-time; no runtime deps).
 function decorateCallouts(html) {
   const map = [['💡', 'info'], ['📝', 'info'], ['✅', 'good'], ['⚠', 'warn'], ['🚨', 'bad'], ['❌', 'bad']];
@@ -84,7 +93,7 @@ function decorateCallouts(html) {
 }
 
 function renderDoc(md, title, outFile) {
-  const content = addTocAndIds(decorateCallouts(highlightCode(renderWithMath(md))));
+  const content = addTocAndIds(decorateCallouts(foldLongCode(highlightCode(renderWithMath(md)))));
   const bodyClass = /class="cite-note"/.test(content) ? 'has-sn' : '';
   const html = tpl.replace('{{TITLE}}', () => title).replace('{{BODYCLASS}}', () => bodyClass).replace('{{CONTENT}}', () => content);
   fs.writeFileSync(path.join(OUT, outFile), html);

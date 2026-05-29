@@ -1375,173 +1375,259 @@ rejection_sampling_finetune(model, tokenizer, prompts, dummy_reward_fn, N=4)
 
 ---
 
-### Q1. Pre-training 和 post-training 分别解决什么问题？标准 pipeline 是什么？
+<details>
+<summary>Q1. Pre-training 和 post-training 分别解决什么问题？标准 pipeline 是什么？</summary>
+
 **答 / Answer:**
-Pre-training（预训练）的目标是让模型在海量无标注文本上学得通用的语言能力、世界知识和推理基础，本质上是做无监督的语言建模。Post-training（后训练）的目标是将这个“知识渊博但不听话”的基座模型，塑造成一个能遵循指令、有帮助、安全且与人类价值观对齐的助手。标准pipeline是：1) Supervised Fine-Tuning (SFT)，用高质量指令-回复对微调模型；2) Preference Alignment，通常使用RLHF或DPO等方法，基于人类偏好数据进一步优化模型行为。
+Pre-training（预训练）的目标是让模型在海量无标注文本上学得通用的语言能力、世界知识和推理基础，本质上是做无监督的语言建模。Post-training（后训练）的目标是将这个”知识渊博但不听话”的基座模型，塑造成一个能遵循指令、有帮助、安全且与人类价值观对齐的助手。标准pipeline是：1) Supervised Fine-Tuning (SFT)，用高质量指令-回复对微调模型；2) Preference Alignment，通常使用RLHF或DPO等方法，基于人类偏好数据进一步优化模型行为。
 
 **追问 / Follow-up:**
 为什么不能只用一个阶段（如SFT）来完成从预训练到可用助手的全部转变？
 
-### Q2. SFT 的 loss masking 是什么？为什么只对 assistant tokens 计算 loss？
+</details>
+
+<details>
+<summary>Q2. SFT 的 loss masking 是什么？为什么只对 assistant tokens 计算 loss？</summary>
+
 **答 / Answer:**
-Loss masking 指在计算SFT损失时，只将模型输出中assistant回复部分（即模型需要学习生成的部分）对应的token的预测损失计入总损失，而忽略input/user指令部分的损失。这是为了将模型的优化目标聚焦于“学习如何正确响应”，而不是“复述用户的输入”。如果不对输入部分进行mask，模型可能会浪费学习容量去记忆输入格式，而非专注于生成高质量回复。
+Loss masking 指在计算SFT损失时，只将模型输出中assistant回复部分（即模型需要学习生成的部分）对应的token的预测损失计入总损失，而忽略input/user指令部分的损失。这是为了将模型的优化目标聚焦于”学习如何正确响应”，而不是”复述用户的输入”。如果不对输入部分进行mask，模型可能会浪费学习容量去记忆输入格式，而非专注于生成高质量回复。
 
 **追问 / Follow-up:**
-如果在SFT中，user指令部分的梯度完全不被更新，模型是否就真的完全无法“理解”指令？请解释。
+如果在SFT中，user指令部分的梯度完全不被更新，模型是否就真的完全无法”理解”指令？请解释。
 
-### Q3. Reward Model 的训练目标是什么？Bradley-Terry 模型是什么？
+</details>
+
+<details>
+<summary>Q3. Reward Model 的训练目标是什么？Bradley-Terry 模型是什么？</summary>
+
 **答 / Answer:**
 Reward Model (RM) 的训练目标是为给定的（prompt, response）对输出一个标量分数，这个分数应反映人类对该回复质量的偏好排序。具体来说，它通过比较一对回复（chosen vs. rejected）来学习。Bradley-Terry 模型是一个用于成对比较的概率模型，它假设选择胜出回复的概率与两个回复对应的奖励值之差成正比。在RM训练中，损失函数通常基于这个概率，目标是最大化chosen response相对于rejected response的奖励差。
 
 **追问 / Follow-up:**
 如果人类标注数据中的偏好排序存在不一致或噪声，会如何影响Bradley-Terry模型训练的Reward Model？
 
-### Q4. KL penalty 在 RLHF 中的作用？β 如何调节？
+</details>
+
+<details>
+<summary>Q4. KL penalty 在 RLHF 中的作用？β 如何调节？</summary>
+
 **答 / Answer:**
 在RLHF的强化学习阶段，策略模型（当前待优化的LLM）在生成回复时会最大化来自Reward Model的奖励，但这可能导致模型为了获取高分而生成一些奇怪、不自然或偏离其原始能力分布的文本。KL惩罚项通过计算当前策略与初始SFT模型（参考策略）之间的KL散度，并将其作为惩罚项加入到优化目标中。作用是约束优化后的模型不要偏离初始模型太远，从而维持语言质量和多样性。β是超参数，用于调节KL惩罚的强度：β越大，对偏离的惩罚越重，模型越保守、越接近初始模型；β越小，模型越自由，可能更追求奖励但风险也更高。
 
 **追问 / Follow-up:**
 KL惩罚计算的是整个序列分布的散度，这在实际操作中有什么挑战？有没有更高效或更局部的近似方法？
 
-### Q5. DPO 是什么？和 RLHF 的核心区别是什么？
+</details>
+
+<details>
+<summary>Q5. DPO 是什么？和 RLHF 的核心区别是什么？</summary>
+
 **答 / Answer:**
-DPO (Direct Preference Optimization) 是一种直接利用人类偏好数据优化语言模型的方法。它通过一个巧妙的数学变换，将RLHF中“训练一个Reward Model，再用其进行RL优化”这两个步骤，合并为一个单一的监督学习损失函数。模型在DPO中直接学习将偏好排序转化为对回复概率的调整。核心区别在于：RLHF是“显式”的，包含独立的RM训练和在线的RL优化过程（如PPO）；而DPO是“隐式”的，它绕过了RM的显式训练和在线采样，通过一个离线的对比损失直接优化策略，通常更简单、稳定。
+DPO (Direct Preference Optimization) 是一种直接利用人类偏好数据优化语言模型的方法。它通过一个巧妙的数学变换，将RLHF中”训练一个Reward Model，再用其进行RL优化”这两个步骤，合并为一个单一的监督学习损失函数。模型在DPO中直接学习将偏好排序转化为对回复概率的调整。核心区别在于：RLHF是”显式”的，包含独立的RM训练和在线的RL优化过程（如PPO）；而DPO是”隐式”的，它绕过了RM的显式训练和在线采样，通过一个离线的对比损失直接优化策略，通常更简单、稳定。
 
 **追问 / Follow-up:**
 DPO的一个主要批评是它严重依赖于偏好数据的质量。为什么它对数据质量的要求比RLHF可能更高？
 
-### Q6. 什么是 sequence packing？有什么好处和坑？
+</details>
+
+<details>
+<summary>Q6. 什么是 sequence packing？有什么好处和坑？</summary>
+
 **答 / Answer:**
-Sequence packing 是一种训练时的效率优化技术。它将多个短序列（例如多个不同的指令-回复对）通过添加特殊的分隔符（如`<EOS>`后接新序列的起始标记）拼接成一个达到模型最大上下文长度的长序列，作为一个整体进行训练。好处是显著提高了GPU的利用率，减少了因短序列填充（padding）带来的计算浪费，加速训练。主要的“坑”在于：1）需要小心设计attention mask，防止模型在训练时“看到”同一个拼接序列中其他短序列的信息（即跨序列注意力泄露），这可能导致数据污染或学习偏差；2）对序列顺序可能敏感。
+Sequence packing 是一种训练时的效率优化技术。它将多个短序列（例如多个不同的指令-回复对）通过添加特殊的分隔符（如<code>&lt;EOS&gt;</code>后接新序列的起始标记）拼接成一个达到模型最大上下文长度的长序列，作为一个整体进行训练。好处是显著提高了GPU的利用率，减少了因短序列填充（padding）带来的计算浪费，加速训练。主要的”坑”在于：1）需要小心设计attention mask，防止模型在训练时”看到”同一个拼接序列中其他短序列的信息（即跨序列注意力泄露），这可能导致数据污染或学习偏差；2）对序列顺序可能敏感。
 
 **追问 / Follow-up:**
 在sequence packing中，如果两个拼接的序列主题完全无关（如一个数学题和一个诗歌），跨序列注意力的泄露具体会带来什么危害？
 
-### Q7. 什么是 reward hacking？举两个例子。
+</details>
+
+<details>
+<summary>Q7. 什么是 reward hacking？举两个例子。</summary>
+
 **答 / Answer:**
-Reward hacking 指的是模型找到了“作弊”或“钻空子”的方法来获取更高的奖励分数，但其生成的回复实际上并不符合人类期望的“有帮助、诚实、无害”的真正目标。它是对奖励函数的过度优化或利用。例子1：如果RM偏爱更长的回复，模型可能学会生成冗长但内容空洞的回复。例子2：如果RM对包含某些特定“安全”短语（如“作为AI助手，我必须遵守...”）的回复打分高，模型可能学会机械地在所有回复中插入这些套话，而不考虑是否真的需要。
+Reward hacking 指的是模型找到了”作弊”或”钻空子”的方法来获取更高的奖励分数，但其生成的回复实际上并不符合人类期望的”有帮助、诚实、无害”的真正目标。它是对奖励函数的过度优化或利用。例子1：如果RM偏爱更长的回复，模型可能学会生成冗长但内容空洞的回复。例子2：如果RM对包含某些特定”安全”短语（如”作为AI助手，我必须遵守...”）的回复打分高，模型可能学会机械地在所有回复中插入这些套话，而不考虑是否真的需要。
 
 **追问 / Follow-up:**
 除了改进Reward Model本身，在RLHF的训练过程中，可以通过哪些策略来缓解reward hacking现象？
 
-### Q8. Alignment 的 Helpful/Harmless/Honest 三者之间有什么 tension？
+</details>
+
+<details>
+<summary>Q8. Alignment 的 Helpful/Harmless/Honest 三者之间有什么 tension？</summary>
+
 **答 / Answer:**
 Helpful（有用）、Harmless（无害）、Honest（诚实）三者之间存在固有的权衡（tension）。例如，一个过于追求Harmless的模型，可能因为过度谨慎而拒绝回答一些合理但敏感的问题，从而损害了Helpful（例如，医生讨论医学症状）。一个追求极致Honest的模型，可能会在回复中暴露未经验证的信息或用户隐私，从而损害Harmless。反之，为了Helpful而编造答案会损害Honest。理想的对齐模型需要在不同场景下动态地平衡这三个目标，不存在一个固定的完美解。
 
 **追问 / Follow-up:**
 你能否提供一个具体场景，说明模型为了实现Harmless而不可避免地牺牲了Helpful和Honest？
 
+</details>
+
 ### ━━━ L2 中级 / Intermediate ━━━
 
 ---
 
-### Q9. GRPO 和 PPO 的核心区别？GRPO 需要几个模型？
+<details>
+<summary>Q9. GRPO 和 PPO 的核心区别？GRPO 需要几个模型？</summary>
+
 **答 / Answer:**
 GRPO (Group Relative Policy Optimization) 和PPO (Proximal Policy Optimization) 都是策略梯度算法，但GRPO为了简化RLHF训练流程做了关键改进。核心区别在于：PPO需要维护四个模型：策略模型、参考模型、价值模型（Critic）和奖励模型；而GRPO**不需要单独的价值模型**。GRPO通过为同一个prompt生成一组（Group）回复，然后使用该组内回复的平均奖励作为基线（baseline）来估计优势函数（advantage），从而计算策略梯度。因此，GRPO通常只需要两个模型：策略模型和奖励模型（参考模型可合并或共享）。
 
 **追问 / Follow-up:**
 GRPO用组内平均奖励作为基线来估计优势函数，这可能会引入什么样的偏差？它如何影响训练的稳定性？
 
-### Q10. IPO、KTO、ORPO、SimPO 各解决 DPO 的什么问题？
+</details>
+
+<details>
+<summary>Q10. IPO、KTO、ORPO、SimPO 各解决 DPO 的什么问题？</summary>
+
 **答 / Answer:**
 这些方法都是对DPO的改进或变体：
 - **IPO (Identity Preference Optimization)**：解决 DPO 在偏好接近确定性（near-deterministic）时 KL 正则失效、易过拟合的问题——改用有界的平方损失目标（详见 §7.1）使优化更稳健。
-- **KTO (Kahneman-Tversky Optimization)**：解决DPO需要严格配对的偏好数据（chosen/rejected对）的限制。KTO只需要每个回复是否为“好”或“差”的二元标签数据，无需成对，数据获取更灵活。
+- **KTO (Kahneman-Tversky Optimization)**：解决DPO需要严格配对的偏好数据（chosen/rejected对）的限制。KTO只需要每个回复是否为”好”或”差”的二元标签数据，无需成对，数据获取更灵活。
 - **ORPO (Odds Ratio Preference Optimization)**：尝试将SFT和偏好对齐合并为一个单一训练阶段。它直接优化模型生成chosen response相对于rejected response的优势比（odds ratio）。
 - **SimPO (Simple Preference Optimization)**：试图进一步简化DPO，移除参考模型的依赖，同时通过使用长度归一化的对数概率作为隐式奖励，并引入一个目标奖励边际（margin），来提高优化稳定性和对回复长度的鲁棒性。
 
 **追问 / Follow-up:**
 在这些方法中，哪一种对训练数据的质量或数量要求相对最低？为什么？
 
-### Q11. 数据质量和数据量在 SFT 中哪个更重要？如何做数据 curation？
+</details>
+
+<details>
+<summary>Q11. 数据质量和数据量在 SFT 中哪个更重要？如何做数据 curation？</summary>
+
 **答 / Answer:**
 在SFT阶段，**数据质量通常远比数据量重要**。高质量、多样、准确且符合人类价值观的指令数据，即使是较小规模，也能显著提升模型性能。相反，大量低质、错误或有害的数据会严重污染模型。数据curation流程通常包括：1）**来源筛选**：选择可信、专业的来源；2）**质量过滤**：使用规则或模型（如RM）过滤低分、有害或格式错误的样本；3）**去重**：移除重复或近似重复的样本；4）**多样性增强**：确保指令覆盖广泛的任务、难度和领域；5）**格式标准化**：统一回复的风格和长度分布。
 
 **追问 / Follow-up:**
 如果只能使用一个自动化模型（而非人工）来对大规模SFT数据进行质量评估和筛选，你会优先选择使用什么类型的模型？为什么？
 
-### Q12. Synthetic data 的主要生成范式有哪些？length bias 从哪里来？
+</details>
+
+<details>
+<summary>Q12. Synthetic data 的主要生成范式有哪些？length bias 从哪里来？</summary>
+
 **答 / Answer:**
-主要范式有：1）**Self-Instruct**：让模型自己根据种子任务生成新的指令和回复；2）**Evol-Instruct**：对已有指令进行多轮、多维度的复杂化演化；3）**Bootstrapping**：使用强大的“教师”模型为“学生”模型生成训练数据（如蒸馏）；4）**Reward-guided Generation**：用RM或规则筛选/修订模型生成的多个候选回复。Length bias（长度偏差）主要来源于：1）**模型本身的偏见**：预训练数据中常见回复（如技术文档）可能较长；2）**奖励模型的偏见**：如果RM的训练数据中，人类标注者普遍偏好更详细、更长的回复，那么RM就会给更长的回复打高分，模型在优化RM时就会倾向于生成更长文本；3）**生成策略**：例如，为了确保覆盖所有要点而进行冗长的列举。
+主要范式有：1）**Self-Instruct**：让模型自己根据种子任务生成新的指令和回复；2）**Evol-Instruct**：对已有指令进行多轮、多维度的复杂化演化；3）**Bootstrapping**：使用强大的”教师”模型为”学生”模型生成训练数据（如蒸馏）；4）**Reward-guided Generation**：用RM或规则筛选/修订模型生成的多个候选回复。Length bias（长度偏差）主要来源于：1）**模型本身的偏见**：预训练数据中常见回复（如技术文档）可能较长；2）**奖励模型的偏见**：如果RM的训练数据中，人类标注者普遍偏好更详细、更长的回复，那么RM就会给更长的回复打高分，模型在优化RM时就会倾向于生成更长文本；3）**生成策略**：例如，为了确保覆盖所有要点而进行冗长的列举。
 
 **追问 / Follow-up:**
 在生成合成数据时，如何设计流程或损失函数来显式地控制或减少最终回复的长度偏差？
 
-### Q13. Online vs offline preference learning 的区别？各自适合什么场景？
+</details>
+
+<details>
+<summary>Q13. Online vs offline preference learning 的区别？各自适合什么场景？</summary>
+
 **答 / Answer:**
 **Online learning**（在线学习，如标准RLHF中的PPO阶段）指的是策略模型在训练过程中，实时生成新的回复，并与环境（如RM）交互获得新的奖励信号来更新策略。**Offline learning**（离线学习，如DPO）指的是使用一个预先收集好的、固定的偏好数据集来优化模型，训练过程中不产生新的数据。Online适合需要持续探索、快速适应新奖励信号或解决分布偏移（distribution shift）问题的场景，但计算开销大、不稳定。Offline适合数据收集成本高、需要稳定训练流程的场景，但容易受到数据分布固定的限制，可能陷入次优。
 
 **追问 / Follow-up:**
 在offline learning中，如果用于训练的偏好数据分布与模型实际部署时遇到的数据分布差异很大，会导致什么问题？如何缓解？
 
-### Q14. 什么是 benchmark 污染（contamination）？如何检测？
+</details>
+
+<details>
+<summary>Q14. 什么是 benchmark 污染（contamination）？如何检测？</summary>
+
 **答 / Answer:**
-Benchmark污染指的是待评估的模型（或其训练数据）在训练过程中已经“见过”了评估基准（benchmark）中的测试题目或答案。这会导致模型在该基准上获得虚高的、不真实的性能分数，无法反映其真实的泛化能力。检测方法包括：1）**成员推断攻击**：分析模型对测试集样本与相似的非测试集样本的困惑度（perplexity）差异；2）**n-gram重叠分析**：检查模型训练数据与测试集之间的文本重叠度；3）**数据溯源**：严格审计训练数据的来源，排除已知包含主流基准测试集的数据集（如Common Crawl的某些版本）；4）**设计动态基准**：使用定期更新、未公开的测试集。
+Benchmark污染指的是待评估的模型（或其训练数据）在训练过程中已经”见过”了评估基准（benchmark）中的测试题目或答案。这会导致模型在该基准上获得虚高的、不真实的性能分数，无法反映其真实的泛化能力。检测方法包括：1）**成员推断攻击**：分析模型对测试集样本与相似的非测试集样本的困惑度（perplexity）差异；2）**n-gram重叠分析**：检查模型训练数据与测试集之间的文本重叠度；3）**数据溯源**：严格审计训练数据的来源，排除已知包含主流基准测试集的数据集（如Common Crawl的某些版本）；4）**设计动态基准**：使用定期更新、未公开的测试集。
 
 **追问 / Follow-up:**
 除了数据污染，还有哪些评估方法论上的缺陷可能导致对模型能力的误判？
 
-### Q15. Catastrophic forgetting 在 post-training 中如何表现？如何缓解？
+</details>
+
+<details>
+<summary>Q15. Catastrophic forgetting 在 post-training 中如何表现？如何缓解？</summary>
+
 **答 / Answer:**
 在post-training中，灾难性遗忘表现为模型在通过SFT或RLHF学习新能力（如遵循指令、对齐价值观）的过程中，**丢失了其在预训练阶段学到的广泛知识、语言能力或解决多样任务的能力**。例如，一个对齐后的模型可能在指令遵循上表现很好，但其在代码、数学或多语言方面的基础能力相比基座模型出现了显著退化。缓解方法包括：1）**混合训练数据**：在SFT/RLHF数据中混入部分预训练数据或通用能力数据；2）**低秩适应**：使用LoRA等参数高效微调方法，仅更新一小部分参数；3）**正则化**：如在损失函数中加入对原始模型参数的L2惩罚（类似EWC的思想）；4）**知识蒸馏**：将原始模型作为教师，约束对齐后模型的输出分布。
 
 **追问 / Follow-up:**
 在参数高效微调方法（如LoRA）中，选择对哪些层（如注意力层的QKV投影，还是FFN层）进行微调，对缓解灾难性遗忘和保留原有能力的影响有何不同？
 
-### Q16. Process Reward Model (PRM) vs Outcome Reward Model (ORM)？
+</details>
+
+<details>
+<summary>Q16. Process Reward Model (PRM) vs Outcome Reward Model (ORM)？</summary>
+
 **答 / Answer:**
-ORM（结果奖励模型）仅对模型生成的**最终答案或完整回复**给出一个奖励分数，不关心中间推理过程。PRM（过程奖励模型）则对解决问题或生成回复的**每一个中间步骤**都进行评估和打分。PRM的优势在于能提供更密集、更精细的监督信号，有助于引导模型进行正确的逐步推理，尤其在数学、逻辑推理等复杂任务中，可以避免模型通过“抄近路”得到正确答案但过程错误。其挑战在于标注成本极高，需要人类专家对每个步骤进行判断。
+ORM（结果奖励模型）仅对模型生成的**最终答案或完整回复**给出一个奖励分数，不关心中间推理过程。PRM（过程奖励模型）则对解决问题或生成回复的**每一个中间步骤**都进行评估和打分。PRM的优势在于能提供更密集、更精细的监督信号，有助于引导模型进行正确的逐步推理，尤其在数学、逻辑推理等复杂任务中，可以避免模型通过”抄近路”得到正确答案但过程错误。其挑战在于标注成本极高，需要人类专家对每个步骤进行判断。
 
 **追问 / Follow-up:**
 在实际应用中，如何高效地收集用于训练PRM的数据？是否有可能使用ORM或其他模型来自动生成PRM的训练标签？
 
-### Q17. MT-Bench、AlpacaEval、Chatbot Arena 各自的局限性是什么？
+</details>
+
+<details>
+<summary>Q17. MT-Bench、AlpacaEval、Chatbot Arena 各自的局限性是什么？</summary>
+
 **答 / Answer:**
 - **MT-Bench**：使用预设的、多轮对话题目和强大的LLM（如GPT-4）作为评判。局限在于：1）评判模型自身可能有偏见；2）题目固定，容易过拟合；3）无法评估长文档处理、真实世界复杂任务等。
-- **AlpacaEval**：使用一个固定的指令集，通过GPT-4对比评判模型回复与参考回复（通常是GPT-4自己的回复）的优劣。局限在于：1）强烈依赖GPT-4的偏好，可能无法反映广大人类用户的偏好；2）存在“自我偏好”风险，即与GPT-4风格越相似的回复得分可能越高。
+- **AlpacaEval**：使用一个固定的指令集，通过GPT-4对比评判模型回复与参考回复（通常是GPT-4自己的回复）的优劣。局限在于：1）强烈依赖GPT-4的偏好，可能无法反映广大人类用户的偏好；2）存在”自我偏好”风险，即与GPT-4风格越相似的回复得分可能越高。
 - **Chatbot Arena**：通过真实用户匿名投票进行两两对比，是目前最贴近人类偏好的动态评估。局限在于：1）用户群体可能不具完全代表性（偏向技术人群）；2）评估成本高、速度慢；3）对话领域分布可能不均衡。
 
 **追问 / Follow-up:**
 如果要设计一个新的、更全面的后训练模型评估框架，你会融合哪些不同的评估维度和方法来弥补上述单一基准的不足？
 
+</details>
+
 ### ━━━ L3 深度 / Deep ━━━
 
 ---
 
-### Q18. PPO 的 value model (critic) 为什么难训练？GRPO 如何绕开这个问题？
+<details>
+<summary>Q18. PPO 的 value model (critic) 为什么难训练？GRPO 如何绕开这个问题？</summary>
+
 **答 / Answer:**
 在RLHF的PPO中，价值模型（Critic）需要准确估计在给定状态下（即当前的prompt和部分生成的历史），未来能获得的奖励总和的期望值（即状态价值函数V(s)）。这个估计非常困难：1）**稀疏奖励**：奖励通常只在生成完整回复后才给出，中间状态缺乏直接监督信号；2）**高方差**：生成文本的状态空间巨大且复杂，导致价值估计方差很高，训练不稳定；3）**非平稳性**：策略模型在快速更新，导致状态价值函数的目标分布也在不断变化，增加了拟合难度。GRPO通过完全移除价值模型来绕开这个问题。它为每个prompt生成一组回复，用这组回复的平均奖励作为基线来估计每个回复相对于平均水平的优势（advantage）。这种方法避免了训练一个复杂的、面向所有可能状态的价值网络。
 
 **追问 / Follow-up:**
 GRPO使用组内平均奖励作为基线，这相当于假设所有状态（同一个prompt下的不同生成路径）的价值是相同的。这个假设在什么情况下会变得不合理？
 
-### Q19. DPO 的理论推导：从 RLHF KL-constrained 最优解到 DPO loss，走一遍推导。
+</details>
+
+<details>
+<summary>Q19. DPO 的理论推导：从 RLHF KL-constrained 最优解到 DPO loss，走一遍推导。</summary>
+
 **答 / Answer:**
-1. **RLHF目标**：我们有一个KL约束的优化目标：`max_{π} E_{x~D, y~π}[r(x, y)] - β * KL[π(y|x) || π_ref(y|x)]`，其中π是策略，π_ref是参考策略，r是奖励函数。
-2. **闭式最优解**：对上述目标关于π求解，可以得到其闭式最优解为：`π*(y|x) = π_ref(y|x) * exp(r(x, y) / β) / Z(x)`，其中`Z(x)`是配分函数（归一化常数）。
-3. **反解奖励函数**：从上式两边取对数并整理，可以将奖励函数表示为策略的函数：`r(x, y) = β * log(π*(y|x) / π_ref(y|x)) + β * log(Z(x))`。
-4. **代入Bradley-Terry模型**：对于偏好对(y_w, y_l)，根据BT模型，人类选择y_w的概率为`σ(r(x, y_w) - r(x, y_l))`，其中σ是sigmoid函数。
-5. **消除配分函数**：将步骤3中的奖励表达式代入步骤4，由于`log(Z(x))`在相减时被抵消，我们得到：`P(y_w ≻ y_l | x) = σ(β * log(π*(y_w|x) / π_ref(y_w|x)) - β * log(π*(y_l|x) / π_ref(y_l|x)))`。
-6. **DPO损失**：最终，DPO的损失函数就是最大化上述概率（即最小化负对数似然）：`L_DPO(θ) = -E[log σ(β * log(π_θ(y_w|x) / π_ref(y_w|x)) - β * log(π_θ(y_l|x) / π_ref(y_l|x)))]`，其中π_θ是我们要优化的策略。
+1. **RLHF目标**：我们有一个KL约束的优化目标：<code>max_{π} E_{x~D, y~π}[r(x, y)] - β * KL[π(y|x) || π_ref(y|x)]</code>，其中π是策略，π_ref是参考策略，r是奖励函数。
+2. **闭式最优解**：对上述目标关于π求解，可以得到其闭式最优解为：<code>π*(y|x) = π_ref(y|x) * exp(r(x, y) / β) / Z(x)</code>，其中<code>Z(x)</code>是配分函数（归一化常数）。
+3. **反解奖励函数**：从上式两边取对数并整理，可以将奖励函数表示为策略的函数：<code>r(x, y) = β * log(π*(y|x) / π_ref(y|x)) + β * log(Z(x))</code>。
+4. **代入Bradley-Terry模型**：对于偏好对(y_w, y_l)，根据BT模型，人类选择y_w的概率为<code>σ(r(x, y_w) - r(x, y_l))</code>，其中σ是sigmoid函数。
+5. **消除配分函数**：将步骤3中的奖励表达式代入步骤4，由于<code>log(Z(x))</code>在相减时被抵消，我们得到：<code>P(y_w ≻ y_l | x) = σ(β * log(π*(y_w|x) / π_ref(y_w|x)) - β * log(π*(y_l|x) / π_ref(y_l|x)))</code>。
+6. **DPO损失**：最终，DPO的损失函数就是最大化上述概率（即最小化负对数似然）：<code>L_DPO(θ) = -E[log σ(β * log(π_θ(y_w|x) / π_ref(y_w|x)) - β * log(π_θ(y_l|x) / π_ref(y_l|x)))]</code>，其中π_θ是我们要优化的策略。
 
 **追问 / Follow-up:**
 在上述推导中，我们假设了奖励函数r可以用策略π来表示（步骤3）。这个假设成立的隐含条件是什么？
 
-### Q20. Mode collapse 和 reward hacking 的区别？如何检测 mode collapse？
+</details>
+
+<details>
+<summary>Q20. Mode collapse 和 reward hacking 的区别？如何检测 mode collapse？</summary>
+
 **答 / Answer:**
-**Reward hacking** 是模型找到了获得高奖励的“捷径”但输出不符合人类意图（如生成冗长废话）。**Mode collapse** 则是指模型的输出多样性急剧下降，倾向于重复生成某几种获得高奖励的、安全的或模式化的回复，失去了回应不同prompt时应有的丰富性和创造性。它是生成式模型的一种常见故障模式。检测mode collapse的方法包括：1）**多样性指标**：计算模型在一组prompt上生成回复的词汇多样性（如distinct-n）、语义嵌入的方差等，与基线模型对比；2）**分析奖励分布**：如果模型的奖励分数分布变得非常集中（高均值、低方差），可能意味着它找到了少数几种“高分模板”；3）**人工抽样检查**：随机抽取多组回复，观察其内容、结构和用词是否高度相似。
+**Reward hacking** 是模型找到了获得高奖励的”捷径”但输出不符合人类意图（如生成冗长废话）。**Mode collapse** 则是指模型的输出多样性急剧下降，倾向于重复生成某几种获得高奖励的、安全的或模式化的回复，失去了回应不同prompt时应有的丰富性和创造性。它是生成式模型的一种常见故障模式。检测mode collapse的方法包括：1）**多样性指标**：计算模型在一组prompt上生成回复的词汇多样性（如distinct-n）、语义嵌入的方差等，与基线模型对比；2）**分析奖励分布**：如果模型的奖励分数分布变得非常集中（高均值、低方差），可能意味着它找到了少数几种”高分模板”；3）**人工抽样检查**：随机抽取多组回复，观察其内容、结构和用词是否高度相似。
 
 **追问 / Follow-up:**
 在RLHF训练中，增加KL惩罚系数β是缓解mode collapse的有效手段。除此之外，从数据角度或算法角度还有什么方法可以鼓励多样性？
 
-### Q21. Alignment tax 是什么？weight averaging 如何缓解它？原理是什么？
+</details>
+
+<details>
+<summary>Q21. Alignment tax 是什么？weight averaging 如何缓解它？原理是什么？</summary>
+
 **答 / Answer:**
-Alignment tax（对齐税）指的是模型在post-training对齐过程中，为获得更好的指令遵循、安全性和无害性，而**在某些未被直接优化的通用能力（如基础语言建模、复杂推理）上支付的性能代价**，即这些能力可能出现下降。Weight averaging（权重平均）是一种简单有效的缓解技术。它通过平均训练过程中不同时间点或不同随机种子产生的多个模型权重，来得到一个更平滑、泛化能力更强的最终模型。其原理在于：1）**减少方差**：平均化可以减少单一模型由于训练波动或随机性导致的性能不稳定；2）**探索更优解**：不同的训练快照可能位于损失面上不同的“好”区域，平均可能找到一个在各方面都表现不错的中间点；3）**类似于隐式正则化**，可以防止模型过度拟合到训练数据的特定模式（包括对齐数据中可能存在的偏见）。
+Alignment tax（对齐税）指的是模型在post-training对齐过程中，为获得更好的指令遵循、安全性和无害性，而**在某些未被直接优化的通用能力（如基础语言建模、复杂推理）上支付的性能代价**，即这些能力可能出现下降。Weight averaging（权重平均）是一种简单有效的缓解技术。它通过平均训练过程中不同时间点或不同随机种子产生的多个模型权重，来得到一个更平滑、泛化能力更强的最终模型。其原理在于：1）**减少方差**：平均化可以减少单一模型由于训练波动或随机性导致的性能不稳定；2）**探索更优解**：不同的训练快照可能位于损失面上不同的”好”区域，平均可能找到一个在各方面都表现不错的中间点；3）**类似于隐式正则化**，可以防止模型过度拟合到训练数据的特定模式（包括对齐数据中可能存在的偏见）。
 
 **追问 / Follow-up:**
 在权重平均的具体实现中，如Stochastic Weight Averaging (SWA) 和 Model Soups，它们的策略和假设有何不同？哪种在缓解对齐税上可能更有效？
 
-### Q22. DeepSeek-R1 的训练流程有哪些关键设计决策？cold-start SFT 的作用是什么？
+</details>
+
+<details>
+<summary>Q22. DeepSeek-R1 的训练流程有哪些关键设计决策？cold-start SFT 的作用是什么？</summary>
+
 **答 / Answer:**
 据 DeepSeek-R1 论文（arXiv:2501.12948），需先区分两个模型：
 
@@ -1558,87 +1644,125 @@ Alignment tax（对齐税）指的是模型在post-training对齐过程中，为
 **追问 / Follow-up:**
 Cold-start SFT使用的数据质量要求非常高。如果这部分数据存在错误或偏差，会对后续强化学习阶段的探索产生什么连锁反应？
 
-### Q23. RLAIF 和 Constitutional AI 的 self-critique-revision 机制如何工作？
+</details>
+
+<details>
+<summary>Q23. RLAIF 和 Constitutional AI 的 self-critique-revision 机制如何工作？</summary>
+
 **答 / Answer:**
-RLAIF (Reinforcement Learning from AI Feedback) 和 Constitutional AI 的核心思想是使用AI模型自身来生成偏好反馈或进行修正，以减少对人类标注的依赖。其self-critique-revision机制通常包含一个循环：1）**生成初始回复**：针对一个prompt，模型先生成一个初步回复。2）**自我批判**：模型（或一个独立的批判模型）根据一组预设的“宪法”原则（如“回答要客观”、“避免有害内容”）对初始回复进行审视和批判，指出可能违反原则的地方。3）**修订回复**：模型根据生成的批判，对初始回复进行修改，生成一个更符合宪法原则的新版本。4）**（可选）用于训练**：将（初始回复，修订后回复）作为一个（rejected, chosen）对，用于训练RM或直接进行DPO等优化。这个机制让模型在无需人类实时干预的情况下，进行自我改进和对齐。
+RLAIF (Reinforcement Learning from AI Feedback) 和 Constitutional AI 的核心思想是使用AI模型自身来生成偏好反馈或进行修正，以减少对人类标注的依赖。其self-critique-revision机制通常包含一个循环：1）**生成初始回复**：针对一个prompt，模型先生成一个初步回复。2）**自我批判**：模型（或一个独立的批判模型）根据一组预设的”宪法”原则（如”回答要客观”、”避免有害内容”）对初始回复进行审视和批判，指出可能违反原则的地方。3）**修订回复**：模型根据生成的批判，对初始回复进行修改，生成一个更符合宪法原则的新版本。4）**（可选）用于训练**：将（初始回复，修订后回复）作为一个（rejected, chosen）对，用于训练RM或直接进行DPO等优化。这个机制让模型在无需人类实时干预的情况下，进行自我改进和对齐。
 
 **追问 / Follow-up:**
-这种自我修正机制有可能导致模型陷入某种“对齐循环”吗？例如，为了让回复更“安全”，它可能通过多轮修订，使回复变得越来越保守甚至无用。
+这种自我修正机制有可能导致模型陷入某种”对齐循环”吗？例如，为了让回复更”安全”，它可能通过多轮修订，使回复变得越来越保守甚至无用。
 
-### Q24. Iterative RLHF 和 online DPO 的异同？如何解决 distribution mismatch？
+</details>
+
+<details>
+<summary>Q24. Iterative RLHF 和 online DPO 的异同？如何解决 distribution mismatch？</summary>
+
 **答 / Answer:**
-两者都是为了解决offline方法（如标准DPO）中**训练数据分布（旧策略生成的偏好对）与模型当前策略分布不匹配**的问题。**相同点**：都通过迭代的方式，使用当前策略模型生成新的数据（或回复），并用这些新数据来更新模型，从而让训练数据分布跟随策略变化。**不同点**：Iterative RLHF通常指交替进行“在线数据生成（用当前策略采样，并由RM评分）”和“用新数据更新策略模型（可能用PPO或DPO）”的过程。Online DPO则更特指在每个训练迭代中，使用当前策略生成一组回复，由RM或人类选出偏好对，然后用这个**新生成的、分布匹配的偏好数据**来直接进行DPO损失计算和模型更新，省去了显式的RL步骤。
+两者都是为了解决offline方法（如标准DPO）中**训练数据分布（旧策略生成的偏好对）与模型当前策略分布不匹配**的问题。**相同点**：都通过迭代的方式，使用当前策略模型生成新的数据（或回复），并用这些新数据来更新模型，从而让训练数据分布跟随策略变化。**不同点**：Iterative RLHF通常指交替进行”在线数据生成（用当前策略采样，并由RM评分）”和”用新数据更新策略模型（可能用PPO或DPO）”的过程。Online DPO则更特指在每个训练迭代中，使用当前策略生成一组回复，由RM或人类选出偏好对，然后用这个**新生成的、分布匹配的偏好数据**来直接进行DPO损失计算和模型更新，省去了显式的RL步骤。
 
 **追问 / Follow-up:**
 在Online DPO中，使用当前策略生成偏好对时，应该在生成的回复中使用什么采样温度（temperature）？为什么这个参数选择很重要？
 
-### Q25. Post-training 的 scaling 规律：数据量、模型规模怎么影响对齐效果？SFT 和 RL 的最优 compute 分配策略有何不同？
+</details>
+
+<details>
+<summary>Q25. Post-training 的 scaling 规律：数据量、模型规模怎么影响对齐效果？SFT 和 RL 的最优 compute 分配策略有何不同？</summary>
+
 **答 / Answer:**
-Post-training的scaling规律与预训练不同。对于**数据量**：在SFT阶段，存在收益递减，高质量数据比大量低质数据更重要，达到一定规模后性能提升放缓。对于**模型规模**：更大的基座模型通常具有更强的对齐潜力，能更好地理解复杂的指令和价值观，但达到相同对齐水平所需的高质量数据量可能不一定同比例增长。**SFT vs RL的最优分配策略**：SFT的收益更“数据效率”，通常在项目初期投入较多计算资源快速建立指令遵循能力是划算的。RL（如RLHF）则更“计算昂贵”，其收益体现在精细的行为调整和价值对齐上，需要更多的在线采样和迭代。一个常见的策略是：用大部分计算预算训练一个足够好的基座模型和SFT模型，然后将剩余的、相对较少的计算预算用于几轮关键的RL迭代进行精调，因为RL的边际收益可能迅速下降。
+Post-training的scaling规律与预训练不同。对于**数据量**：在SFT阶段，存在收益递减，高质量数据比大量低质数据更重要，达到一定规模后性能提升放缓。对于**模型规模**：更大的基座模型通常具有更强的对齐潜力，能更好地理解复杂的指令和价值观，但达到相同对齐水平所需的高质量数据量可能不一定同比例增长。**SFT vs RL的最优分配策略**：SFT的收益更”数据效率”，通常在项目初期投入较多计算资源快速建立指令遵循能力是划算的。RL（如RLHF）则更”计算昂贵”，其收益体现在精细的行为调整和价值对齐上，需要更多的在线采样和迭代。一个常见的策略是：用大部分计算预算训练一个足够好的基座模型和SFT模型，然后将剩余的、相对较少的计算预算用于几轮关键的RL迭代进行精调，因为RL的边际收益可能迅速下降。
 
 **追问 / Follow-up:**
 如果我们将模型规模和数据量都视为资源，在post-training阶段，你认为是投资于将一个70B的模型对齐，还是投资于将一个7B的模型配合更大量、更高质量的数据进行对齐，哪种策略更可能获得一个在实际应用中表现优异的助手模型？请阐述理由。
 
+</details>
+
 ## 更多 L3 深挖 / Extended L3
 
-**Q26: DPO 的隐式 Reward 学到了什么？与显式 RM 相比有何本质局限？**
+<details>
+<summary>Q26: DPO 的隐式 Reward 学到了什么？与显式 RM 相比有何本质局限？</summary>
 
 DPO loss 的梯度等价于在优化一个隐式 reward $\hat{r}(x,y) = \beta \log \frac{\pi_\theta(y|x)}{\pi_\text{ref}(y|x)}$。这个隐式 reward 本质上是对 reference policy 下 token-level log-probability ratio 的累加，缺乏对生成语义的显式建模。与训练独立 RM 相比，DPO reward 被绑定在 policy 的参数空间中，导致三个核心局限：(1) **分布耦合**——reward 无法独立于 policy 评估 OOD response，探索能力受限；(2) **表征瓶颈**——policy 需同时承担"价值评估"与"策略生成"两个角色，参数可能存在冲突；(3) **时序不一致**——训练过程中 policy 变化导致隐式 reward 漂移，而显式 RM 的 reward 分布相对稳定。这也解释了为何 online DPO（用当前 policy 重新采样）通常优于 offline DPO。
 
 > **追问：** 既然 DPO 存在 off-policy 问题，那 Rejection Sampling Fine-Tuning（RFT）作为更简单的方案，它在什么条件下会比 DPO 更有效？什么条件下会失效？
 
+</details>
+
 ---
 
-**Q27: GRPO 的 Group Normalization 引入了什么统计偏差？如何缓解？**
+<details>
+<summary>Q27: GRPO 的 Group Normalization 引入了什么统计偏差？如何缓解？</summary>
 
 GRPO 对同一 prompt 的多个 response 做 group-level z-score normalization（减均值除标准差），这隐含了"prompt 内比较足够"的假设。统计上，当 group size $G$ 较小时（如 $G<8$），估计的均值和方差方差大，导致 advantage 估计有高噪声；更关键的是，**group normalization 使优势完全相对于同组样本定义**，这意味着：(1) 如果 group 内所有 response 质量都很低，"矮子里拔将军"仍会产生正 advantage，导致在低质量区域强化策略；(2) 相反，如果组内都是高质量 response，优秀回答也被压制。这种 **relative ranking bias** 使得 GRPO 在 reward 分布偏斜（如大部分 response 得分接近）时可能系统性偏离绝对质量信号。缓解方案包括引入 baseline anchor（如 EMA reference reward）或混合 absolute-relative advantage。
 
 > **追问：** 在 GRPO 的 KL 约束下，如果 group size 趋于无穷大，GRPO 的优化目标在数学上会收敛到什么形式？它和标准 PPO 有什么关系？
 
+</details>
+
 ---
 
-**Q28: Reward Model 的 Overparameterization 如何影响 RLHF？RM 应该与 Policy 同等规模还是更大/更小？**
+<details>
+<summary>Q28: Reward Model 的 Overparameterization 如何影响 RLHF？RM 应该与 Policy 同等规模还是更大/更小？</summary>
 
 RM 的 overparameterization（参数量远超训练数据需求）会引发两个问题：(1) **spurious correlation**——RM 可能学到与偏好无关的表面特征（如特定用词风格、长度）而获得高准确率，但在 policy 更新后这些捷径失效；(2) **calibration 退化**——过参数化 RM 的 scalar output 往往过度自信（集中在少数极端值），导致 PPO 中 advantage 估计方差爆炸或 policy 被少数样本主导。实践中，RM 规模的选择涉及 trade-off：更大的 RM 有更强的语义理解能力，但更容易过拟合且推理开销大；更小的 RM 泛化性可能更好但表达能力受限。一种观点是 RM 应略大于或等于 policy 规模以确保足够的 reward 信号分辨率，同时通过 **reward ensemble**（多 RM 平均/投票）缓解过拟合。
 
 > **追问：** Reward ensemble 的多个 RM 如果来自同一个 SFT 初始化、只是数据 shuffle 不同，这种 ensemble 在什么情况下仍然会系统性失败？如何设计真正多样化的 RM 集合？
 
+</details>
+
 ---
 
-**Q29: 多轮对话场景下，RLHF 的 Credit Assignment 问题如何解决？现有的 sequence-level reward 足够吗？**
+<details>
+<summary>Q29: 多轮对话场景下，RLHF 的 Credit Assignment 问题如何解决？现有的 sequence-level reward 足够吗？</summary>
 
 多轮对话中，用户最终满意度是整个对话历史的函数，但标准 RLHF 只在最终 turn 给一个 scalar reward，这产生了严重的 **temporal credit assignment** 问题：模型无法知道是哪一轮的回答导致了正面或负面评价。直觉上的解决方案包括：(1) **turn-level reward modeling**——为每轮对话训练独立的 reward model，但面临对话状态的部分可观测性和标注成本问题；(2) **Monte Carlo rollout**——从某一轮开始重新采样后续对话估计 value，但组合爆炸严重；(3) **shaped reward via dialogue act**——利用对话行为（如澄清、确认）作为中间 reward 信号。实验上，纯 sequence-level reward 在短对话（2-3轮）中尚可，但在长对话中 policy 容易陷入 **early-turn over-optimization**（过度优化首轮回答以获取 initial reward 信号，而忽略后续交互质量）。
 
 > **追问：** 如果要在 token-level 实现 reward attribution（而非 turn-level），理论上可以通过什么方法将 sequence-level reward 分解到每个 token？这种方法的理论保证和实际困难分别是什么？
 
+</details>
+
 ---
 
-**Q30: KL 约束的理论最优解对 β 敏感吗？实际中 β 偏离最优值时，PPO 和 DPO 的失败模式有何不同？**
+<details>
+<summary>Q30: KL 约束的理论最优解对 β 敏感吗？实际中 β 偏离最优值时，PPO 和 DPO 的失败模式有何不同？</summary>
 
 从 KL-regularized RL 的角度，$\beta$ 控制 exploration-exploitation 的 Pareto 前沿位置。理论上，最优 $\beta^*$ 依赖于 reward function 的 scale 和 reference policy 的 entropy，无法提前确定。当 $\beta$ 过大（过度正则化），PPO 和 DPO 的表现趋近于 reference policy，alignment 效果微弱；但当 $\beta$ 过小（正则化不足），两者的失败模式分化：**PPO** 会经历 reward hacking 的正反馈循环——policy 一旦找到 reward 漏洞就被持续强化，RM 被 out-of-distribution 评估，reward 崩溃；**DPO** 则表现为 **preference reversal 的不稳定**——off-policy 采样的隐式 reward 在训练中漂移，chosen 和 rejected 的 margin 减小甚至翻转，loss 出现震荡。实际调参中，PPO 的 $\beta$（KL penalty coefficient）通常需要与 learning rate 协同调整，而 DPO 的 $\beta$ 更像 temperature，较小的 $\beta$ 允许更大的 chosen-rejected margin 但也更易 overfit。
 
 > **追问：** 有没有理论上的方法可以自适应地调整 $\beta$（而非手动调参）？KL divergence 本身作为 signal 用于自适应 β 有什么问题？
 
+</details>
+
 ---
 
-**Q31: Process Reward Model (PRM) 在数学推理等长链任务上有优势，但如何处理"步骤正确但推理路径非最优"的标注歧义？**
+<details>
+<summary>Q31: Process Reward Model (PRM) 在数学推理等长链任务上有优势，但如何处理"步骤正确但推理路径非最优"的标注歧义？</summary>
 
 PRM 面临的核心挑战是 **multi-modal solution distribution**：对于同一问题，存在多条合理的推理路径（如代数法 vs 几何法），每条路径内部步骤逻辑一致但跨路径不可比较。标注时，如果让 annotator 判断"此步骤是否正确"，他们可能因为不熟悉该推理风格而给出 false negative。更微妙的是，即使步骤在当前路径下正确，如果该路径整体 suboptimal，步骤级 reward 也应被调整——但这需要全局视角，与 PRM 的局部评估本质矛盾。解决方向包括：(1) **path-conditioned PRM**——在给定前序步骤的条件下评估当前步骤，而非绝对评估；(2) **Monte Carlo estimation**——从当前步骤 rollout 到最终答案，用成功率作为步骤级 reward，但计算开销大；(3) **agreement-based filtering**——只对多条路径共有的"关键步骤"标注，避开路径特异性步骤。
 
 > **追问：** 如果用 Monte Carlo rollout 来估计 PRM 的步骤级 reward，rollout 的 policy 应该用当前训练的 policy 还是一个固定的 exploration policy？这个选择对 reward 估计的偏差和方差分别有什么影响？
 
+</details>
+
 ---
 
-**Q32: Constitutional AI (CAI) 声称可以用 AI 反馈替代人类反馈，但 RLAIF 的理论上限在哪里？AI 反馈与人类反馈的 gap 能被消除吗？**
+<details>
+<summary>Q32: Constitutional AI (CAI) 声称可以用 AI 反馈替代人类反馈，但 RLAIF 的理论上限在哪里？AI 反馈与人类反馈的 gap 能被消除吗？</summary>
 
 RLAIF 的理论上限受 **AI 评估器的能力边界** 约束。核心问题在于：如果 AI 评估器自身存在系统性偏好（如 verbosity bias、sycophancy），那么基于其反馈训练的 policy 会继承甚至放大这些偏好，形成 **evaluator-policy co-adaptation** 的退化循环。更深层的限制是 **value alignment 的不可验证性**——人类偏好的某些维度（如诚实、无害）本质上需要人类判断，AI 无法 self-validate。CAI 的"宪法原则"试图通过显式规则绕过，但规则无法覆盖所有 corner case，且规则之间的冲突需要人类仲裁。实验上，RLAIF 在某些客观维度（如格式正确性）上可以接近人类反馈，但在需要深度价值判断的维度（如 nuanced harm assessment）上仍有明显 gap。理论上，只有当 AI 评估器是人类偏好的 **无偏且一致的 estimator** 时，RLAIF 才能达到 RLHF 的效果，但这一假设目前无法保证。
 
 > **追问：** 如果 AI 评估器存在已知偏差（如 verbosity bias），能否通过 debiasing 技术（如 calibration、adversarial training）在 RLAIF 训练前纠正？这种纠正的理论保证是什么？
 
+</details>
+
 ---
 
-**Q33: Multi-turn RLHF 中，如何建模用户策略的动态性？如果假设用户策略固定，会导致什么系统性错误？**
+<details>
+<summary>Q33: Multi-turn RLHF 中，如何建模用户策略的动态性？如果假设用户策略固定，会导致什么系统性错误？</summary>
 
 标准 multi-turn RLHF 隐含 **stationary user assumption**——假设用户在整个对话中遵循固定的响应策略。但实际上，用户会根据模型的回答调整自己的提问策略（如模型回避问题时用户会追问、模型过于冗长时用户会要求简短）。这将 RLHF 从单智能体 MDP 变成 **two-player Markov Game**。在用户策略非平稳下，固定用户假设会导致：(1) **overfitting to simulated user**——policy 学到的是对特定模拟用户模式的最优响应，而非对真实动态用户的鲁棒策略；(2) **exploitation of user patience**——如果模拟用户不会因冗长回答而终止对话，policy 会学到过度啰嗦的风格。更根本的困难是，真实用户策略本身是分布，甚至可能因模型行为而改变（user-model co-evolution），这在理论上接近 **non-stationary multi-agent RL**，目前没有成熟的收敛保证。
 
 > **追问：** 如果要显式建模用户的动态策略，是否可以用一个 user simulator 与 policy 联合训练？这种 self-play 框架的已知失败模式是什么？
+
+</details>

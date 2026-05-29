@@ -41,6 +41,21 @@
   .callout-warn{border-color:#c77d00;background:#c77d0014}
   .callout-good{border-color:#1a7f4b;background:#1a7f4b12}
   .callout-bad{border-color:#b8390e;background:#b8390e10}
+  /* 折叠 Q&A (问题在 summary, 答案默认折叠) */
+  details:not(.toc):not(.code-fold){border:1px solid var(--line);border-radius:8px;margin:.6em 0;background:var(--bg-soft);padding:0 .9em}
+  details:not(.toc):not(.code-fold)>summary{cursor:pointer;font-weight:600;color:var(--primary);padding:.55em .1em;list-style:none;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+  details:not(.toc):not(.code-fold)>summary::-webkit-details-marker{display:none}
+  details:not(.toc):not(.code-fold)>summary::before{content:"▸ ";color:var(--accent)}
+  details:not(.toc):not(.code-fold)[open]>summary::before{content:"▾ "}
+  details:not(.toc):not(.code-fold)[open]>summary{border-bottom:1px solid var(--line);margin-bottom:.5em}
+  details:not(.toc):not(.code-fold)>:not(summary):last-child{margin-bottom:.7em}
+  /* 折叠长代码 */
+  .code-fold{margin:1em 0}
+  .code-fold>summary{cursor:pointer;color:var(--primary);font-size:.85rem;padding:.25em 0;list-style:none;font-family:system-ui,sans-serif}
+  .code-fold>summary::-webkit-details-marker{display:none}
+  .code-fold>summary::before{content:"▸ 代码 "}
+  .code-fold[open]>summary::before{content:"▾ 代码 "}
+  .code-fold pre{margin:.3em 0}
   .toc{border:1px solid var(--line);border-radius:8px;padding:.4em .9em;margin:1.2em 0;font-size:.92rem;background:var(--bg-soft);font-family:system-ui,sans-serif}
   .toc summary{cursor:pointer;color:var(--primary);font-weight:600}
   .toc ul{margin:.5em 0 .2em;padding-left:1.2em;list-style:none}
@@ -202,36 +217,34 @@
 <li>如果线上指标(用户留存)和离线评测(judge win-rate)打架,你信哪个、怎么排查?</li>
 </ol>
 <h2 id="sec-13">更多 L3 深挖 / Extended L3</h2>
-<ol start="11">
-<li><p><strong>当用 LLM-as-judge 评估多轮、长上下文对话时，常见的困难是什么？有哪些评估方法上的改进？</strong>
-评估多轮对话的核心挑战是评判模型容易出现<strong>上下文遗忘 (context forgetting)</strong> 或<strong>局部偏好 (local bias)</strong>，即只关注最近一两轮的回答质量而忽略整体对话连贯性和任务完成度。一个关键改进是设计<strong>过程导向的评分量表 (process-oriented rubric)</strong>，明确要求评估每一轮对最终目标的贡献，并引入<strong>分段总结 (segment summarization)</strong> 机制，迫使judge模型先归纳再打分，从而在一定程度上缓解其短视问题。
-<strong>追问</strong>: 除了改进评分量表，是否可以通过改变评测协议来降低评判难度？例如，将其拆解为一系列更简单的子任务评估？</p>
-</li>
-<li><p><strong>LLM-as-judge 在评估事实准确性 (factual accuracy) 和逻辑严密性 (logical soundness) 方面的主要局限是什么？如何缓解？</strong>
-其主要局限是评判模型自身的<strong>知识边界 (knowledge boundary)</strong> 和<strong>推理缺陷 (reasoning flaw)</strong> 可能导致误判。它可能无法识别事实错误，或者错误地认为一个有逻辑跳跃的答案是严密的。缓解方法通常采用<strong>混合评估模式 (hybrid evaluation)</strong>：对于事实核查，结合<strong>检索增强验证 (retrieval-augmented verification)</strong>，即先检索权威信息再进行比对；对于逻辑评估，则尝试使用<strong>形式化验证 (formal verification)</strong> 工具或设计专门针对推理链的<strong>逐步验证提示 (step-by-step verification prompts)</strong>。
-<strong>追问</strong>: 在资源有限的情况下，我们应该优先改进judge模型的哪些能力（知识广度、推理能力、工具使用）来最有效地提升其评估准确性？</p>
-</li>
-<li><p><strong>如何评估一个模型的“涌现能力” (emergent capabilities)？这和评估传统能力有何根本不同？</strong>
-评估涌现能力最大的不同在于其<strong>不可预测性 (unpredictability)</strong> 和<strong>非平滑性 (non-smoothness)</strong>。传统能力通常在某个评测集上随着模型规模或训练数据量的增加呈现可预测的提升。而涌现能力表现为在某个阈值点后突然出现，且往往在多个标准 benchmark 上没有直接体现。因此，评估方法必须从<strong>固定测试集 (fixed test sets)</strong> 转向<strong>开放式、程序化生成的探针任务 (open-ended, programmatically generated probe tasks)</strong>，并关注模型在面对全新、复杂任务组合时的<strong>行为模式突变 (behavioral pattern shift)</strong>。
-<strong>追问</strong>: 能否设计一种评测框架，使其不仅能发现涌现能力，还能在一定程度上预测这种能力的出现条件？</p>
-</li>
-<li><p><strong>对 LLM-as-judge 的输出置信度 (confidence) 进行校准有什么意义？实践中如何实现？</strong>
-对 judge 输出的置信度进行校准，是为了让其打分或比较结果具有<strong>可解释的概率意义 (interpretable probabilistic meaning)</strong>。例如，当judge表示“90%确定A比B好”时，这个数字在长期统计上应该接近真实的A优于B的频率。实践中，实现校准需要一个<strong>带有人类标注的校准集 (human-annotated calibration set)</strong>。通过让judge在该集合上反复评估，可以分析其评分与人类共识的偏差分布，进而通过<strong>后处理校准算法 (post-hoc calibration algorithms)</strong>（如Platt Scaling或Isotonic Regression）来调整其原始分数，使其更贴近人类判断的统计规律。
-<strong>追问</strong>: 如果用于校准的人类标注数据本身质量不高或规模很小，会对校准后的judge产生什么影响？有什么替代方案？</p>
-</li>
-<li><p><strong>在评估对话模型的安全性 (safety) 时，为什么“过度拒答” (over-refusal) 是一个重要指标？它和“有害提示拒答率”构成的权衡关系如何分析？</strong>
-过度拒答衡量模型对<strong>良性或边缘性查询 (benign or borderline queries)</strong> 错误拒绝回答的程度，它直接关系到用户体验和模型的<strong>可用性 (utility)</strong>。一个过度拒答率很高的模型虽然安全，但会变得“无用”。分析这一权衡时，不能简单追求两个指标的帕累托最优，而应引入<strong>风险等级分类 (risk tiering)</strong>。将有害提示按严重程度分类，并为每一类设定不同的拒答严格度。评测时，需要分别报告每一类别的拒答率，并通过<strong>代价敏感分析 (cost-sensitive analysis)</strong> 来评估模型在整体风险暴露和用户体验损失之间的平衡。
-<strong>追问</strong>: 如何构建一个能够自动生成覆盖各种风险等级和“灰色地带”提示的、高质量的对抗性安全评测集？</p>
-</li>
-<li><p><strong>如何进行“评估之评估” (meta-evaluation)，即如何判断一个评测基准或一个LLM-as-judge本身是否有效、可靠？</strong>
-对评测基准的元评估主要看其<strong>区分度 (discriminability)</strong>、<strong>鲁棒性 (robustness)</strong> 和<strong>生态效度 (ecological validity)</strong>。区分度指能否有效区分不同能力水平的模型；鲁棒性指对prompt微小改动是否敏感；生态效度指其评估的能力是否与现实世界需求相关。对LLM-as-judge的元评估，则重点考察其与人类判断的<strong>一致性 (agreement)</strong>（如Cohen&#39;s Kappa系数）和在不同子群体上的<strong>公平性 (fairness)</strong>。一个关键方法是<strong>交叉验证 (cross-validation)</strong>：用多个不同的、高质量的judge（或人类）去评估同一组数据，看目标judge或基准是否与共识一致。
-<strong>追问</strong>: 在发现某个广泛使用的benchmark可能存在严重偏差或过时后，作为研究者，我们有哪些责任和可行的操作来推动其迭代或警示社区？</p>
-</li>
-<li><p><strong>在领域特定（如医疗、法律）场景下，通用LLM-as-judge的评估会遇到哪些特有挑战？构建领域专家评估流水线时，关键步骤是什么？</strong>
-核心挑战是<strong>领域知识壁垒 (domain knowledge barrier)</strong> 和<strong>评估标准的专业化 (specialized evaluation criteria)</strong>。通用judge可能无法理解领域术语的细微差别或专业逻辑的严谨性。构建领域评估流水线的关键步骤首先是<strong>联合定义评估维度 (co-define evaluation dimensions)</strong>，与领域专家共同确定如“医疗建议的保守性”、“法律引用的准确性”等维度。其次是<strong>构建领域金标准 (domain gold-standard)</strong>，即由专家标注的、具有权威性的参考答案或评判结果集。最后是设计<strong>人机协同评估流程 (human-AI collaborative evaluation)</strong>，让AI judge处理初筛，人类专家负责复核边缘案例和最终裁决。
-<strong>追问</strong>: 当领域专家对同一回答的评价也存在分歧时（例如，不同流派的医生），如何设计一个能包容合理专家分歧、又能进行有效自动化评估的系统？</p>
-</li>
-</ol>
-</article>
+<details>
+<summary>Q11. 当用 LLM-as-judge 评估多轮、长上下文对话时，常见的困难是什么？有哪些评估方法上的改进？</summary><pre><code class="hljs">评估多轮对话的核心挑战是评判模型容易出现<span class="hljs-strong">**上下文遗忘 (context forgetting)**</span> 或<span class="hljs-strong">**局部偏好 (local bias)**</span>，即只关注最近一两轮的回答质量而忽略整体对话连贯性和任务完成度。一个关键改进是设计<span class="hljs-strong">**过程导向的评分量表 (process-oriented rubric)**</span>，明确要求评估每一轮对最终目标的贡献，并引入<span class="hljs-strong">**分段总结 (segment summarization)**</span> 机制，迫使judge模型先归纳再打分，从而在一定程度上缓解其短视问题。
+<span class="hljs-strong">**追问**</span>: 除了改进评分量表，是否可以通过改变评测协议来降低评判难度？例如，将其拆解为一系列更简单的子任务评估？
+</code></pre>
+</details><details>
+<summary>Q12. LLM-as-judge 在评估事实准确性 (factual accuracy) 和逻辑严密性 (logical soundness) 方面的主要局限是什么？如何缓解？</summary><pre><code class="hljs">其主要局限是评判模型自身的<span class="hljs-strong">**知识边界 (knowledge boundary)**</span> 和<span class="hljs-strong">**推理缺陷 (reasoning flaw)**</span> 可能导致误判。它可能无法识别事实错误，或者错误地认为一个有逻辑跳跃的答案是严密的。缓解方法通常采用<span class="hljs-strong">**混合评估模式 (hybrid evaluation)**</span>：对于事实核查，结合<span class="hljs-strong">**检索增强验证 (retrieval-augmented verification)**</span>，即先检索权威信息再进行比对；对于逻辑评估，则尝试使用<span class="hljs-strong">**形式化验证 (formal verification)**</span> 工具或设计专门针对推理链的<span class="hljs-strong">**逐步验证提示 (step-by-step verification prompts)**</span>。
+<span class="hljs-strong">**追问**</span>: 在资源有限的情况下，我们应该优先改进judge模型的哪些能力（知识广度、推理能力、工具使用）来最有效地提升其评估准确性？
+</code></pre>
+</details><details>
+<summary>Q13. 如何评估一个模型的”涌现能力” (emergent capabilities)？这和评估传统能力有何根本不同？</summary><pre><code class="hljs">评估涌现能力最大的不同在于其<span class="hljs-strong">**不可预测性 (unpredictability)**</span> 和<span class="hljs-strong">**非平滑性 (non-smoothness)**</span>。传统能力通常在某个评测集上随着模型规模或训练数据量的增加呈现可预测的提升。而涌现能力表现为在某个阈值点后突然出现，且往往在多个标准 benchmark 上没有直接体现。因此，评估方法必须从<span class="hljs-strong">**固定测试集 (fixed test sets)**</span> 转向<span class="hljs-strong">**开放式、程序化生成的探针任务 (open-ended, programmatically generated probe tasks)**</span>，并关注模型在面对全新、复杂任务组合时的<span class="hljs-strong">**行为模式突变 (behavioral pattern shift)**</span>。
+<span class="hljs-strong">**追问**</span>: 能否设计一种评测框架，使其不仅能发现涌现能力，还能在一定程度上预测这种能力的出现条件？
+</code></pre>
+</details><details>
+<summary>Q14. 对 LLM-as-judge 的输出置信度 (confidence) 进行校准有什么意义？实践中如何实现？</summary><pre><code class="hljs">对 <span class="hljs-keyword">judge </span>输出的置信度进行校准，是为了让其打分或比较结果具有**可解释的概率意义 (interpretable probabilistic meaning)**。例如，当<span class="hljs-keyword">judge表示”90%确定A比B好”时，这个数字在长期统计上应该接近真实的A优于B的频率。实践中，实现校准需要一个**带有人类标注的校准集 </span>(human-annotated calibration set)**。通过让<span class="hljs-keyword">judge在该集合上反复评估，可以分析其评分与人类共识的偏差分布，进而通过**后处理校准算法 </span>(post-hoc calibration algorithms)**（如Platt <span class="hljs-keyword">Scaling或Isotonic </span>Regression）来调整其原始分数，使其更贴近人类判断的统计规律。
+**追问**: 如果用于校准的人类标注数据本身质量不高或规模很小，会对校准后的<span class="hljs-keyword">judge产生什么影响？有什么替代方案？
+</span></code></pre>
+</details><details>
+<summary>Q15. 在评估对话模型的安全性 (safety) 时，为什么”过度拒答” (over-refusal) 是一个重要指标？它和”有害提示拒答率”构成的权衡关系如何分析？</summary><pre><code class="hljs">过度拒答衡量模型对<span class="hljs-strong">**良性或边缘性查询 (benign or borderline queries)**</span> 错误拒绝回答的程度，它直接关系到用户体验和模型的<span class="hljs-strong">**可用性 (utility)**</span>。一个过度拒答率很高的模型虽然安全，但会变得”无用”。分析这一权衡时，不能简单追求两个指标的帕累托最优，而应引入<span class="hljs-strong">**风险等级分类 (risk tiering)**</span>。将有害提示按严重程度分类，并为每一类设定不同的拒答严格度。评测时，需要分别报告每一类别的拒答率，并通过<span class="hljs-strong">**代价敏感分析 (cost-sensitive analysis)**</span> 来评估模型在整体风险暴露和用户体验损失之间的平衡。
+<span class="hljs-strong">**追问**</span>: 如何构建一个能够自动生成覆盖各种风险等级和”灰色地带”提示的、高质量的对抗性安全评测集？
+</code></pre>
+</details><details>
+<summary>Q16. 如何进行”评估之评估” (meta-evaluation)，即如何判断一个评测基准或一个LLM-as-judge本身是否有效、可靠？</summary><pre><code class="hljs">对评测基准的元评估主要看其<span class="hljs-strong">**区分度 (discriminability)**</span>、<span class="hljs-strong">**鲁棒性 (robustness)**</span> 和<span class="hljs-strong">**生态效度 (ecological validity)**</span>。区分度指能否有效区分不同能力水平的模型；鲁棒性指对prompt微小改动是否敏感；生态效度指其评估的能力是否与现实世界需求相关。对LLM-as-judge的元评估，则重点考察其与人类判断的<span class="hljs-strong">**一致性 (agreement)**</span>（如Cohen&#x27;s Kappa系数）和在不同子群体上的<span class="hljs-strong">**公平性 (fairness)**</span>。一个关键方法是<span class="hljs-strong">**交叉验证 (cross-validation)**</span>：用多个不同的、高质量的judge（或人类）去评估同一组数据，看目标judge或基准是否与共识一致。
+<span class="hljs-strong">**追问**</span>: 在发现某个广泛使用的benchmark可能存在严重偏差或过时后，作为研究者，我们有哪些责任和可行的操作来推动其迭代或警示社区？
+</code></pre>
+</details><details>
+<summary>Q17. 在领域特定（如医疗、法律）场景下，通用LLM-as-judge的评估会遇到哪些特有挑战？构建领域专家评估流水线时，关键步骤是什么？</summary><pre><code class="hljs">核心挑战是<span class="hljs-strong">**领域知识壁垒 (domain knowledge barrier)**</span> 和<span class="hljs-strong">**评估标准的专业化 (specialized evaluation criteria)**</span>。通用judge可能无法理解领域术语的细微差别或专业逻辑的严谨性。构建领域评估流水线的关键步骤首先是<span class="hljs-strong">**联合定义评估维度 (co-define evaluation dimensions)**</span>，与领域专家共同确定如”医疗建议的保守性”、”法律引用的准确性”等维度。其次是<span class="hljs-strong">**构建领域金标准 (domain gold-standard)**</span>，即由专家标注的、具有权威性的参考答案或评判结果集。最后是设计<span class="hljs-strong">**人机协同评估流程 (human-AI collaborative evaluation)**</span>，让AI judge处理初筛，人类专家负责复核边缘案例和最终裁决。
+<span class="hljs-strong">**追问**</span>: 当领域专家对同一回答的评价也存在分歧时（例如，不同流派的医生），如何设计一个能包容合理专家分歧、又能进行有效自动化评估的系统？
+</code></pre>
+</details></article>
 </body>
 </html>

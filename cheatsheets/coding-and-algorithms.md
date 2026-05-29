@@ -308,164 +308,216 @@ def top_p_sample(
 
 ### L1 — 基础 | Basic
 
-**Q1. Softmax 的作用是什么？为什么要在计算时减去最大值？**
+<details>
+<summary>Q1. Softmax 的作用是什么？为什么要在计算时减去最大值？</summary>
 
 **答：** Softmax 将实数向量映射为概率分布（非负且和为 1）。减去最大值是为了数值稳定：$e^{z_i}$ 在 $z_i$ 较大时会导致浮点溢出得到 `inf`，softmax 输出变成 `NaN`。数学上减去常数不改变结果（分子分母同时约掉），但使指数运算始终在安全范围内。
 
 > **追问：** 如果输入 logits 全为 0，softmax 输出是什么？
 > 答：均匀分布 $[1/C, 1/C, \dots]$。
 
+</details>
+
 ---
 
-**Q2. PyTorch 的 `nn.CrossEntropyLoss` 接收的是 logits 还是概率？为什么？**
+<details>
+<summary>Q2. PyTorch 的 <code>nn.CrossEntropyLoss</code> 接收的是 logits 还是概率？为什么？</summary>
 
 **答：** 接收 **logits**（未归一化分数）。内部先做 `LogSoftmax` 再做 `NLLLoss`，数学上等价于先 softmax 再取 log 再算交叉熵，但数值更稳定（避免 `log(0)` 的情况）。
 
 > **追问：** 如果你手动先做了 softmax 再传入 `CrossEntropyLoss`，会发生什么？
 > 答：效果变差，因为等价于做了两次 softmax（double softmax），概率分布被过度"锐化"。
 
+</details>
+
 ---
 
-**Q3. Attention 机制中 $Q$、$K$、$V$ 分别代表什么？直觉上如何理解？**
+<details>
+<summary>Q3. Attention 机制中 $Q$、$K$、$V$ 分别代表什么？直觉上如何理解？</summary>
 
 **答：** 可以类比图书馆检索：$Q$（Query）是你的查询问题，$K$（Key）是每本书的索引标签，$V$（Value）是书的内容。Attention 计算 $Q$ 和每个 $K$ 的相似度作为权重，对 $V$ 加权求和，得到"与查询最相关的信息聚合"。
 
 > **追问：** 在 self-attention 中，$Q$、$K$、$V$ 从何而来？
 > 答：均由同一输入 $X$ 通过不同的线性投影得到：$Q = XW^Q$，$K = XW^K$，$V = XW^V$。
 
+</details>
+
 ---
 
-**Q4. 什么是 LoRA？其核心思想是什么？**
+<details>
+<summary>Q4. 什么是 LoRA？其核心思想是什么？</summary>
 
 **答：** LoRA（Low-Rank Adaptation）是一种参数高效微调（PEFT）方法。核心思想：微调时权重变化量 $\Delta W$ 是低秩的，因此可分解为两个小矩阵的乘积 $\Delta W = BA$。训练时冻结原始权重 $W_0$，仅训练 $A$ 和 $B$，大幅减少可训练参数量。
 
 > **追问：** LoRA 的可训练参数量是多少？
 > 答：对于 $d_{\text{in}} \times d_{\text{out}}$ 的线性层，LoRA 引入 $r \times d_{\text{in}} + d_{\text{out}} \times r$ 个参数，当 $r \ll d$ 时远小于 $d_{\text{in}} \times d_{\text{out}}$。
 
+</details>
+
 ---
 
-**Q5. LayerNorm 与 BatchNorm 的核心区别是什么？**
+<details>
+<summary>Q5. LayerNorm 与 BatchNorm 的核心区别是什么？</summary>
 
 **答：** BatchNorm 沿 **batch 维度** 归一化（同一特征在不同样本间统计均值/方差），依赖 batch size。LayerNorm 沿 **特征维度** 归一化（同一样本内不同特征间统计），不依赖 batch size。Transformer 用 LayerNorm 是因为序列长度可变且推理时 batch size 可能为 1。
 
 > **追问：** BatchNorm 在推理时如何处理？
 > 答：使用训练时累积的 running mean 和 running variance，而非当前 batch 的统计量。
 
+</details>
+
 ---
 
-**Q6. 滑动窗口（Sliding Window）算法的核心思路是什么？**
+<details>
+<summary>Q6. 滑动窗口（Sliding Window）算法的核心思路是什么？</summary>
 
 **答：** 维护一个窗口 $[l, r]$，右指针 $r$ 逐元素扩展，当窗口满足某种条件时尝试收缩左指针 $l$，在扩展/收缩过程中更新答案。关键在于定义清楚窗口"合法"的条件和收缩策略。时间复杂度通常为 $O(n)$，因为每个元素最多进出窗口各一次。
 
 > **追问：** 如何判断一个问题适合用滑动窗口？
 > 答：问题具有"单调性"——当 $[l, r]$ 不满足条件时，$[l, r+1]$ 可能满足；当 $[l, r]$ 满足条件时，$[l+1, r]$ 一定不满足。
 
+</details>
+
 ---
 
-**Q7. 二分搜索中"左闭右开"和"左闭右闭"模板的主要区别？**
+<details>
+<summary>Q7. 二分搜索中"左闭右开"和"左闭右闭"模板的主要区别？</summary>
 
 **答：** 左闭右开：搜索区间 $[lo, hi)$，初始 $hi = n$，循环条件 $lo < hi$，`hi = mid`（不减 1）。左闭右闭：搜索区间 $[lo, hi]$，初始 $hi = n - 1$，循环条件 $lo \leq hi$，`hi = mid - 1`。左闭右开在处理"找左边界/右边界"时更简洁，不容易出 off-by-one 错误。
 
 > **追问：** 如何用二分搜索找"第一个 $\geq$ target 的位置"？
 > 答：使用左闭右开模板，当 `arr[mid] < target` 时 `lo = mid + 1`，否则 `hi = mid`，最终 `lo` 即答案。
 
+</details>
+
 ---
 
-**Q8. Top-p 采样与 Top-k 采样有什么区别？**
+<details>
+<summary>Q8. Top-p 采样与 Top-k 采样有什么区别？</summary>
 
 **答：** Top-k 固定保留概率最高的 $k$ 个 token。Top-p（Nucleus）保留累积概率首次超过 $p$ 的 token 集合——集合大小自适应：分布集中时保留少，分布平坦时保留多。Top-p 更灵活，避免了 Top-k 在分布尖锐时引入噪声、平坦时截断过多的问题。
 
 > **追问：** 实际推理中 top-p 和 top-k 可以同时使用吗？通常哪个先过滤？
 > 答：可以同时使用，通常先 top-k 再 top-p（缩小候选集后再做累积概率截断）。
 
+</details>
+
 ---
 
-**Q9. 什么是 BFS 和 DFS？在图搜索中各有什么适用场景？**
+<details>
+<summary>Q9. 什么是 BFS 和 DFS？在图搜索中各有什么适用场景？</summary>
 
 **答：** BFS（广度优先搜索）用队列，逐层扩展，适合求最短路径（无权图）。DFS（深度优先搜索）用栈（或递归），沿一条路走到底再回溯，适合求连通分量、拓扑排序、检测环。时间复杂度均为 $O(V + E)$。
 
 > **追问：** 拓扑排序可以用 BFS 实现吗？
 > 答：可以，即 Kahn 算法：维护入度为 0 的节点队列，每次取出一个节点，将其邻居入度减 1。
 
+</details>
+
 ---
 
 ### L2 — 中级 | Intermediate
 
-**Q10. Scaled Dot-Product Attention 中为什么除以 $\sqrt{d_k}$？如果不除会怎样？**
+<details>
+<summary>Q10. Scaled Dot-Product Attention 中为什么除以 $\sqrt{d_k}$？如果不除会怎样？</summary>
 
 **答：** 假设 $Q$ 和 $K$ 的每个元素独立同分布，均值为 0，方差为 1，则 $QK^\top$ 每个元素的方差为 $d_k$。当 $d_k$ 较大时，点积值量级很大，softmax 梯度趋近于零（输出趋向 one-hot），训练困难。除以 $\sqrt{d_k}$ 将方差稳定在 1 附近。
 
 > **追问：** 有没有其他缩放方式？
 > 答：Cosine attention 用 $\frac{QK^\top}{\|Q\|\|K\|}$；也有工作探索可学习的温度参数。
 
+</details>
+
 ---
 
-**Q11. LoRA 中 $B$ 初始化为零、$A$ 随机初始化的策略有什么好处？**
+<details>
+<summary>Q11. LoRA 中 $B$ 初始化为零、$A$ 随机初始化的策略有什么好处？</summary>
 
 **答：** $B = 0$ 使得训练开始时 $\Delta W = BA = 0$，模型行为与预训练完全一致，保证初始状态不被破坏。如果 $A$ 也初始化为零，则 $\Delta W$ 永远为零（梯度为零），$A$ 和 $B$ 无法学到任何东西。因此必须至少一个矩阵非零初始化。
 
 > **追问：** LoRA 的缩放因子 $\alpha / r$ 起什么作用？
 > 答：$\alpha$ 控制 LoRA 更新的绝对幅度。$\alpha$ 固定时，增大 $r$ 会使更新幅度相对减小（除以更大的 $r$），有助于训练稳定性。实践中常设 $\alpha = r$ 或 $\alpha = 2r$。
 
+</details>
+
 ---
 
-**Q12. Multi-Head Attention 中为什么需要多个 head？与单 head + 更大维度有何不同？**
+<details>
+<summary>Q12. Multi-Head Attention 中为什么需要多个 head？与单 head + 更大维度有何不同？</summary>
 
 **答：** 多个 head 可以关注不同类型的模式（如语法、语义、位置关系），相当于一种隐式正则化。单 head + 大维度理论上表达能力等价，但优化更困难——模型倾向于只学到一种模式。实验表明多头在相同总计算量下效果更好。
 
 > **追问：** 不同 head 学到的 pattern 有多大差异？有没有可视化工具？
 > 答：BERTViz 等工具可视化表明，不同 head 确实关注不同类型的关系（如有的 head 关注相邻词，有的关注动宾关系）。但也有研究发现部分 head 是冗余的，可以被裁剪（head pruning）。
 
+</details>
+
 ---
 
-**Q13. K-Means 的时间复杂度是什么？K-Means++ 初始化如何改善收敛？**
+<details>
+<summary>Q13. K-Means 的时间复杂度是什么？K-Means++ 初始化如何改善收敛？</summary>
 
 **答：** 每次迭代需计算 $n$ 个样本到 $K$ 个 centroid 的距离（$O(nKd)$），设迭代 $i$ 次，总复杂度 $O(nKdi)$。K-Means++ 按概率 $\propto D(x)^2$ 顺序选取初始 centroid（$D(x)$ 为到最近已选 centroid 的距离），使得初始 centroid 尽量分散。理论上保证 WCSS 的期望值在 $O(\log K)$ 近似比内。
 
 > **追问：** 如何选择 $K$？
 > 答：常用 Elbow Method（画 WCSS vs $K$ 曲线，找拐点）或 Silhouette Score（衡量簇内紧密度与簇间分离度）。
 
+</details>
+
 ---
 
-**Q14. RMSNorm 相比 LayerNorm 去掉了什么？为什么在大模型中常用 RMSNorm？**
+<details>
+<summary>Q14. RMSNorm 相比 LayerNorm 去掉了什么？为什么在大模型中常用 RMSNorm？</summary>
 
 **答：** RMSNorm 去掉了均值中心化（re-centering）步骤，仅做缩放（re-scaling）。省去了均值计算，减少了约 10-15% 的计算量。实验表明去掉中心化对效果影响很小，尤其在大模型中，因此 LLaMA、Qwen 等主流模型均采用 RMSNorm。
 
 > **追问：** Pre-Norm 和 Post-Norm 有什么区别？为什么现代模型多用 Pre-Norm？
 > 答：Pre-Norm 在子层之前做归一化，Post-Norm 在子层之后。Pre-Norm 梯度更稳定、训练更易收敛，但可能损失一些表达能力。Post-Norm 理论上表达力更强，但需要更细致的超参调节（如 warmup）。
 
+</details>
+
 ---
 
-**Q15. `torch.Tensor.view()` 和 `torch.Tensor.reshape()` 有什么区别？**
+<details>
+<summary>Q15. <code>torch.Tensor.view()</code> 和 <code>torch.Tensor.reshape()</code> 有什么区别？</summary>
 
 **答：** `.view()` 要求 tensor 内存连续（contiguous），否则报错；返回的是共享内存的视图。`.reshape()` 更灵活：如果内存连续则等价于 `.view()`，否则会自动拷贝数据使其连续。性能敏感场景优先用 `.view()`（零拷贝），但需要确保先调用 `.contiguous()`。
 
 > **追问：** 什么操作会导致 tensor 不连续？
 > 答：`transpose()`、`permute()`、某些 `expand()` 操作。这些操作改变了 stride 但不移动数据，导致逻辑顺序与物理内存顺序不一致。
 
+</details>
+
 ---
 
-**Q16. Temperature 参数如何影响采样分布？$T \to 0$ 和 $T \to \infty$ 分别等价于什么？**
+<details>
+<summary>Q16. Temperature 参数如何影响采样分布？$T \to 0$ 和 $T \to \infty$ 分别等价于什么？</summary>
 
 **答：** Temperature $T$ 用于缩放 logits：$p_i \propto e^{z_i / T}$。$T \to 0$ 时分布退化为 one-hot（贪心解码 greedy decoding）；$T \to \infty$ 时分布趋向均匀分布（完全随机）。$T < 1$ 使分布更尖锐（更确定），$T > 1$ 使分布更平坦（更多样）。
 
 > **追问：** 实践中 temperature 通常设为多少？不同任务有何区别？
 > 答：代码生成等确定性任务常用 $T \approx 0$–$0.2$；创意写作等多样性任务常用 $T \approx 0.7$–$1.0$。一般不超过 2.0，否则输出质量下降。
 
+</details>
+
 ---
 
-**Q17. 动态规划（DP）的核心三要素是什么？**
+<details>
+<summary>Q17. 动态规划（DP）的核心三要素是什么？</summary>
 
 **答：** (1) **状态定义**——$dp[i]$ 代表什么（如前 $i$ 个元素的最优解）；(2) **转移方程**——$dp[i]$ 如何由之前的状态推出；(3) **初始条件与边界**——$dp[0]$ 的值。设计 DP 时最关键的是选对状态，好的状态定义使转移方程自然且高效。
 
 > **追问：** 记忆化搜索（top-down）和自底向上填表（bottom-up）有什么区别？各自优缺点？
 > 答：记忆化用递归 + 缓存，只计算需要的状态，代码更直观。bottom-up 用循环填表，无递归开销，易于空间优化（滚动数组）。两者时间复杂度相同。
 
+</details>
+
 ---
 
 ### L3 — 深度 | Deep
 
-**Q18. Softmax 的梯度是什么？为什么说 Cross-Entropy + Softmax 的梯度形式简洁？**
+<details>
+<summary>Q18. Softmax 的梯度是什么？为什么说 Cross-Entropy + Softmax 的梯度形式简洁？</summary>
 
 **答：** 令 $p_i = \text{softmax}(z_i)$，则 $\frac{\partial p_i}{\partial z_j} = p_i(\delta_{ij} - p_j)$（Jacobian 矩阵）。当与 Cross-Entropy $\mathcal{L} = -\log p_y$ 组合时，梯度简化为：
 
@@ -478,9 +530,12 @@ $$
 > **追问：** Label Smoothing 会如何改变这个梯度？
 > 答：Label smoothing 将 one-hot 改为 $(1 - \epsilon)$ 在正确类、$\epsilon / (C-1)$ 在其他类，梯度变为 $p_i - \hat{y}_i$，防止模型过度自信。
 
+</details>
+
 ---
 
-**Q19. Self-Attention 的计算复杂度是 $O(N^2 d)$，有哪些降低复杂度的方法？**
+<details>
+<summary>Q19. Self-Attention 的计算复杂度是 $O(N^2 d)$，有哪些降低复杂度的方法？</summary>
 
 **答：** 主要方向包括：
 - **Sparse Attention：** 只计算局部窗口（如 Longformer 的 sliding window）或特定 pattern（如 BigBird 的 random + global + local）
@@ -491,46 +546,60 @@ $$
 > **追问：** Flash Attention 改变了注意力的数学结果吗？
 > 答：不改变。Flash Attention 是一个 IO-aware 的精确算法，通过分块计算（tiling）和在线 softmax 技巧得到与标准 attention 数学上等价的结果，只是更高效地利用了 GPU 内存层级。
 
+</details>
+
 ---
 
-**Q20. LoRA 的秩（rank）$r$ 应该如何选择？$\alpha$ 和 $r$ 的关系是什么？**
+<details>
+<summary>Q20. LoRA 的秩（rank）$r$ 应该如何选择？$\alpha$ 和 $r$ 的关系是什么？</summary>
 
 **答：** rank $r$ 控制表达能力与参数量的权衡。常用范围 $r \in [4, 64]$。任务越复杂或目标层越多，可能需要更大的 $r$。$\alpha$ 是缩放因子，有效学习率大致正比于 $\alpha / r$。常见做法是固定 $\alpha$（如 $\alpha = 16$）然后调节 $r$，或者设 $\alpha = r$ 让缩放因子为 1。
 
 > **追问：** 可以对不同的层使用不同的 rank 吗？有什么好处？
 > 答：可以，这是 AdaLoRA 等方法的思路。不同层的"重要性"不同（通过 SVD 分析 $\Delta W$ 的奇异值谱），对重要层分配更高 rank，不重要的层分配更低 rank，实现参数预算的最优分配。
 
+</details>
 
 ---
 
-**Q21. K-Means 一定能收敛吗？收敛到的一定是全局最优吗？**
+<details>
+<summary>Q21. K-Means 一定能收敛吗？收敛到的一定是全局最优吗？</summary>
 
 **答：** K-Means 保证收敛（WCSS 单调递减，有下界 0），但只收敛到 **局部最优**。分配步和更新步都会降低或保持 WCSS，所以 WCSS 不增。但目标函数非凸，不同初始值可能导致不同的局部最优。因此实践中常多次随机初始化取最优（multi-start），或使用 K-Means++ 改善初始化质量。
 
 > **追问：** K-Means 的簇形状有什么限制？有没有替代方法？
 > 答：K-Means 假设簇为球形（isotropic），对非球形簇效果差。替代方法包括 GMM（高斯混合模型，允许椭圆簇）、DBSCAN（基于密度，可发现任意形状簇）、Spectral Clustering。
 
+</details>
+
 ---
 
-**Q22. 在 Transformer 推理中，KV Cache 是什么？为什么需要它？**
+<details>
+<summary>Q22. 在 Transformer 推理中，KV Cache 是什么？为什么需要它？</summary>
 
 **答：** 自回归生成时，每生成一个新 token 需要计算所有历史 token 的 attention。但之前 token 的 $K, V$ 不会因新 token 改变，因此可以缓存起来复用。KV Cache 存储已计算的 $K, V$ 矩阵，每步只需计算新 token 的 $Q, K, V$，将新 $K, V$ 追加到 cache。这将每步的计算量从 $O(n^2 d)$ 降为 $O(nd)$，是推理加速的关键。
 
 > **追问：** KV Cache 的内存开销有多大？有什么压缩方法？
 > 答：对于 $L$ 层、$h$ 头、head dim $d_k$、序列长度 $n$ 的模型，KV Cache 大小为 $2 \times L \times h \times d_k \times n \times \text{bytes}$。压缩方法包括：GQA（分组查询注意力，多个 Q head 共享 K/V）、量化（将 KV 从 FP16 量化到 INT8/INT4）、稀疏化（丢弃不重要的 KV 对）。
 
+</details>
+
 ---
 
-**Q23. 手写 Attention 时，causal mask 用 `float('-inf')` 而不是一个很大的负数，为什么？**
+<details>
+<summary>Q23. 手写 Attention 时，causal mask 用 <code>float('-inf')</code> 而不是一个很大的负数，为什么？</summary>
 
 **答：** `float('-inf')` 经 softmax 后精确为 0（$e^{-\infty} = 0$），不会有任何信息泄漏。而大负数（如 $-10^9$）经 softmax 后会得到一个极小但非零的概率，理论上仍有微量信息泄漏。此外，`-inf` 在数值上更安全——不同精度的"大负数"阈值不同，而 `-inf` 在所有精度下行为一致。
 
 > **追问：** 除了 causal mask，attention 中还有哪些常用 mask？
 > 答：Padding mask（屏蔽填充 token）、Local/Sliding window mask（限制注意力范围）、Prefix mask（prefix 部分双向，后续 causal）、Block diagonal mask（多序列独立注意力）。
 
+</details>
+
 ---
 
-**Q24. 为什么 softmax 需要数值稳定技巧，但 `torch.nn.functional.cross_entropy` 内部不需要用户关心这个问题？**
+<details>
+<summary>Q24. 为什么 softmax 需要数值稳定技巧，但 <code>torch.nn.functional.cross_entropy</code> 内部不需要用户关心这个问题？</summary>
 
 **答：** PyTorch 的 `F.cross_entropy` 使用了更高级的数值稳定实现——在 log 空间直接计算 LogSumExp，全程避免显式的 `exp()` 和 `log()` 组合，数学上：
 
@@ -543,15 +612,19 @@ $$
 > **追问：** `torch.log_softmax` 的实现和 `log(softmax(x))` 有什么区别？
 > 答：数学等价但数值行为不同。`torch.log_softmax` 内部直接计算 LogSumExp trick，避免中间的 `softmax` 溢出。`log(softmax(x))` 如果 `softmax` 已经溢出为 `inf`，`log(inf)` 结果虽然是 `inf`，但梯度为 `NaN`。
 
+</details>
+
 ---
 
-**Q25. 在分布式训练（如联邦学习）场景中使用 LoRA，与全参数微调相比，通信开销有什么变化？**
+<details>
+<summary>Q25. 在分布式训练（如联邦学习）场景中使用 LoRA，与全参数微调相比，通信开销有什么变化？</summary>
 
 **答：** 全参数微调需要通信整个 $\Delta W$（$d_{\text{in}} \times d_{\text{out}}$），而 LoRA 只需通信 $A$（$r \times d_{\text{in}}$）和 $B$（$d_{\text{out}} \times r$），通信量为 $r \times (d_{\text{in}} + d_{\text{out}})$，当 $r \ll d$ 时大幅减少。这对于带宽受限的场景（如跨设备联邦学习）尤为重要。
 
 > **追问：** LoRA 在联邦学习中聚合时，是聚合 $A, B$ 还是聚合 $\Delta W = BA$？
 > 答：两种方式都可以。直接聚合 $A, B$ 通信量小但数学上不等价于聚合 $\Delta W$（$BA$ 的平均 $\neq$ 平均的 $B \times$ 平均的 $A$）。聚合 $\Delta W$ 数学上更正确但通信量大。实践中需要根据场景权衡。
 
+</details>
 
 ---
 
@@ -643,7 +716,8 @@ for i in range(1, n + 1):
 
 ## 更多 L3 深挖 / Extended L3
 
-**Q26. LoRA 的低秩假设（low-rank assumption）在理论上基于什么前提？哪些场景下该假设可能不成立？**
+<details>
+<summary>Q26. LoRA 的低秩假设（low-rank assumption）在理论上基于什么前提？哪些场景下该假设可能不成立？</summary>
 
 **A:** LoRA 假设权重更新 $\Delta W$ 的有效秩（effective rank）远小于参数维度——即任务适配信息集中在少数方向上。理论基础是"内在维度（intrinsic dimensionality）"概念：预训练模型在高维参数空间中，任务适配实际只发生在低维子流形上。
 
@@ -655,9 +729,12 @@ for i in range(1, n + 1):
 **追问：** 除了单纯增大 $r$，还有哪些结构化方案突破低秩限制？
 **答：** AdaLoRA 按层自适应分配秩（重要层更高秩）；Adapter 在 FFN 中插入带非线性激活的 bottleneck，突破纯线性低秩的表达限制；(IA)^3 等向量缩放方法以不同的效率-容量曲线提供额外表达力。
 
+</details>
+
 ---
 
-**Q27. Transformer 中为什么用 LayerNorm 而非 BatchNorm？从统计量计算的角度分析二者的根本区别。**
+<details>
+<summary>Q27. Transformer 中为什么用 LayerNorm 而非 BatchNorm？从统计量计算的角度分析二者的根本区别。</summary>
 
 **A:** BatchNorm 沿 **batch 维度** 计算均值和方差，LayerNorm 沿 **特征维度** 计算。根本区别在于：
 
@@ -668,9 +745,12 @@ for i in range(1, n + 1):
 **追问：** Pre-LN 和 Post-LN 有什么区别？为什么现代大模型多采用 Pre-LN？
 **答：** Post-LN：$\text{LN}(x + \text{Sublayer}(x))$；Pre-LN：$x + \text{Sublayer}(\text{LN}(x))$。Pre-LN 使梯度通过残差路径直接回传（residual stream），不经过 LN 的非线性变换，训练更稳定，通常不需要 learning rate warmup；Post-LN 在深层网络中梯度需经过 LN，容易导致训练不稳定。
 
+</details>
+
 ---
 
-**Q28. FlashAttention 的核心思想是什么？为什么它能在不改变数学结果的前提下显著提升效率？**
+<details>
+<summary>Q28. FlashAttention 的核心思想是什么？为什么它能在不改变数学结果的前提下显著提升效率？</summary>
 
 **A:** 核心是 **IO-aware 分块计算（tiling）**：将 $Q, K, V$ 分成小块（tile），在 SRAM（片上缓存）中完成 softmax 与矩阵乘的融合计算，避免将 $N \times N$ 注意力矩阵写回 HBM（高带宽内存）。
 
@@ -681,9 +761,12 @@ for i in range(1, n + 1):
 **追问：** FlashAttention 的 recomputation 与通用 gradient checkpointing 有什么异同？
 **答：** 二者都是"以计算换内存"思想。Gradient checkpointing 是通用策略：选择性不保存中间激活，反向时重新前向计算。FlashAttention 的 recomputation 更特化：专门针对注意力矩阵这一大张量，且与 tiling 策略结合，不仅减少内存还减少了 HBM 访问次数（IO 复杂度从 $O(N^2)$ 降至 $O(N^2 d^2 / M)$，$M$ 为 SRAM 大小）。二者可组合使用。
 
+</details>
+
 ---
 
-**Q29. RMSNorm 去掉了 LayerNorm 中的均值中心化（mean centering），为什么这样做在实践中仍然有效？**
+<details>
+<summary>Q29. RMSNorm 去掉了 LayerNorm 中的均值中心化（mean centering），为什么这样做在实践中仍然有效？</summary>
 
 **A:** LayerNorm 的完整操作：$y_i = \gamma \cdot \frac{x_i - \mu}{\sigma} + \beta$；RMSNorm 简化为：$y_i = \gamma \cdot \frac{x_i}{\text{RMS}(x)}$，去掉 $\mu$ 和 $\beta$。
 
@@ -695,9 +778,12 @@ for i in range(1, n + 1):
 **追问：** 什么情况下去掉均值中心化可能有害？
 **答：** 若某层输入有系统性偏移（systematic bias）且后续层无法轻易补偿，则偏移会传播。在小模型或浅层网络中影响可能更明显。但大规模 Transformer 的残差连接和深层堆叠提供了足够容量来补偿，实践中几乎未观察到退化。
 
+</details>
+
 ---
 
-**Q30. Multi-Head Attention 中如果多个 head 学到了近似的 pattern（head collapse），会有什么后果？如何检测和缓解？**
+<details>
+<summary>Q30. Multi-Head Attention 中如果多个 head 学到了近似的 pattern（head collapse），会有什么后果？如何检测和缓解？</summary>
 
 **A:** Head collapse 导致多头表达冗余——虽有 $h$ 个头的参数，但有效头数远少于 $h$，浪费了计算和模型容量，相当于降低了注意力的"有效秩"。
 
@@ -711,9 +797,12 @@ for i in range(1, n + 1):
 - **Attention dropout：** 对注意力权重施加 dropout，防止某些 head 过早主导
 - **Head pruning + retraining：** 训练后裁剪冗余 head 再微调，迫使剩余 head 承担更多职责；这也是一种隐式的正则化
 
+</details>
+
 ---
 
-**Q31. 对 Cross-Entropy Loss 施加 label smoothing 后，梯度形式有什么变化？为什么能提高泛化？**
+<details>
+<summary>Q31. 对 Cross-Entropy Loss 施加 label smoothing 后，梯度形式有什么变化？为什么能提高泛化？</summary>
 
 **A:** 标准 CE 中目标 $q$ 为 one-hot（$q_y = 1, q_{j \neq y} = 0$），label smoothing 令 $q_y = 1 - \epsilon, q_{j \neq y} = \frac{\epsilon}{C-1}$。
 
@@ -728,9 +817,12 @@ for i in range(1, n + 1):
 **追问：** Label smoothing 和 knowledge distillation 有什么联系？
 **答：** 二者本质都是用"软目标（soft target）"替代 hard target 训练。Label smoothing 用均匀分布软化目标；distillation 用 teacher 输出分布作为软目标。可以认为 label smoothing 是"无 teacher 的、目标为均匀分布的 distillation"。Distillation 的优势在于 teacher 的 soft target 包含类别间相似性的结构信息（如猫 vs 狗的 logit 高于猫 vs 飞机），而非无结构的均匀分布。
 
+</details>
+
 ---
 
-**Q32. K-Means 和 Gaussian Mixture Model (GMM) 的 EM 算法之间有什么数学联系？**
+<details>
+<summary>Q32. K-Means 和 Gaussian Mixture Model (GMM) 的 EM 算法之间有什么数学联系？</summary>
 
 **A:** K-Means 是 GMM-EM 在"各向同性、等协方差、$\sigma \to 0$"极限下的硬指派特例。
 
@@ -747,3 +839,5 @@ $$
 
 **追问：** 既然 K-Means 是 GMM 的特例，什么时候该用 GMM？
 **答：** 当簇非球形、大小/密度差异大、或需要软（概率化）成员归属时。GMM 额外学习每个分量的协方差 $\Sigma_k$ 与权重 $\pi_k$，能拟合不同朝向/尺度的椭圆簇，并用 $\gamma_{ik}$ 给出软归属与不确定性；K-Means 因假设各向同性等协方差，只能产生球形（Voronoi）硬划分。代价是 GMM 参数更多、对初始化与奇异协方差（某分量塌缩到单点使似然发散）更敏感，常需协方差下限或正则化。
+
+</details>

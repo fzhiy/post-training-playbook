@@ -41,6 +41,21 @@
   .callout-warn{border-color:#c77d00;background:#c77d0014}
   .callout-good{border-color:#1a7f4b;background:#1a7f4b12}
   .callout-bad{border-color:#b8390e;background:#b8390e10}
+  /* 折叠 Q&A (问题在 summary, 答案默认折叠) */
+  details:not(.toc):not(.code-fold){border:1px solid var(--line);border-radius:8px;margin:.6em 0;background:var(--bg-soft);padding:0 .9em}
+  details:not(.toc):not(.code-fold)>summary{cursor:pointer;font-weight:600;color:var(--primary);padding:.55em .1em;list-style:none;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+  details:not(.toc):not(.code-fold)>summary::-webkit-details-marker{display:none}
+  details:not(.toc):not(.code-fold)>summary::before{content:"▸ ";color:var(--accent)}
+  details:not(.toc):not(.code-fold)[open]>summary::before{content:"▾ "}
+  details:not(.toc):not(.code-fold)[open]>summary{border-bottom:1px solid var(--line);margin-bottom:.5em}
+  details:not(.toc):not(.code-fold)>:not(summary):last-child{margin-bottom:.7em}
+  /* 折叠长代码 */
+  .code-fold{margin:1em 0}
+  .code-fold>summary{cursor:pointer;color:var(--primary);font-size:.85rem;padding:.25em 0;list-style:none;font-family:system-ui,sans-serif}
+  .code-fold>summary::-webkit-details-marker{display:none}
+  .code-fold>summary::before{content:"▸ 代码 "}
+  .code-fold[open]>summary::before{content:"▾ 代码 "}
+  .code-fold pre{margin:.3em 0}
   .toc{border:1px solid var(--line);border-radius:8px;padding:.4em .9em;margin:1.2em 0;font-size:.92rem;background:var(--bg-soft);font-family:system-ui,sans-serif}
   .toc summary{cursor:pointer;color:var(--primary);font-weight:600}
   .toc ul{margin:.5em 0 .2em;padding-left:1.2em;list-style:none}
