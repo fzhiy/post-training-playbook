@@ -153,25 +153,28 @@ class TestPPOClippedSurrogate:
 
     # ---- gradient magnitude sanity ----------------------------------------
     def test_gradient_magnitude(self):
-        """Larger epsilon → more clipping → smaller gradient magnitude
-        when ratio is far from 1 and advantage is positive."""
+        """PPO core property: in the CLIPPED region (ratio > 1+eps, adv > 0) the
+        clipped surrogate has ~ZERO gradient (no incentive to push the ratio
+        further); in the UNCLIPPED region the gradient is nonzero."""
         torch.manual_seed(99)
         B = 32
         old_lp = torch.zeros(B)
         adv = torch.ones(B)
-        grad_norms = []
+        # ratio = exp(1) ≈ 2.718 >> 1+eps for every eps below → fully clipped → grad ≈ 0
         for eps in [0.1, 0.3, 0.5]:
             cur_lp = torch.full((B,), 1.0, requires_grad=True)
             loss, _ = compute_ppo_clipped_surrogate_objective(
                 cur_lp, old_lp, adv, clip_epsilon=eps
             )
             loss.backward()
-            grad_norms.append(cur_lp.grad.norm().item())
-        # With ratio = e ≈ 2.718, larger epsilon clips more aggressively
-        # so gradient should shrink with larger epsilon
-        assert grad_norms[0] > grad_norms[1] > grad_norms[2], (
-            f"Expected decreasing grad norms with larger epsilon, got {grad_norms}"
-        )
+            assert cur_lp.grad.norm().item() < 1e-5, (
+                f"clipped region should have ~0 grad, got {cur_lp.grad.norm().item()}"
+            )
+        # unclipped region (ratio = 1, inside [1-eps, 1+eps]) → nonzero gradient
+        cur_lp = torch.zeros(B, requires_grad=True)
+        loss, _ = compute_ppo_clipped_surrogate_objective(cur_lp, old_lp, adv, clip_epsilon=0.2)
+        loss.backward()
+        assert cur_lp.grad.norm().item() > 1e-6, "unclipped region should have nonzero grad"
 
     # ---- clip fraction metric correctness ---------------------------------
     def test_clip_fraction_metric(self):

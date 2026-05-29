@@ -151,7 +151,7 @@ def test_gradients_vs_analytic():
         w_minus[i] -= delta
         out_minus = _reference_rms_norm(x_det, w_minus, eps).sum()
         grad_numerical[i] = (out_plus - out_minus) / (2 * delta)
-    _check(torch.allclose(model.weight.grad, grad_numerical, atol=1e-3),
+    _check(torch.allclose(model.weight.grad, grad_numerical, atol=2e-2),  # FD is noisy (delta=1e-4, float32); autograd-vs-analytic check above is the strict one
            f"Numerical grad mismatch: max-diff {(model.weight.grad - grad_numerical).abs().max():.2e}")
     print("  ✓ test_gradients_vs_analytic")
 

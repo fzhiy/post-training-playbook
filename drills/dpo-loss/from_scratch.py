@@ -21,7 +21,7 @@ def compute_log_probs_from_logits(
     # Per-token log-probabilities (before reduction)
     log_probs = F.log_softmax(logits, dim=-1)                    # (batch, seq_len-1, vocab)
     per_token_log_probs = log_probs.gather(
-        dim=-1, index=labels.unsqueeze(-1)                       # (batch, seq_len-1, 1)
+        dim=-1, index=labels.clamp(min=0).unsqueeze(-1)          # clamp ignore_index(-100) before gather; masked out below
     ).squeeze(-1)                                                 # (batch, seq_len-1)
 
     # Mask out padding / ignored positions

@@ -7,7 +7,10 @@ Run:  python test_rope.py
 import math
 import torch
 import torch.nn as nn
-import pytest  # noqa – we use plain assert + manual runner so pytest is optional
+try:
+    import pytest  # optional — this file self-runs via `python test_rope.py`
+except ImportError:
+    pytest = None
 
 from from_scratch import (
     precompute_rope_frequencies,
