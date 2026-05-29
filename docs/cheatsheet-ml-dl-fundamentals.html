@@ -30,18 +30,27 @@
   .toc li.lv3{padding-left:1.1em;font-size:.95em;opacity:.8}
   .toc a{color:inherit;text-decoration:none}
   .toc a:hover{color:#0a7;text-decoration:underline}
-  sup.cite{font-size:.72em;line-height:0;white-space:nowrap}
-  sup.cite a{text-decoration:none;color:#0a7;padding:0 .08em}
-  .refs{border:1px solid #8884;border-radius:8px;padding:.4em .9em;margin:1.6em 0;font-size:.9rem;background:#8881}
-  .refs summary{cursor:pointer;color:#0a7;font-weight:600}
-  .refs ol{margin:.6em 0 .3em;padding-left:1.6em}
-  .refs li{margin:.4em 0}
-  .refs li:target{background:#0a72;border-radius:4px;padding:.15em .3em;margin-left:-.3em}
+  /* 引用 (gwern/Tufte 式, 零 JS): [N] 上标可点跳底部; .cite-note gist 宽屏(≥1180px)浮右页边、窄屏隐藏 */
+  .cite-wrap{display:inline}
+  .cite{color:#0a7;font-weight:600;font-size:.72em;vertical-align:super;padding:0 .12em;white-space:nowrap;text-decoration:none}
+  .cite::before{content:"["}
+  .cite::after{content:"]"}
+  .cite:hover{text-decoration:underline}
+  .cite-note{display:none}
+  ol.refs{font-size:.95rem;padding-left:1.6em}
+  ol.refs li{margin:.4em 0}
+  ol.refs li:target{background:#0a72;border-radius:4px}
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
   @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}}
+  @media (min-width:1180px){
+    body.has-sn{max-width:1200px}
+    body.has-sn #out{max-width:720px}
+    body.has-sn .cite-note{display:block;float:right;clear:right;width:320px;margin:.15em -360px .9em 0;padding:0 0 0 .8em;border-left:2px solid #0a7;font-size:.8rem;line-height:1.55;font-weight:400;color:#555}
+  }
+  @media (min-width:1180px) and (prefers-color-scheme:dark){body.has-sn .cite-note{color:#aaa}}
 </style>
 </head>
-<body>
+<body class="">
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
 <article id="out"><h1>ML / DL Fundamentals 公开速查手册</h1><details class="toc" open><summary>目录 / Contents (34)</summary><ul><li class="lv2"><a href="#sec-0">第一部分：概念与公式推导</a></li><li class="lv2"><a href="#sec-1">Part 1: Concepts &amp; Formula Derivations</a></li><li class="lv3"><a href="#sec-2">1.1 优化器 Optimizers</a></li><li class="lv3"><a href="#sec-3">1.2 学习率调度 Learning Rate Scheduling</a></li><li class="lv3"><a href="#sec-4">1.3 正则化 Regularization</a></li><li class="lv3"><a href="#sec-5">1.4 归一化 Normalization</a></li><li class="lv3"><a href="#sec-6">1.5 参数初始化 Weight Initialization</a></li><li class="lv3"><a href="#sec-7">1.6 反向传播 Backpropagation</a></li><li class="lv3"><a href="#sec-8">1.7 损失函数 Loss Functions</a></li><li class="lv3"><a href="#sec-9">1.8 混合精度训练 Mixed Precision Training</a></li><li class="lv3"><a href="#sec-10">1.9 偏差-方差分解 Bias-Variance Decomposition</a></li><li class="lv3"><a href="#sec-11">1.10 Batch Size 与梯度累积 Gradient Accumulation</a></li><li class="lv2"><a href="#sec-12">第二部分：PyTorch 代码片段</a></li><li class="lv2"><a href="#sec-13">Part 2: PyTorch Snippets (From Scratch)</a></li><li class="lv3"><a href="#sec-14">2.1 SGD + Momentum</a></li><li class="lv3"><a href="#sec-15">2.2 Adam</a></li><li class="lv3"><a href="#sec-16">2.3 AdamW（Decoupled Weight Decay）</a></li><li class="lv3"><a href="#sec-17">2.4 Cosine Annealing LR Schedule</a></li><li class="lv3"><a href="#sec-18">2.5 Layer Normalization from Scratch</a></li><li class="lv3"><a href="#sec-19">2.6 RMSNorm</a></li><li class="lv3"><a href="#sec-20">2.7 Gradient Clipping by Norm</a></li><li class="lv3"><a href="#sec-21">2.8 Mixed Precision Training (AMP)</a></li><li class="lv3"><a href="#sec-22">2.9 Gradient Checkpointing</a></li><li class="lv3"><a href="#sec-23">2.10 Focal Loss</a></li><li class="lv3"><a href="#sec-24">2.11 GELU 与 SwiGLU</a></li><li class="lv3"><a href="#sec-25">2.12 Knowledge Distillation Loss</a></li><li class="lv3"><a href="#sec-26">2.13 LR Finder（学习率搜索器）</a></li><li class="lv3"><a href="#sec-27">2.14 Gradient Accumulation</a></li><li class="lv2"><a href="#sec-28">第三部分：面试题集（25 题）</a></li><li class="lv2"><a href="#sec-29">Part 3: Interview Questions (25 Questions)</a></li><li class="lv3"><a href="#sec-30">L1 — 基础题 Basic</a></li><li class="lv3"><a href="#sec-31">L2 — 中等题 Intermediate</a></li><li class="lv3"><a href="#sec-32">L3 — 深度题 Deep</a></li><li class="lv2"><a href="#sec-33">更多 L3 深挖 / Extended L3</a></li></ul></details>
 <h1>ML / DL Fundamentals — Public Cheat Sheet</h1>

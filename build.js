@@ -75,7 +75,8 @@ function addTocAndIds(html) {
 
 function renderDoc(md, title, outFile) {
   const content = addTocAndIds(highlightCode(renderWithMath(md)));
-  const html = tpl.replace('{{TITLE}}', () => title).replace('{{CONTENT}}', () => content);
+  const bodyClass = /class="cite-note"/.test(content) ? 'has-sn' : '';
+  const html = tpl.replace('{{TITLE}}', () => title).replace('{{BODYCLASS}}', () => bodyClass).replace('{{CONTENT}}', () => content);
   fs.writeFileSync(path.join(OUT, outFile), html);
 }
 

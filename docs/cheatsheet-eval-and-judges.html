@@ -30,18 +30,27 @@
   .toc li.lv3{padding-left:1.1em;font-size:.95em;opacity:.8}
   .toc a{color:inherit;text-decoration:none}
   .toc a:hover{color:#0a7;text-decoration:underline}
-  sup.cite{font-size:.72em;line-height:0;white-space:nowrap}
-  sup.cite a{text-decoration:none;color:#0a7;padding:0 .08em}
-  .refs{border:1px solid #8884;border-radius:8px;padding:.4em .9em;margin:1.6em 0;font-size:.9rem;background:#8881}
-  .refs summary{cursor:pointer;color:#0a7;font-weight:600}
-  .refs ol{margin:.6em 0 .3em;padding-left:1.6em}
-  .refs li{margin:.4em 0}
-  .refs li:target{background:#0a72;border-radius:4px;padding:.15em .3em;margin-left:-.3em}
+  /* 引用 (gwern/Tufte 式, 零 JS): [N] 上标可点跳底部; .cite-note gist 宽屏(≥1180px)浮右页边、窄屏隐藏 */
+  .cite-wrap{display:inline}
+  .cite{color:#0a7;font-weight:600;font-size:.72em;vertical-align:super;padding:0 .12em;white-space:nowrap;text-decoration:none}
+  .cite::before{content:"["}
+  .cite::after{content:"]"}
+  .cite:hover{text-decoration:underline}
+  .cite-note{display:none}
+  ol.refs{font-size:.95rem;padding-left:1.6em}
+  ol.refs li{margin:.4em 0}
+  ol.refs li:target{background:#0a72;border-radius:4px}
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
   @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}}
+  @media (min-width:1180px){
+    body.has-sn{max-width:1200px}
+    body.has-sn #out{max-width:720px}
+    body.has-sn .cite-note{display:block;float:right;clear:right;width:320px;margin:.15em -360px .9em 0;padding:0 0 0 .8em;border-left:2px solid #0a7;font-size:.8rem;line-height:1.55;font-weight:400;color:#555}
+  }
+  @media (min-width:1180px) and (prefers-color-scheme:dark){body.has-sn .cite-note{color:#aaa}}
 </style>
 </head>
-<body>
+<body class="">
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
 <article id="out"><h1>评测与 LLM-as-judge / Evaluation &amp; Judges</h1><details class="toc" open><summary>目录 / Contents (10)</summary><ul><li class="lv2"><a href="#sec-0">1. 三类评测 / Three families</a></li><li class="lv2"><a href="#sec-1">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv2"><a href="#sec-2">3. 数据污染 / Contamination</a></li><li class="lv2"><a href="#sec-3">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-4">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-5">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-6">L1 基础</a></li><li class="lv3"><a href="#sec-7">L2 进阶</a></li><li class="lv3"><a href="#sec-8">L3 深挖</a></li><li class="lv2"><a href="#sec-9">更多 L3 深挖 / Extended L3</a></li></ul></details>
 <blockquote>

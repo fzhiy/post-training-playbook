@@ -30,18 +30,27 @@
   .toc li.lv3{padding-left:1.1em;font-size:.95em;opacity:.8}
   .toc a{color:inherit;text-decoration:none}
   .toc a:hover{color:#0a7;text-decoration:underline}
-  sup.cite{font-size:.72em;line-height:0;white-space:nowrap}
-  sup.cite a{text-decoration:none;color:#0a7;padding:0 .08em}
-  .refs{border:1px solid #8884;border-radius:8px;padding:.4em .9em;margin:1.6em 0;font-size:.9rem;background:#8881}
-  .refs summary{cursor:pointer;color:#0a7;font-weight:600}
-  .refs ol{margin:.6em 0 .3em;padding-left:1.6em}
-  .refs li{margin:.4em 0}
-  .refs li:target{background:#0a72;border-radius:4px;padding:.15em .3em;margin-left:-.3em}
+  /* 引用 (gwern/Tufte 式, 零 JS): [N] 上标可点跳底部; .cite-note gist 宽屏(≥1180px)浮右页边、窄屏隐藏 */
+  .cite-wrap{display:inline}
+  .cite{color:#0a7;font-weight:600;font-size:.72em;vertical-align:super;padding:0 .12em;white-space:nowrap;text-decoration:none}
+  .cite::before{content:"["}
+  .cite::after{content:"]"}
+  .cite:hover{text-decoration:underline}
+  .cite-note{display:none}
+  ol.refs{font-size:.95rem;padding-left:1.6em}
+  ol.refs li{margin:.4em 0}
+  ol.refs li:target{background:#0a72;border-radius:4px}
   .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
   @media(prefers-color-scheme:dark){body{background:#16181c;color:#ddd}}
+  @media (min-width:1180px){
+    body.has-sn{max-width:1200px}
+    body.has-sn #out{max-width:720px}
+    body.has-sn .cite-note{display:block;float:right;clear:right;width:320px;margin:.15em -360px .9em 0;padding:0 0 0 .8em;border-left:2px solid #0a7;font-size:.8rem;line-height:1.55;font-weight:400;color:#555}
+  }
+  @media (min-width:1180px) and (prefers-color-scheme:dark){body.has-sn .cite-note{color:#aaa}}
 </style>
 </head>
-<body>
+<body class="">
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a></nav>
 <article id="out"><h1>机器学习数学与统计速查手册 / Math &amp; Statistics for ML Cheat Sheet</h1><details class="toc" open><summary>目录 / Contents (26)</summary><ul><li class="lv2"><a href="#sec-0">Part 1: 概念与公式推导 / Concepts &amp; Formula Derivations</a></li><li class="lv3"><a href="#sec-1">1.1 概率基础 / Probability Fundamentals</a></li><li class="lv3"><a href="#sec-2">1.2 期望、方差与协方差 / Expectation, Variance, Covariance</a></li><li class="lv3"><a href="#sec-3">1.3 常见概率分布 / Common Distributions</a></li><li class="lv3"><a href="#sec-4">1.4 中心极限定理 / Central Limit Theorem (CLT)</a></li><li class="lv3"><a href="#sec-5">1.5 MLE 与 MAP / Maximum Likelihood &amp; Maximum A Posteriori</a></li><li class="lv3"><a href="#sec-6">1.6 偏差-方差分解 / Bias-Variance Decomposition</a></li><li class="lv3"><a href="#sec-7">1.7 线性代数核心 / Core Linear Algebra</a></li><li class="lv3"><a href="#sec-8">1.8 微积分与梯度 / Calculus &amp; Gradients</a></li><li class="lv3"><a href="#sec-9">1.9 信息论 / Information Theory</a></li><li class="lv3"><a href="#sec-10">1.10 重要性采样 / Importance Sampling</a></li><li class="lv3"><a href="#sec-11">1.11 正态分布 KL 散度闭合解 / Closed-Form KL for Gaussians</a></li><li class="lv3"><a href="#sec-12">1.12 变分推断与 ELBO / Variational Inference &amp; ELBO</a></li><li class="lv2"><a href="#sec-13">Part 2: PyTorch 代码片段 / PyTorch Snippets</a></li><li class="lv3"><a href="#sec-14">2.1 数值稳定的 Softmax / Numerically Stable Softmax</a></li><li class="lv3"><a href="#sec-15">2.2 从零实现交叉熵损失 / Cross-Entropy Loss from Scratch</a></li><li class="lv3"><a href="#sec-16">2.3 KL 散度（VAE 场景）/ KL Divergence for VAE</a></li><li class="lv3"><a href="#sec-17">2.4 SVD 低秩近似 / SVD Low-Rank Approximation</a></li><li class="lv3"><a href="#sec-18">2.5 LoRA 风格的低秩前向传播 / LoRA-Style Forward Pass</a></li><li class="lv3"><a href="#sec-19">2.6 高斯 MLE / Gaussian MLE from Scratch</a></li><li class="lv3"><a href="#sec-20">2.7 Monte Carlo 估计 KL 散度 / MC Estimation of KL Divergence</a></li><li class="lv2"><a href="#sec-21">Part 3: 面试题库 / Interview Questions (25 Questions)</a></li><li class="lv3"><a href="#sec-22">L1 — 基础 / Basic</a></li><li class="lv3"><a href="#sec-23">L2 — 中等 / Intermediate</a></li><li class="lv3"><a href="#sec-24">L3 — 深度 / Deep</a></li><li class="lv2"><a href="#sec-25">更多 L3 深挖 / Extended L3</a></li></ul></details>
 <blockquote>
