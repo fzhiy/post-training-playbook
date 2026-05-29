@@ -19,11 +19,11 @@
 - [llm-post-training](cheatsheet-llm-post-training.html) — SFT / RM / RLHF / PPO / DPO 全流程
 - [reward-modeling-eval](cheatsheet-reward-modeling-eval.html) — RM 训练 / PRM-ORM / reward hacking / 评测
 - [eval-and-judges](cheatsheet-eval-and-judges.html) — 评测三类 / LLM-as-judge / 评测偏置 / 基准与数据污染
-- 手撕:[dpo-loss](drill-dpo-loss.html) · [ppo-clip](drill-ppo-clip.html)
+- 手撕:[sft-loss-mask](drill-sft-loss-mask.html) · [sequence-packing](drill-sequence-packing.html) · [dpo-loss](drill-dpo-loss.html) · [simpo-loss](drill-simpo-loss.html) · [ppo-clip](drill-ppo-clip.html) · [gae](drill-gae.html) · [reward-margin](drill-reward-margin.html)
 
 ## 5 · 推理-RL 前沿 / Frontier
 - [reasoning-rl-frontier](cheatsheet-reasoning-rl-frontier.html) — PPO→GRPO→DAPO·Dr.GRPO / RLVR / long-CoT
-- 手撕:[grpo](drill-grpo.html)
+- 手撕:[grpo](drill-grpo.html) · [rloo](drill-rloo.html)
 
 ## 6 · 工程 & 收尾 / Systems
 - [ml-system-design](cheatsheet-ml-system-design.html) — 微调流水线 / RLHF 分布式 / 评测体系

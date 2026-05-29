@@ -894,6 +894,113 @@ $$
 
 ---
 
+## 14. 蒸馏 (Distillation — Post-Training 视角)
+
+### 14.1 三种蒸馏范式对比
+
+#### SeqKD（序列级知识蒸馏）
+
+Teacher 先用 beam search 或采样生成完整输出序列，Student 在这批序列上做 **标准 SFT**（交叉熵损失）：
+
+$$L_{\text{SeqKD}} = -\sum_{t} \log p_{\theta_S}(y_t \mid x, y_{<t}), \quad y \sim \pi_T(x)$$
+
+要点：
+- 数据可离线生成，**不需要 Teacher 在线推理**；
+- 蒸馏信号只来自 Teacher 采样出的离散序列，丢失了 Teacher 在各 token 上的 full distribution 信息（"软标签"被硬化）；
+- 实现最简单，成本最低，适合大多数工程场景。
+
+#### Token-Level KD（Token 级知识蒸馏）
+
+对每个位置 $t$，对齐 Student 与 Teacher 在词表上的概率分布：
+
+$$L_{\text{TKD}} = \sum_{t} D_{\text{KL}}\!\left(p_T(\cdot \mid x, y_{<t}) \;\Big\|\; p_{\theta_S}(\cdot \mid x, y_{<t})\right)$$
+
+要点：
+- 保留 Teacher 的**软分布**（soft labels），信息量更丰富，尤其在有多个合理 token 时；
+- **需要 Teacher 在线/离线提供 logits**，Teacher 必须可访问（或预先缓存 logits）；
+- 当 Teacher 很大（如 671B MoE）时，缓存所有位置的 logits 成本极高。
+
+#### On-Policy Distillation（在线蒸馏）
+
+Student 自身 rollout 生成候选序列，再用 Teacher（或可验证 reward）打分，Student 据此更新：
+
+$$L_{\text{on-policy}} = -\mathbb{E}_{y \sim \pi_{\theta_S}}\!\left[r_T(x, y) \cdot \log p_{\theta_S}(y \mid x)\right]$$
+
+要点：
+- 训练信号来自 **Student 自身的分布**，无 off-policy 漂移；
+- 等价于将 Teacher reward 作为 RLVR 信号；训练更复杂，但泛化能力通常更强；
+- 代表方法：GRPO + 可验证奖励（Teacher 本身作为 verifier）。
+
+---
+
+### 14.2 CoT 蒸馏（R1-style Chain-of-Thought Distillation）
+
+**基本思路**：用大型 RL 模型（如 DeepSeek-R1-671B）生成带完整思维链的长推理序列，然后在小模型上做 **SFT**（即 SeqKD 的 CoT 版本）。
+
+DeepSeek-R1 论文（arXiv:2501.12948）报告了在 1.5B、7B、8B、14B、32B、70B 参数的 Qwen 和 Llama 上，用约 800K 蒸馏样本（约 600K 推理 + 约 200K 非推理）做 SFT 的实验结果，小模型推理能力大幅提升。
+
+**为什么对小模型 CoT 蒸馏常比直接做 GRPO 更稳/更省（据 R1 论文蒸馏实验）：**
+
+1. **探索代价不对称**：GRPO 要求模型自行探索高质量思维链，但小模型能力有限，随机采样很难产生有效推理序列（reward 极稀疏），梯度信号噪声大；Teacher 直接提供高质量 CoT 相当于**压缩了探索空间**。
+2. **无需 Critic / RM**：SeqKD 路径只需 SFT，不需要在线 rollout 和 reward 模型，省去 GRPO 在线采样与 reward/critic 的显存和计算开销。
+3. **训练稳定性**：SFT 的损失面比 RL 更平滑，无 reward hacking 或 mode collapse 风险，超参较少。
+
+> **对冲措辞**：上述"更稳/更省"的结论来自 R1 论文在其蒸馏配置（DeepSeek-V3-Base 作为底座，约 800K 数据规模）下的实验观察，不代表所有小模型或数据规模下均成立；直接 RL（GRPO）在数据/算力充足时上限可能更高。
+
+---
+
+### 14.3 Forward KL vs Reverse KL
+
+#### 定义
+
+**Forward KL**（也称 inclusive KL，均值寻求，mean-seeking）：
+
+$$D_{\text{KL}}^{\text{fwd}}(p \| q) = \sum_y p(y) \log \frac{p(y)}{q(y)}$$
+
+优化方向：最小化 $q$ 相对于 $p$ 的 forward KL，等价于最大化 $\mathbb{E}_{y \sim p}[\log q(y)]$——Student $q$ 需要覆盖 Teacher $p$ 的**所有模式**（凡 $p(y)>0$ 处，$q$ 不能为 0，否则 KL 发散）。
+
+**Reverse KL**（也称 exclusive KL，众数寻求，mode-seeking）：
+
+$$D_{\text{KL}}^{\text{rev}}(q \| p) = \sum_y q(y) \log \frac{q(y)}{p(y)}$$
+
+优化方向：最小化此量时，期望在 $q$ 的支撑下取，允许 $q$ **忽略 $p$ 的某些模式**（$q(y)=0$ 处该项为 0），但 $q$ 会集中在 $p$ 高概率的区域上。
+
+#### 为什么生成任务常偏好 Reverse KL / Mode-Seeking？
+
+直觉推导：
+
+设 Teacher 分布 $p$ 是双峰分布，两个模式 $y_1, y_2$ 各占概率 $\approx 0.5$。
+
+- **Forward KL**：Student $q$ 若想使 $\mathbb{E}_{y \sim p}[\log q(y)]$ 最大，必须覆盖两个模式，结果是 $q$ 分散在两个模式之间——**但这个中间区域在文本空间往往对应低质或非自然的序列**（"均值"是语义无意义的混合）。这种现象在生成任务里被称为 **mode averaging**：输出是所有模式的平均，反而不像任何一个合理答案。
+
+- **Reverse KL**：Student $q$ 在 $q(y)>0$ 处承担对数惩罚，自然选择集中到 $p$ 中**某一个**高概率、语义连贯的模式。虽然牺牲了另一个模式，但生成的序列质量更高、更自然。
+
+数学表述：令 $q^\*(y) = \arg\min_q D_{\text{KL}}^{\text{rev}}(q \| p)$，在参数受限（capacity-limited）的 Student 下，解会质量集中（mass concentration）在 $p$ 的主要模式上，而非在多模式间"抹平"。
+
+> **一句话直觉**：Forward KL 要求"不漏掉 Teacher 的任何答案"；Reverse KL 允许"只学 Teacher 最自信的答案"。生成任务需要输出是连贯的，宁可少覆盖也要高质量，故常偏好 Reverse KL。
+
+> **注意**：Token-level KD 通常用 forward KL（Student 向 Teacher 软标签对齐），而 SeqKD / SFT 在序列级更接近 reverse KL 的行为（Student 仅学 Teacher 采样出的模式）。两者并非对立，实践中常根据任务混用。
+
+---
+
+### 14.4 蒸馏 vs RFT vs PPO 三行对比表
+
+| 方法 | 数据来源 | 对比/优化信号 | 适用规模 |
+|:---|:---|:---|:---|
+| **蒸馏 (Distillation / SeqKD)** | Teacher 模型生成的序列（离线） | Teacher 输出序列（交叉熵 / 软标签） | 中小模型（通常 ≤ 70B），Teacher 明显强于 Student |
+| **RFT (Rejection Sampling FT)** | 当前 Policy 自采样，reward 过滤保留高分 | 可验证 reward / RM 筛选 | 中等规模（7B–70B），reward 可自动验证 |
+| **PPO** | 当前 Policy 在线 rollout | RM 打分 + KL 约束 + GAE Advantage | 大规模（通常 ≥ 7B），有充足 RM 和计算资源 |
+
+---
+
+### 14.5 自测题
+
+> **L2 — 蒸馏范式辨析**：SeqKD 和 Token-Level KD 都使用 Teacher 模型作为信号来源，但本质上一个更接近 reverse KL，另一个更接近 forward KL。请说明：(a) 哪个对应哪个方向的 KL；(b) 当 Teacher 分布是双峰时，两者训练出的 Student 分布会有什么行为差异？
+
+> **L3 — CoT 蒸馏适用性分析**：假设你有一个 3B 的小模型和充足的 GPU（可以同时运行 Teacher 671B 和 Student），请分析：在什么数据规模和任务类型下，直接做 GRPO 会比 SeqKD 蒸馏更有优势？给出至少两个充分的理由。
+
+---
+
 # Part 2 — PyTorch 代码片段 / From-Scratch PyTorch Snippets
 
 ---
