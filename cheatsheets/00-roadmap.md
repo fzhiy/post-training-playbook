@@ -18,6 +18,7 @@
 ## 4 · Post-training 主线 / Core
 - [llm-post-training](cheatsheet-llm-post-training.html) — SFT / RM / RLHF / PPO / DPO 全流程
 - [reward-modeling-eval](cheatsheet-reward-modeling-eval.html) — RM 训练 / PRM-ORM / reward hacking / 评测
+- [eval-and-judges](cheatsheet-eval-and-judges.html) — 评测三类 / LLM-as-judge / 评测偏置 / 基准与数据污染
 - 手撕:[dpo-loss](drill-dpo-loss.html) · [ppo-clip](drill-ppo-clip.html)
 
 ## 5 · 推理-RL 前沿 / Frontier
@@ -30,6 +31,9 @@
 
 ## 7 · 持续 / 终身 / Continual
 - [continual-post-training](cheatsheet-continual-post-training.html) — 灾难性遗忘 / replay / 模型合并 / KL · 只收生产验证方法
+
+## 8 · 长程 / Agentic / Long-horizon
+- [long-horizon-agents](cheatsheet-long-horizon-agents.html) — computer use / agent 工程 / 难度带奖励 / 自进化(生产 vs 前沿)
 
 ---
 
