@@ -153,24 +153,13 @@ ByteDance 2025 open-source recipe — four modifications targeting long-chain re
 
 </details>
 
-## Timeline
+## §A Key Papers Timeline
 
-- **2017-07** — PPO (Schulman et al., arXiv:1707.06347): Introduces the clipped surrogate objective and GAE advantage estimation; establishes the four-model framework (actor + critic + ref + RM) as the baseline for LLM RL.
-- **2024-01** — Self-Rewarding LM (Yuan et al., arXiv:2401.10020): The model acts as its own judge via LLM-as-a-Judge prompting to generate preference data and iterate; reduces reliance on human annotation but risks amplifying self-preference.
-- **2024-01** — SPIN (Chen et al., arXiv:2401.01335): Self-play fine-tuning using the model's own older outputs as negatives for adversarial optimization; accepted at ICML 2024.
-- **2024-02** — GRPO / DeepSeekMath (Shao et al., arXiv:2402.03300): Removes the critic; samples a group of G responses per prompt and replaces the value baseline with group-relative reward (z-score normalization); retains KL penalty against ref; core algorithm of the DeepSeek line.
-- **2024-02** — RLOO (Ahmadian et al., arXiv:2402.14740): Also critic-free; baseline for sample i = mean reward of the other G-1 samples (leave-one-out, unbiased); pure REINFORCE gradient with no clip; competitive with PPO on RLHF tasks.
-- **2025-01** — DeepSeek-R1 / RLVR (Guo et al., arXiv:2501.12948): Replaces the neural RM with rule-based verifiers (math exact-match, code unit tests), nearly eliminating reward hacking; GRPO + long-CoT RL induces emergent self-reflection and backtracking; opens the inference-time scaling paradigm; published in Nature 2025.
-- **2025-03** — DAPO (Yu et al., arXiv:2503.14476): Four fixes for long-CoT RL — Clip-Higher (decouple upper/lower clip bounds to prevent entropy collapse), Dynamic Sampling (discard all-correct/all-wrong groups), token-level loss (prevent gradient dilution for long answers), and overlong reward shaping (soft penalty for over-length responses); fully open-sourced by ByteDance Seed and Tsinghua AIR.
-- **2025-03** — Dr.GRPO (Liu et al., arXiv:2503.20783): Identifies two biases in GRPO — std normalization amplifies question-difficulty imbalance, and 1/length normalization favors longer wrong answers; removing both yields an unbiased estimator with better token efficiency.
-
-## §A Key References
-
-1. **PPO** — Schulman et al., 2017, arXiv preprint. [arXiv:1707.06347](https://arxiv.org/abs/1707.06347)
-2. **GRPO / DeepSeekMath** — Shao et al., 2024, Preprint. [arXiv:2402.03300](https://arxiv.org/abs/2402.03300)
-3. **RLOO** — Ahmadian et al., 2024, ACL 2024. [arXiv:2402.14740](https://arxiv.org/abs/2402.14740)
-4. **Self-Rewarding Language Models** — Yuan et al., 2024, Preprint (Meta). [arXiv:2401.10020](https://arxiv.org/abs/2401.10020)
-5. **SPIN** — Chen et al., 2024, ICML 2024. [arXiv:2401.01335](https://arxiv.org/abs/2401.01335)
-6. **DeepSeek-R1** — Guo et al., 2025, Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948)
-7. **DAPO** — Yu et al., 2025, Preprint (ByteDance Seed / Tsinghua AIR). [arXiv:2503.14476](https://arxiv.org/abs/2503.14476)
-8. **Dr.GRPO** — Liu et al., 2025, Preprint. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783)
+- **2017-07 · PPO** — Schulman et al., arXiv preprint. [arXiv:1707.06347](https://arxiv.org/abs/1707.06347) — Clipped surrogate objective + GAE advantage estimation; establishes the LLM-RL baseline (actor + critic + ref + RM).
+- **2024-01 · Self-Rewarding LM** — Yuan et al., Preprint (Meta). [arXiv:2401.10020](https://arxiv.org/abs/2401.10020) — Model acts as its own judge via LLM-as-a-Judge to generate preference data and iterate; risk: self-preference amplification.
+- **2024-01 · SPIN** — Chen et al., ICML 2024. [arXiv:2401.01335](https://arxiv.org/abs/2401.01335) — Self-play fine-tuning using the model's own older outputs as negatives.
+- **2024-02 · GRPO / DeepSeekMath** — Shao et al., Preprint. [arXiv:2402.03300](https://arxiv.org/abs/2402.03300) — Removes the critic; group-relative reward (z-score) replaces the value baseline; keeps KL to ref; core DeepSeek algorithm.
+- **2024-02 · RLOO** — Ahmadian et al., ACL 2024. [arXiv:2402.14740](https://arxiv.org/abs/2402.14740) — Critic-free; baseline for sample i = mean reward of the other G-1 samples (leave-one-out); pure REINFORCE, no clip; competitive with PPO on RLHF.
+- **2025-01 · DeepSeek-R1 / RLVR** — Guo et al., Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948) — Rule/verifier rewards (math exact-match, code unit tests) replace the neural RM, nearly eliminating reward hacking; GRPO + long-CoT RL induces self-reflection; opens inference-time scaling.
+- **2025-03 · DAPO** — Yu et al., Preprint (ByteDance Seed / Tsinghua AIR). [arXiv:2503.14476](https://arxiv.org/abs/2503.14476) — Four long-CoT-RL fixes: Clip-Higher (anti entropy-collapse), Dynamic Sampling, token-level loss, overlong reward shaping.
+- **2025-03 · Dr.GRPO** — Liu et al., Preprint. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783) — Fixes two GRPO biases (std normalization, 1/length normalization); removing both yields an unbiased estimator with better token efficiency.
