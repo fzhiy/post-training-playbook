@@ -47,9 +47,20 @@ function renderWithMath(md) {
 function unescapeHtml(s) {
   return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 }
+// ASCII-art diagrams (box-drawing chars) → <pre class="diagram"> (cream bg, no highlight), ARIS-style.
+const DIAGRAM_CHARS = new Set('│─┌┐└┘├┤┬┴┼▲▼◀▶━┃┏┓┗┛╭╮╰╯═║╔╗╚╝╠╣╦╩╬');
+function isDiagram(raw) {
+  let n = 0;
+  for (const c of raw.slice(0, 600)) if (DIAGRAM_CHARS.has(c)) n++;
+  return n >= 4;
+}
 function highlightCode(html) {
   return html.replace(/<pre><code(?: class="language-([\w+#.-]+)")?>([\s\S]*?)<\/code><\/pre>/g, (m, lang, code) => {
     const raw = unescapeHtml(code);
+    if (!lang && isDiagram(raw)) {
+      const esc = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return '<pre class="diagram"><code>' + esc + '</code></pre>';
+    }
     let value;
     try {
       value = (lang && hljs.getLanguage(lang)) ? hljs.highlight(raw, { language: lang }).value : hljs.highlightAuto(raw).value;
@@ -76,7 +87,7 @@ function addTocAndIds(html) {
   return { html, tocHtml };
 }
 
-// 3a) Auto-fold long code blocks (>25 lines) into a collapsible <details> (build-time).
+// 3a) Auto-fold long code blocks (≥30 lines) into a collapsible <details> (build-time).
 function foldLongCode(html) {
   return html.replace(/<pre>[\s\S]*?<\/pre>/g, (m) => {
     const lines = (m.match(/\n/g) || []).length + 1;
