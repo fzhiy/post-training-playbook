@@ -119,6 +119,12 @@ $$\hat{A}_t = \sum_{l=0}^{T-t} (\gamma\lambda)^l \delta_{t+l}, \quad \delta_t = 
 
 $\lambda$ controls the bias-variance trade-off: $\lambda=1$ gives high variance, low bias; $\lambda=0$ degenerates to one-step TD.
 
+**Recurrence (backward sweep, $O(T)$):** $\hat{A}_t=\delta_t+\gamma\lambda\,\hat{A}_{t+1}$, with $\hat{A}_T=\delta_T$.
+
+- $\lambda=0$: $\hat{A}_t=\delta_t$, the one-step TD advantage (low variance, high bias).
+- $\lambda=1$: $\hat{A}_t=\sum_l\gamma^l\delta_{t+l}$, the Monte-Carlo advantage (value function as a baseline only; low bias, high variance).
+- **Key distinction:** $\gamma<1$ introduces bias regardless of $V$ accuracy (the discount itself); $\lambda<1$ introduces bias **only when $V$ is inaccurate** — so with a well-fit $V$, even $\lambda\to1$ is near-unbiased. Source: Schulman et al., [arXiv:1506.02438](https://arxiv.org/abs/1506.02438) (ICLR 2016).
+
 **4 Models Required by PPO (source of memory pressure):**
 
 | Model | Role | Updated? |

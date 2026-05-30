@@ -127,6 +127,12 @@ $$\hat{A}_t = \sum_{l=0}^{T-t} (\gamma\lambda)^l \delta_{t+l}, \quad \delta_t = 
 
 $\lambda$ 控制 bias-variance 权衡：$\lambda=1$ 方差大 bias 小；$\lambda=0$ 退化为一步 TD。
 
+**递推实现**（从末尾向前扫，$O(T)$）：$\hat{A}_t=\delta_t+\gamma\lambda\,\hat{A}_{t+1}$，$\hat{A}_T=\delta_T$。
+
+- $\lambda=0$：$\hat{A}_t=\delta_t$，一步 TD 优势（低方差、高偏差）。
+- $\lambda=1$：$\hat{A}_t=\sum_l\gamma^l\delta_{t+l}$，蒙特卡洛优势（值函数仅作 baseline，低偏差、高方差）。
+- **关键区分**：$\gamma<1$ 无论 $V$ 准不准都引入偏差（折扣本身）；$\lambda<1$ **仅在 $V$ 不准时**才引入偏差 —— 故 $V$ 拟合好时 $\lambda\to1$ 也近似无偏。来源：Schulman et al., [arXiv:1506.02438](https://arxiv.org/abs/1506.02438)（ICLR 2016）。
+
 **PPO 需要的 4 个模型（显存压力来源）：**
 
 | 模型 | 作用 | 是否更新 |
