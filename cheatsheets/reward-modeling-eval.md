@@ -189,6 +189,8 @@ $$\max_{\pi} \mathbb{E}_{x \sim \mathcal{D}, y \sim \pi(\cdot|x)} \left[ r_\thet
 - $\beta$ 越小 → 允许更大探索空间，但 reward hacking 风险高
 - **自适应 KL (Adaptive KL)：** 根据 KL 值动态调整 $\beta$
 
+> 📝 KL 的单样本估计器 k1/k2/k3、in-reward vs in-loss 放置、以及 k3-as-loss 的梯度偏置，见 [llm-post-training §9.4](cheatsheet-llm-post-training.html)。
+
 #### 3.3.2 RM 集成 (RM Ensembles)
 
 - 训练**多个独立 RM** (不同初始化、不同数据子集、不同架构)

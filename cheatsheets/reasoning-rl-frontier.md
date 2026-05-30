@@ -15,7 +15,7 @@
 ## 2. GRPO — 去 critic / Group Relative Policy Optimization
 - 对每个 prompt 采样**一组** $G$ 个回答,奖励 $r_1..r_G$;用**组内统计**当 baseline 替代 value 网络:
 $$A_i=\frac{r_i-\mathrm{mean}(r)}{\mathrm{std}(r)+\varepsilon}$$
-- 目标同 PPO 的 clipped surrogate,但优势用 $A_i$、**无 critic、无 GAE**;保留对 ref 的 KL。
+- 目标同 PPO 的 clipped surrogate,但优势用 $A_i$、**无 critic、无 GAE**;保留对 ref 的 KL（估计器 k1/k2/k3 与 in-reward/in-loss 放置见 [llm-post-training §9.4](cheatsheet-llm-post-training.html)）。
 - 收益:省一个 value 模型且不用学 value;对**可验证奖励**(数学/代码)特别稳。DeepSeek 系用它。
 
 ## 3. RLOO — REINFORCE leave-one-out

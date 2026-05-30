@@ -371,6 +371,9 @@ M1001 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> 越小 → 允许更大探索空间，但 reward hacking 风险高</li>
 <li><strong>自适应 KL (Adaptive KL)：</strong> 根据 KL 值动态调整 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span></li>
 </ul>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>KL 的单样本估计器 k1/k2/k3、in-reward vs in-loss 放置、以及 k3-as-loss 的梯度偏置，见 <a href="cheatsheet-llm-post-training.html">llm-post-training §9.4</a>。</p>
+</div>
 <h4>3.3.2 RM 集成 (RM Ensembles)</h4>
 <ul>
 <li>训练<strong>多个独立 RM</strong> (不同初始化、不同数据子集、不同架构)</li>

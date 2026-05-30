@@ -17,7 +17,7 @@
 
 - For each prompt, sample a **group** of $G$ responses with rewards $r_1..r_G$; use **within-group statistics** as the baseline in place of a value network:
 $$A_i=\frac{r_i-\mathrm{mean}(r)}{\mathrm{std}(r)+\varepsilon}$$
-- Objective is the same clipped surrogate as PPO, but the advantage is $A_i$, with **no critic, no GAE**; KL penalty against the reference is retained.
+- Objective is the same clipped surrogate as PPO, but the advantage is $A_i$, with **no critic, no GAE**; KL penalty against the reference is retained (k1/k2/k3 estimators and in-reward vs in-loss placement: see [llm-post-training §9.4](cheatsheet-llm-post-training-en.html)).
 - Benefits: saves one value model and avoids training a value function; especially stable for **verifiable rewards** (math / code). Used by the DeepSeek family.
 
 ## 3. RLOO — REINFORCE leave-one-out

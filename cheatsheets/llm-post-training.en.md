@@ -516,6 +516,20 @@ The core advantage of RLVR: **noise-free reward** (noise-free reward), avoiding 
 - **Prefer GRPO**: rewards are automatically verifiable (math, code, logical reasoning); limited resources (cannot maintain 4 models); need stable training
 - **Prefer PPO**: rewards require semantic/style judgment (dialogue quality, creative writing); reward signal is complex and cannot be rule-based; sufficient compute and a mature RM are available
 
+### 8.5 RLOO and ReMax (critic-free baselines)
+
+PPO relies on a learned critic (value network) to estimate a baseline. GRPO, RLOO, and ReMax are all **critic-free**, replacing the value baseline with a baseline computed from sampled rewards.
+
+**RLOO** (REINFORCE Leave-One-Out, Ahmadian et al. 2024, ACL [arXiv:2402.14740](https://arxiv.org/abs/2402.14740)): For a group of $G$ samples per prompt, the baseline for sample $i$ is the mean reward of the *other* $G-1$ samples; advantage $A_i = r_i - \frac{1}{G-1}\sum_{j\neq i} r_j$. It uses a pure REINFORCE gradient, no clipping, no critic; the policy-gradient estimate stays unbiased because the baseline does not depend on sample $i$'s own action.
+
+**ReMax** (Li et al. 2024, ICML [arXiv:2310.10505](https://arxiv.org/abs/2310.10505)): The baseline is the reward of a single greedy (argmax) decode for the same prompt; advantage $A = r(\text{sample}) - r(\text{greedy})$. This requires only one extra greedy rollout per prompt, resulting in very low memory overhead and no critic network.
+
+| Method | baseline | estimator | clip? | extra cost |
+| :--- | :--- | :--- | :--- | :--- |
+| GRPO | Group-relative (z-score) | PPO-style | Yes | $G$ samples |
+| RLOO | Leave-one-out mean | REINFORCE | No | $G$ samples |
+| ReMax | Greedy decode reward | REINFORCE | No | +1 greedy rollout |
+
 ---
 
 ## 9. Role of KL Penalty & Tuning β
@@ -557,6 +571,8 @@ $$
 
 Typical range (typical range): $\beta \in [0.01, 0.5]$; $\beta = 0.1$ or $\beta = 0.2$ are commonly used in practice.
 
+> 📝 **Quantitative version of over-optimization**: the gold-RM score traces an **inverted-U** in $\sqrt{\mathrm{KL}}$ (BoN form $d(\alpha-\beta d)$, RL form $d(\alpha-\beta\log d)$, with $d=\sqrt{\mathrm{KL}}$) — past the peak the policy drifts out of distribution and the gold score falls. See [reward-modeling-eval §3.2a](cheatsheet-reward-modeling-eval-en.html) (Gao et al. 2022, [arXiv:2210.10760](https://arxiv.org/abs/2210.10760)).
+
 ### 9.3 β in DPO vs PPO
 
 | Dimension | $\beta$ in PPO | $\beta$ in DPO |
@@ -567,6 +583,90 @@ Typical range (typical range): $\beta \in [0.01, 0.5]$; $\beta = 0.1$ or $\beta 
 | **Practical effect** | $\beta \uparrow$ → more conservative policy | $\beta \uparrow$ → implicit reward changes more sharply, more sensitive to preference signal |
 
 > **Conclusion**: Theoretically equivalent (theoretically equivalent), practically different (practically different). In DPO, $\beta$ also influences the sharpness of the weight term $\sigma(\cdot)$ in the gradient.
+
+### 9.4 KL Estimators & Placement
+
+#### 9.4.1 Three Single-Sample Estimators
+
+**Notation**: Let $r = \pi_{\mathrm{ref}} / \pi_\theta$ (Schulman 2020 convention), with samples drawn from the current policy $\pi_\theta$.
+
+Define three estimators:
+
+$$k_1 = -\log r = \log\frac{\pi_\theta}{\pi_{\mathrm{ref}}}$$
+
+$$k_2 = \tfrac{1}{2}(\log r)^2 = \tfrac{1}{2}\!\left(\log\frac{\pi_{\mathrm{ref}}}{\pi_\theta}\right)^{\!2}$$
+
+$$k_3 = (r - 1) - \log r = \left(\frac{\pi_{\mathrm{ref}}}{\pi_\theta} - 1\right) - \log\frac{\pi_{\mathrm{ref}}}{\pi_\theta}$$
+
+**Verifying the expectation** (samples from $\pi_\theta$):
+
+$$\mathbb{E}_{a \sim \pi_\theta}[r] = \sum_a \pi_\theta(a) \cdot \frac{\pi_{\mathrm{ref}}(a)}{\pi_\theta(a)} = \sum_a \pi_{\mathrm{ref}}(a) = 1$$
+
+Therefore $\mathbb{E}[r - 1] = 0$: the term $(r-1)$ is zero-mean and serves as a control variate.
+
+- **Unbiasedness of $k_1$**: $\mathbb{E}_{a \sim \pi_\theta}[k_1] = \mathbb{E}_{a \sim \pi_\theta}\!\left[\log\frac{\pi_\theta}{\pi_{\mathrm{ref}}}\right] = \mathrm{KL}(\pi_\theta \| \pi_{\mathrm{ref}}) \geq 0$. So $k_1$ is an unbiased estimate of the KL value.
+
+- **Bias of $k_2$**: $k_2 = \tfrac{1}{2}(\log r)^2 \geq 0$, but its expectation under $\pi_\theta$ does not equal $\mathrm{KL}(\pi_\theta \| \pi_{\mathrm{ref}})$, so $k_2$ is biased.
+
+- **Unbiasedness of $k_3$** (control-variate argument): For any $\lambda$, define $k_\lambda = -\log r + \lambda(r-1)$. Since $\mathbb{E}[r-1]=0$, we have $\mathbb{E}[k_\lambda] = \mathrm{KL}(\pi_\theta \| \pi_{\mathrm{ref}})$ for all $\lambda$ — universally unbiased. Setting $\lambda = 1$ yields $k_3$. At this choice, the added term $\lambda(r-1)$ is negatively correlated with $-\log r$, **reducing variance**. Hence $k_3$ is unbiased and, in the small-drift regime ($r \approx 1$) relevant to RLHF, has lower variance than $k_1$.
+
+- **Non-negativity of $k_3$**: By the tangent-line inequality $\log r \leq r - 1$ for all $r > 0$ (equality only at $r=1$), we have $(r-1) - \log r \geq 0$, consistent with the non-negativity of KL divergence.
+
+> **Order near $r=1$** (let $\epsilon = r-1$): $k_1 = -\log r \approx -\epsilon$ is **first-order** (signed), whereas $k_2 \approx k_3 \approx \tfrac{1}{2}\epsilon^2$ are **second-order** (non-negative). All three vanish as $r \to 1$ but at different rates — which is also why $k_3$ is non-negative like $k_2$ yet unbiased like $k_1$.
+
+#### 9.4.2 The Gradient Perspective
+
+The analysis above concerns **value estimation** only. When an estimator is used as a loss term, its gradient behavior must be analyzed separately.
+
+- **$k_3$ as a loss term does not yield the exact reverse-KL gradient**: Although $k_3$ is an unbiased value estimate of KL, differentiating it with respect to $\pi_\theta$ (when used as a loss) produces a gradient that is only a first-order approximation of the true reverse-KL gradient. The approximation holds when policy drift is small ($r \approx 1$, so $\log r \approx r - 1$), but introduces systematic bias as drift grows.
+
+- Per **Liu et al. (arXiv:2510.01555, "Rethinking KL Regularization in RLHF: From Value Estimation to Gradient Optimization")**: **$k_1$ placed in the reward (in-reward)** and **$k_2$ used as a loss term (as-loss)** are gradient-principled choices, while **$k_3$ as a loss term lacks gradient-level justification**. In practice, the small $\beta$ used in GRPO / DeepSeek-R1 keeps this approximation error minor.
+
+#### 9.4.3 Estimator Comparison Table
+
+| Estimator | Form | Value-unbiased? | Gradient-principled? |
+|:---|:---|:---|:---|
+| $k_1$ | $-\log r$ | Yes | Yes, as in-reward |
+| $k_2$ | $\tfrac{1}{2}(\log r)^2$ | No | Yes, as-loss |
+| $k_3$ | $(r-1)-\log r$ | Yes | No, as-loss |
+
+> **Variance note**: in the small-drift regime ($r \approx 1$), $k_3$ has lower variance than $k_1$ (both unbiased). $k_2$ is biased and operates in a different bias-variance regime; direct variance comparisons with $k_1$ or $k_3$ are not meaningful.
+
+#### 9.4.4 Two Placement Styles (Style A vs Style B)
+
+**Style A: In-Reward**
+
+Representative: InstructGPT / PPO. The KL penalty is incorporated per-token into the reward signal:
+
+$$r_{\mathrm{total}}(x, y) = r_{\mathrm{RM}}(x, y) - \beta \cdot k_1^{(t)}, \quad k_1^{(t)} = \log\frac{\pi_\theta(a_t|s_t)}{\pi_{\mathrm{ref}}(a_t|s_t)}$$
+
+- Each token receives an individual KL penalty signal; the Critic can learn stepwise KL costs.
+- **Caveat**: PPO's clip mechanism truncates the policy ratio. For clipped tokens, the surrogate objective no longer depends on $\pi_\theta$, so **the KL signal in the reward is silently masked for those tokens at the gradient level** — an implementation detail that is easily overlooked.
+
+**Style B: In-Loss**
+
+Representative: GRPO (Shao et al., DeepSeekMath), DeepSeek-R1. The KL estimator is added directly to the policy optimization loss:
+
+$$\mathcal{L} = \mathcal{L}_{\mathrm{GRPO}} + \beta \cdot k_3$$
+
+where $k_3 = (r - 1) - \log r$, $r = \pi_{\mathrm{ref}} / \pi_\theta$ (computed per token, then averaged over the sequence).
+
+- Requires no Critic / Value model, reducing memory footprint.
+- **DAPO** (arXiv:2503.14476): removes the KL penalty entirely ($\beta = 0$). The stated rationale is that during long-CoT reasoning training the policy diverges substantially from the initial SFT reference, so a tight KL constraint is counterproductive; it instead relies on asymmetric clipping (Clip-Higher: decoupled upper/lower clip bounds) to prevent entropy collapse.
+
+| Dimension | Style A (in-reward) | Style B (in-loss) |
+|:---|:---|:---|
+| Representative systems | InstructGPT, PPO | GRPO, DeepSeek-R1 |
+| Estimator used | $k_1$ (per-token) | $k_3$ (per-token, averaged) |
+| Gradient-principled | Yes | Approximate (acceptable at small $\beta$) |
+| Engineering complexity | Requires Critic | No Critic needed |
+| Clip-masking risk | Present (KL gradient silently dropped for clipped tokens) | Not applicable |
+
+#### 9.4.5 Interview Self-Test
+
+> **L2**: Using the $r = \pi_{\mathrm{ref}}/\pi_\theta$ convention, why does $\mathbb{E}_{a \sim \pi_\theta}[r] = 1$? How does this result establish the unbiasedness of $k_3$?
+
+> **L3**: GRPO incorporates $k_3$ directly into the loss, yet $k_3$ as a loss term does not yield the principled reverse-KL gradient — why is this usually acceptable in GRPO practice? If $\beta$ were increased from 0.04 to 0.5, how would this approximation error change?
 
 ---
 
@@ -1155,6 +1255,65 @@ print("BT loss:", loss.item())
 
 ---
 
+**PPO complete loss** — single-step actor-critic loss: clipped surrogate + clipped value loss + entropy bonus + approx_kl diagnostic (token-level).
+
+```python
+import torch
+import torch.nn.functional as F
+
+def ppo_actor_critic_loss(
+    logp, old_logp, advantages, returns, values, old_values, entropy, mask,
+    clip_eps=0.2, vf_clip=0.2, vf_coef=0.5, ent_coef=0.01,
+):
+    """
+    Token-level PPO loss: clipped policy surrogate + clipped value loss + entropy bonus.
+    All tensors (B, T); mask marks valid response tokens (1=valid).
+    logp/old_logp: log π(a_t|s_t) under the current / old policy; advantages: GAE A_t;
+    returns: R_t; values/old_values: current / old critic predictions.
+    """
+    def masked_mean(x):                                         # average over valid tokens only
+        return (x * mask).sum() / mask.sum().clamp(min=1)
+
+    # --- policy loss: clipped surrogate (pessimistic lower bound) ---
+    ratio = torch.exp(logp - old_logp)                          # pi_theta / pi_theta_old, (B,T)
+    pg_loss = -torch.min(ratio * advantages,
+                         torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * advantages)
+
+    # --- clipped value loss (guards against critic jumps) ---
+    v_clipped = old_values + torch.clamp(values - old_values, -vf_clip, vf_clip)
+    v_loss = 0.5 * torch.max((values - returns) ** 2, (v_clipped - returns) ** 2)
+
+    # --- total = policy + c_vf * value - c_ent * entropy ---
+    loss = masked_mean(pg_loss) + vf_coef * masked_mean(v_loss) - ent_coef * masked_mean(entropy)
+
+    # --- diagnostics: approx_kl via k3 = (r-1) - log r (here r = pi_theta/pi_theta_old,
+    #     estimating KL(pi_old || pi_theta); estimator rationale in §9.4, but note the r
+    #     convention is inverted vs §9.4's r = pi_ref/pi_theta) ---
+    with torch.no_grad():
+        log_ratio = logp - old_logp
+        approx_kl = masked_mean((ratio - 1) - log_ratio)        # >= 0, for early-stop / adaptive KL
+        clip_frac = masked_mean((torch.abs(ratio - 1) > clip_eps).float())
+    return loss, {"approx_kl": approx_kl.item(), "clip_frac": clip_frac.item()}
+
+# --- Toy example ---
+torch.manual_seed(0)
+B, T = 2, 5
+logp       = (torch.randn(B, T) * 0.1).requires_grad_(True)
+old_logp   = logp.detach() + torch.randn(B, T) * 0.05           # behavior (old) policy
+advantages = torch.randn(B, T); advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+returns    = torch.randn(B, T)
+values     = torch.randn(B, T, requires_grad=True)
+old_values = values.detach() + torch.randn(B, T) * 0.1
+entropy    = torch.rand(B, T)                                   # per-token policy entropy
+mask       = torch.ones(B, T); mask[1, 3:] = 0                  # second row's tail is padding
+
+loss, logs = ppo_actor_critic_loss(logp, old_logp, advantages, returns, values, old_values, entropy, mask)
+loss.backward()
+print("PPO loss:", round(loss.item(), 4), "| diag:", {k: round(v, 4) for k, v in logs.items()})
+```
+
+---
+
 **GRPO advantage** — Group Relative Policy Optimization: normalize rewards within the same group to produce advantages for the policy gradient update.
 
 ```python
@@ -1189,6 +1348,48 @@ grpo_loss = -(advantages.detach() * policy_logps).mean()
 grpo_loss.backward()
 print("GRPO loss:", grpo_loss.item())
 print("policy_logps.grad:", policy_logps.grad)
+```
+
+---
+
+**GRPO token-level loss** — broadcast group advantage to tokens + clipped surrogate + per-token K3 KL (no critic, no GAE; token-level averaging, cf. §9.4 and DAPO).
+
+```python
+import torch
+
+def grpo_token_loss(logp, old_logp, ref_logp, group_adv, mask, clip_eps=0.2, beta_kl=0.04):
+    """
+    Token-level GRPO loss: per-sequence group advantage broadcast to tokens
+    + clipped surrogate + per-token K3 KL (no critic, no GAE).
+    logp/old_logp/ref_logp: (B, T) log-prob of the taken token under current / old / reference policy
+    group_adv: (B,) within-group normalized advantage A_i (see compute_grpo_advantages above), broadcast per sequence
+    mask: (B, T) 1=valid response token
+    """
+    adv = group_adv.unsqueeze(1)                                # (B,1) -> broadcast to (B,T)
+    # clipped surrogate (same clip as PPO, group-relative advantage)
+    ratio = torch.exp(logp - old_logp)                          # pi_theta / pi_theta_old
+    pg = -torch.min(ratio * adv, torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * adv)
+    # per-token K3 KL: r = pi_ref/pi_theta, k3 = (r-1) - log r >= 0 (same convention as §9.4)
+    log_r = ref_logp - logp                                     # log(pi_ref / pi_theta)
+    k3 = torch.exp(log_r) - 1 - log_r
+    per_token = pg + beta_kl * k3
+    # token-level averaging convention borrowed from DAPO (§3.3) so long-CoT gradients are not diluted;
+    # note the KL term here is GRPO-style (beta>0), not DAPO (which sets beta=0)
+    return (per_token * mask).sum() / mask.sum().clamp(min=1)
+
+# --- Toy example ---
+torch.manual_seed(0)
+B, T = 4, 6                          # 4 sampled responses for one prompt
+logp      = (torch.randn(B, T) * 0.1).requires_grad_(True)
+old_logp  = logp.detach() + torch.randn(B, T) * 0.02
+ref_logp  = logp.detach() + torch.randn(B, T) * 0.05
+rewards   = torch.tensor([1.2, 0.3, 1.8, 0.5])                  # one scalar reward per response
+group_adv = (rewards - rewards.mean()) / rewards.std().clamp(min=1e-8)   # within-group normalization
+mask      = torch.ones(B, T); mask[1, 4:] = 0
+
+loss = grpo_token_loss(logp, old_logp, ref_logp, group_adv, mask)
+loss.backward()
+print("GRPO token-level loss:", round(loss.item(), 4))
 ```
 
 ---

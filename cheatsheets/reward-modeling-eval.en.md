@@ -178,6 +178,8 @@ $$\max_{\pi} \mathbb{E}_{x \sim \mathcal{D}, y \sim \pi(\cdot|x)} \left[ r_\thet
 - Smaller $\beta$ → larger exploration space, but higher reward hacking risk
 - **Adaptive KL:** Dynamically adjust $\beta$ based on the current KL value
 
+> 📝 For the single-sample KL estimators k1/k2/k3, in-reward vs in-loss placement, and the gradient bias of k3-as-loss, see [llm-post-training §9.4](cheatsheet-llm-post-training-en.html).
+
 #### 3.3.2 RM Ensembles
 
 - Train **multiple independent RMs** (different initializations, different data subsets, different architectures)

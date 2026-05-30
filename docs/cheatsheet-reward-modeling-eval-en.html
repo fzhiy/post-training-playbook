@@ -361,6 +361,9 @@ M1001 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li>Smaller <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> → larger exploration space, but higher reward hacking risk</li>
 <li><strong>Adaptive KL:</strong> Dynamically adjust <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> based on the current KL value</li>
 </ul>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>For the single-sample KL estimators k1/k2/k3, in-reward vs in-loss placement, and the gradient bias of k3-as-loss, see <a href="cheatsheet-llm-post-training-en.html">llm-post-training §9.4</a>.</p>
+</div>
 <h4>3.3.2 RM Ensembles</h4>
 <ul>
 <li>Train <strong>multiple independent RMs</strong> (different initializations, different data subsets, different architectures)</li>
