@@ -1547,3 +1547,29 @@ MLA 的优势：可以在保持较多 Q head 数的同时大幅压缩 cache（he
 > **追问：** MLA 的低秩压缩是否会导致不同 head 的 attention pattern 趋同（loss of head diversity）？投影矩阵 $W^{UK}$ 的高秩性是否能完全缓解这种风险？实践中有什么信号可以检测 head 多样性的退化？
 
 </details>
+
+## §A 核心论文时间线 / Key Papers Timeline
+
+- **2018-11 · GPipe** — Huang et al., NeurIPS 2019. [arXiv:1811.06965](https://arxiv.org/abs/1811.06965) — 流水线并行的奠基工作：把层切成 stage 分布到多设备，再把 mini-batch 拆成 micro-batch 注入流水线以摊薄 bubble，并用重计算换激活显存，使超大模型可跨设备训练。
+
+- **2019-09 · Megatron-LM** — Shoeybi et al., arXiv preprint. [arXiv:1909.08053](https://arxiv.org/abs/1909.08053) — 层内张量并行:把 attention 与 MLP 的权重矩阵按列/按行切分到多卡,前向 $f$、反向 $g$ 各插一次 all-reduce,无需改动模型结构即可扩到十亿级参数。
+
+- **2019-10 · ZeRO** — Rajbhandari et al., SC 2020. [arXiv:1910.02054](https://arxiv.org/abs/1910.02054) — 把数据并行下冗余的优化器状态/梯度/参数按 rank 分片(Stage 1/2/3),将单卡 $16\Phi$ 显存占用降到约 $16\Phi/N$,在不引入张量并行通信代价的前提下扩展可训练规模。
+
+- **2022-05 · Reducing Activation Recomputation** — Korthikanti et al., MLSys 2023. [arXiv:2205.05198](https://arxiv.org/abs/2205.05198) — 序列并行 + 选择性重计算:沿序列维切分 LayerNorm/Dropout 等逐元素算子的激活,只对最省/最贵的算子重算,把激活显存压到约 1/5,与张量并行正交叠加。
+
+- **2022-05 · FlashAttention** — Dao et al., NeurIPS 2022. [arXiv:2205.14135](https://arxiv.org/abs/2205.14135) — IO 感知的精确注意力:用分块(tiling)+ online softmax 把 $QK^\top$ 中间矩阵留在 SRAM、不落 HBM,把注意力从显存带宽瓶颈解放出来,显存随序列长度线性而非二次增长。
+
+- **2022-09 · FP8 Formats for Deep Learning** — Micikevicius et al., arXiv preprint. [arXiv:2209.05433](https://arxiv.org/abs/2209.05433) — 提出深度学习 8-bit 浮点的两种编码:E4M3(范围 ±448,精度优先,前向)与 E5M2(范围 ±57344,动态范围优先,梯度),为 H100 时代的 FP8 训练/推理定标。
+
+- **2022-10 · GPTQ** — Frantar et al., ICLR 2023. [arXiv:2210.17323](https://arxiv.org/abs/2210.17323) — 基于 OBS(最优脑外科)二阶近似的一次性后训练权重量化:逐列量化并用 Hessian 逆补偿剩余权重的误差,把 175B 模型压到 3–4 bit 而几乎不损精度。
+
+- **2022-11 · SmoothQuant** — Xiao et al., ICML 2023. [arXiv:2211.10438](https://arxiv.org/abs/2211.10438) — W8A8 量化:激活存在难量化的离群通道,按通道把量化难度从激活"迁移"到权重($X\to X/s$、$W\to sW$),使激活与权重都能用 INT8,无需混合精度。
+
+- **2022-11 · Speculative Decoding** — Leviathan et al., ICML 2023. [arXiv:2211.17192](https://arxiv.org/abs/2211.17192) — 用小 draft 模型一次提议多 token、大 target 模型并行验证,配合精心设计的接受-拒绝采样,保证输出分布与 target 单独解码严格一致(无损加速)。
+
+- **2023-06 · AWQ** — Lin et al., MLSys 2024. [arXiv:2306.00978](https://arxiv.org/abs/2306.00978) — 激活感知的权重量化:观察到极少数"显著"权重通道贡献主要误差,用激活幅度指导逐通道缩放以保护这些通道,4-bit 权重量化下保住精度且对硬件友好。
+
+- **2023-09 · PagedAttention / vLLM** — Kwon et al., SOSP 2023. [arXiv:2309.06180](https://arxiv.org/abs/2309.06180) — 借鉴操作系统虚拟内存分页管理 KV cache:把 KV 切成非连续的块按需分配,消除碎片与预留浪费,支持前缀共享,使服务吞吐大幅提升。
+
+- **2024-02 · KIVI** — Liu et al., ICML 2024. [arXiv:2402.02750](https://arxiv.org/abs/2402.02750) — 面向 KV cache 的非对称 2-bit 量化:key 沿通道维、value 沿 token 维分别量化(契合各自离群分布),在长上下文推理中把 KV 显存压到约 1/8 而精度近无损。

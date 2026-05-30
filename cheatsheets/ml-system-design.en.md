@@ -1539,3 +1539,29 @@ MLA's advantage: the number of Q heads is no longer directly tied to cache size,
 > **Follow-up:** Does MLA's low-rank compression cause different attention heads' patterns to converge (loss of head diversity)? Can the high rank of the projection matrix $W^{UK}$ fully mitigate this risk? In practice, what signals can detect degradation of head diversity?
 
 </details>
+
+## §A Key Papers Timeline
+
+- **2018-11 · GPipe** — Huang et al., NeurIPS 2019. [arXiv:1811.06965](https://arxiv.org/abs/1811.06965) — Foundational pipeline parallelism: partitions layers into stages across devices and splits each mini-batch into micro-batches fed through the pipeline to amortize the bubble, trading recomputation for activation memory so giant models fit across devices.
+
+- **2019-09 · Megatron-LM** — Shoeybi et al., arXiv preprint. [arXiv:1909.08053](https://arxiv.org/abs/1909.08053) — Intra-layer tensor parallelism: shards attention and MLP weight matrices column/row-wise across GPUs with one all-reduce each in the forward ($f$) and backward ($g$) pass, scaling to billions of parameters with no change to model structure.
+
+- **2019-10 · ZeRO** — Rajbhandari et al., SC 2020. [arXiv:1910.02054](https://arxiv.org/abs/1910.02054) — Shards the redundant optimizer states / gradients / parameters of data parallelism across ranks (Stages 1/2/3), cutting per-GPU memory from $16\Phi$ to roughly $16\Phi/N$ without incurring tensor-parallel communication cost.
+
+- **2022-05 · Reducing Activation Recomputation** — Korthikanti et al., MLSys 2023. [arXiv:2205.05198](https://arxiv.org/abs/2205.05198) — Sequence parallelism + selective recomputation: shards activations of element-wise ops (LayerNorm/Dropout) along the sequence dimension and recomputes only the cheapest-to-redo ops, cutting activation memory ~5×, orthogonal to tensor parallelism.
+
+- **2022-05 · FlashAttention** — Dao et al., NeurIPS 2022. [arXiv:2205.14135](https://arxiv.org/abs/2205.14135) — IO-aware exact attention: uses tiling + online softmax to keep the $QK^\top$ intermediate in SRAM instead of HBM, freeing attention from the memory-bandwidth bottleneck and making memory linear (not quadratic) in sequence length.
+
+- **2022-09 · FP8 Formats for Deep Learning** — Micikevicius et al., arXiv preprint. [arXiv:2209.05433](https://arxiv.org/abs/2209.05433) — Defines two 8-bit floating-point encodings for deep learning: E4M3 (range ±448, precision-first, forward pass) and E5M2 (range ±57344, dynamic-range-first, gradients), setting the standard for H100-era FP8 training/inference.
+
+- **2022-10 · GPTQ** — Frantar et al., ICLR 2023. [arXiv:2210.17323](https://arxiv.org/abs/2210.17323) — One-shot post-training weight quantization via the OBS (Optimal Brain Surgeon) second-order approximation: quantizes column-by-column and compensates the remaining weights using the inverse Hessian, compressing 175B models to 3–4 bit with little accuracy loss.
+
+- **2022-11 · SmoothQuant** — Xiao et al., ICML 2023. [arXiv:2211.10438](https://arxiv.org/abs/2211.10438) — W8A8 quantization: activations have hard-to-quantize outlier channels, so it per-channel "migrates" the difficulty from activations to weights ($X\to X/s$, $W\to sW$), letting both use INT8 without mixed precision.
+
+- **2022-11 · Speculative Decoding** — Leviathan et al., ICML 2023. [arXiv:2211.17192](https://arxiv.org/abs/2211.17192) — A small draft model proposes several tokens that the large target model verifies in parallel, with a carefully designed accept-reject sampling rule guaranteeing the output distribution exactly matches target-only decoding (lossless speedup).
+
+- **2023-06 · AWQ** — Lin et al., MLSys 2024. [arXiv:2306.00978](https://arxiv.org/abs/2306.00978) — Activation-aware weight quantization: observes that a tiny fraction of "salient" weight channels dominate error and uses activation magnitude to guide per-channel scaling that protects them, preserving accuracy at 4-bit in a hardware-friendly way.
+
+- **2023-09 · PagedAttention / vLLM** — Kwon et al., SOSP 2023. [arXiv:2309.06180](https://arxiv.org/abs/2309.06180) — Manages the KV cache like OS virtual-memory paging: stores KV in non-contiguous blocks allocated on demand, eliminating fragmentation and reservation waste and enabling prefix sharing, greatly raising serving throughput.
+
+- **2024-02 · KIVI** — Liu et al., ICML 2024. [arXiv:2402.02750](https://arxiv.org/abs/2402.02750) — Asymmetric 2-bit quantization for the KV cache: quantizes keys per-channel and values per-token (matching their distinct outlier distributions), shrinking KV memory ~8× in long-context inference with near-lossless accuracy.
