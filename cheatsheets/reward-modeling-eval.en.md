@@ -35,6 +35,34 @@ $$\mathcal{L}_{\text{BT}} = -\mathbb{E}_{(x, y_w, y_l)} \left[ \log \sigma(r_\th
 - Assumes transitivity of preferences, which may not hold in practice
 - Does not directly output a scalar value; additional processing may be needed in some downstream tasks
 
+**From-scratch implementation:** an RM = backbone + scalar head, scoring the **last non-pad token's** hidden state; the loss is just BT's negative log-sigmoid.
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class RewardModel(nn.Module):
+    def __init__(self, backbone, hidden):
+        super().__init__()
+        self.backbone = backbone               # returns (B, T, hidden)
+        self.head = nn.Linear(hidden, 1, bias=False)   # scalar reward head
+
+    def forward(self, input_ids, attn_mask):
+        h = self.backbone(input_ids, attn_mask)        # (B, T, H)
+        last = attn_mask.sum(1).long() - 1             # index of last non-pad token
+        pooled = h[torch.arange(h.size(0)), last]      # (B, H) pool that position
+        return self.head(pooled).squeeze(-1)           # (B,) scalar reward
+
+def bt_loss(r_w, r_l):
+    # r_w/r_l: scalar rewards for chosen / rejected; minimize -log σ(r_w - r_l)
+    return -F.logsigmoid(r_w - r_l).mean()
+```
+
+- **Anchor:** when `r_w == r_l`, loss = $-\log\sigma(0)=\ln 2\approx0.693$ — the "random baseline" for RM training loss; in practice the training loss should descend from ~0.69.
+- **Why the last token:** under decoder-only causal attention, only the final position has "seen" the full sequence; pooling it is equivalent to "reading the whole passage before scoring."
+- Numerical intuition: large margin in the right direction → loss → 0 (e.g., ≈0.018 when $r_w-r_l=4$); wrong direction → loss explodes (e.g., ≈4.018 when $r_w-r_l=-4$).
+
 ### 1.3 Pointwise / Regression
 
 **Core idea:** Directly regress to an **absolute quality score**.
@@ -61,6 +89,27 @@ where $s$ is the human-annotated absolute score (e.g., a 1–5 Likert scale).
 | **Regression + Ranking Hybrid** | Jointly optimizes regression loss and ranking loss |
 | **Multi-objective RM** | Assigns separate scores for different dimensions (helpfulness, safety, factuality) |
 | **Token-level RM** | Distributes rewards at the token level; related to PRM |
+
+### 1.5 DPO Implicit Reward ≠ KL Estimator (a common interview trap)
+
+Both DPO and the KL estimators feature the same log-ratio $\beta\log\frac{\pi_\theta}{\pi_{\text{ref}}}$, yet they are **two different objects** — frequently conflated in interviews.
+
+**DPO implicit reward:** Inverting the optimal solution of KL-regularized RLHF gives
+
+$$\hat r_\theta(x,y) = \beta\log\frac{\pi_\theta(y\mid x)}{\pi_{\text{ref}}(y\mid x)} + \beta\log Z(x)$$
+
+This is a **scalar reward for a single response**, playing exactly the role of $r_\theta$ in §1.2 above. Substituting it back into the BT loss, the partition term $\beta\log Z(x)$ **cancels exactly** in the difference $\hat r(x,y_w)-\hat r(x,y_l)$ — so DPO needs neither an explicit RM nor any computation of $Z(x)$:
+
+$$\mathcal{L}_{\text{DPO}} = -\mathbb{E}\left[\log\sigma\!\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\text{ref}}(y_w\mid x)} - \beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\text{ref}}(y_l\mid x)}\right)\right]$$
+
+**KL estimators (k1/k2/k3):** These estimate the **divergence** $\mathrm{KL}(\pi_\theta\|\pi_{\text{ref}})$ — a single aggregate scalar over the whole distribution, used as the regularization penalty in RLHF/GRPO (the `kl` term in the GRPO code above).
+
+**Why they get confused:** both are built from the log-ratio, but
+- the DPO implicit reward is "**a reward for one response**" (a per-$(x,y)$ signal, fed into the BT loss);
+- a KL estimator is "**an estimate of a divergence**" (a statistic taken in expectation over samples, fed into the penalty term);
+- the direction often flips too: DPO uses $\log\frac{\pi_\theta}{\pi_{\text{ref}}}$, whereas the k3 penalty is usually written with $\log\frac{\pi_{\text{ref}}}{\pi_\theta}$.
+
+> 📝 For the precise definitions and gradient properties of the three KL estimators, see [llm-post-training §9.4](cheatsheet-llm-post-training-en.html); this section only highlights how they differ from the DPO implicit reward.
 
 ---
 
@@ -115,6 +164,16 @@ To reduce annotation cost, common approaches include:
 - **Monte Carlo estimation (MC estimation):** From each step, sample multiple rollouts and use the final answer accuracy as the reward for that step
 - **LLM-as-Step-Judge:** Use a strong LLM to annotate per-step correctness
 - **ORM-to-PRM distillation:** Back-derive process signals from an ORM
+
+**Math-Shepherd-style auto-labeling** (Wang et al., [arXiv:2312.08935](https://arxiv.org/abs/2312.08935)): no humans — use MC completions to estimate whether each step can still reach the correct answer. From the prefix up to step $i$, sample $N$ full solutions $\{a_j\}$, compare to the gold answer $a^*$, and assign a binary/soft label:
+
+$$y_{s_i}^{\text{HE}}=\mathbb{I}\!\big[\exists\,a_j=a^*\big]\in\{0,1\}\qquad y_{s_i}^{\text{SE}}=\frac{1}{N}\sum_{j=1}^{N}\mathbb{I}\,[a_j=a^*]$$
+
+(HE = hard estimation, positive if any completion is correct; SE = soft estimation, the correct-rate as a soft label.)
+
+**Aggregating step scores into a trajectory score:** Math-Shepherd uses **MIN** (the minimum step score $\min_i r_{s_i}$, most conservative) for best-of-N reranking; Lightman et al. ([arXiv:2305.20050](https://arxiv.org/abs/2305.20050), PRM800K, 800k **human** step labels marking each step correct/neutral/wrong) instead primarily use **PRODUCT** (product of step scores).
+
+> 📝 Auto (MC) vs human (PRM800K): MC labeling scales indefinitely but has false negatives (a correct step labeled wrong); human labeling has no MC noise but is very costly.
 
 ---
 

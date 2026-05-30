@@ -46,6 +46,34 @@ $$\mathcal{L}_{\text{BT}} = -\mathbb{E}_{(x, y_w, y_l)} \left[ \log \sigma(r_\th
 - 假设偏好具有传递性 (transitivity)，现实中未必成立
 - 不直接输出标量值，在某些下游任务中需额外处理
 
+**from-scratch 实现：** RM = backbone + 标量头，取**最后一个非 pad token** 的隐状态打分；损失就是 BT 的负 log-sigmoid。
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class RewardModel(nn.Module):
+    def __init__(self, backbone, hidden):
+        super().__init__()
+        self.backbone = backbone               # 返回 (B, T, hidden)
+        self.head = nn.Linear(hidden, 1, bias=False)   # 标量奖励头
+
+    def forward(self, input_ids, attn_mask):
+        h = self.backbone(input_ids, attn_mask)        # (B, T, H)
+        last = attn_mask.sum(1).long() - 1             # 最后一个非 pad token 的下标
+        pooled = h[torch.arange(h.size(0)), last]      # (B, H) 池化该位置
+        return self.head(pooled).squeeze(-1)           # (B,) 标量奖励
+
+def bt_loss(r_w, r_l):
+    # r_w/r_l：chosen / rejected 的标量奖励；最小化 -log σ(r_w - r_l)
+    return -F.logsigmoid(r_w - r_l).mean()
+```
+
+- **锚点**:`r_w == r_l` 时 loss = $-\log\sigma(0)=\ln 2\approx0.693$——这是 RM 训练 loss 的「随机基线」,实战里开训 loss 应从 ~0.69 往下走。
+- **为何取最后 token**:decoder-only 因果注意力下,只有最后位置「看见」了完整序列;池化它等价于「读完整段再打分」。
+- 数值直觉:margin 大且方向对 → loss→0(如 $r_w-r_l=4$ 时 ≈0.018);方向反 → loss 暴涨(如 $r_w-r_l=-4$ 时 ≈4.018)。
+
 ### 1.3 逐点评分法 (Pointwise / Regression)
 
 **核心思想：** 直接回归到一个**绝对质量分数 (absolute quality score)**。
@@ -72,6 +100,27 @@ $$\mathcal{L}_{\text{point}} = \mathbb{E}_{(x, y, s)} \left[ (r_\theta(x, y) - s
 | **Regression + Ranking 混合** | 同时优化回归损失和排序损失 |
 | **多目标 RM (Multi-object RM)** | 对不同维度 (有用性、安全性、事实性) 分别打分 |
 | **Token-level RM** | 在 token 粒度上分配奖励，与 PRM 相关 |
+
+### 1.5 DPO 隐式奖励 ≠ KL 估计器（面试易错点）
+
+DPO 与 KL 估计器里都出现 $\beta\log\frac{\pi_\theta}{\pi_{\text{ref}}}$ 这个 log-ratio，但它们是**两类不同的东西**，面试中常被混为一谈。
+
+**DPO 隐式奖励 (implicit reward)：** 从 KL 正则化 RLHF 的最优解反解，得到
+
+$$\hat r_\theta(x,y) = \beta\log\frac{\pi_\theta(y\mid x)}{\pi_{\text{ref}}(y\mid x)} + \beta\log Z(x)$$
+
+它是**单个回答的标量奖励**，扮演着与上文 §1.2 里 $r_\theta$ 完全相同的角色。把它代回 BT 损失，配分项 $\beta\log Z(x)$ 在差 $\hat r(x,y_w)-\hat r(x,y_l)$ 中**精确抵消**——于是 DPO 既不需要训练显式 RM，也不需要计算 $Z(x)$：
+
+$$\mathcal{L}_{\text{DPO}} = -\mathbb{E}\left[\log\sigma\!\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\text{ref}}(y_w\mid x)} - \beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\text{ref}}(y_l\mid x)}\right)\right]$$
+
+**KL 估计器 (k1/k2/k3)：** 估计的是**散度** $\mathrm{KL}(\pi_\theta\|\pi_{\text{ref}})$——对整个分布的一个聚合标量，用作 RLHF/GRPO 里的正则惩罚（即上文 GRPO 代码中的 `kl` 项）。
+
+**为什么容易混：** 两者都以 log-ratio 为原料，但
+- DPO 隐式奖励是「**一条回答的奖励**」（per-$(x,y)$ 信号，进入 BT 损失）；
+- KL 估计器是「**一个散度的估计**」（对样本求期望的统计量，进入惩罚项）；
+- 方向也常相反：DPO 用 $\log\frac{\pi_\theta}{\pi_{\text{ref}}}$，而 k3 惩罚里通常写成 $\log\frac{\pi_{\text{ref}}}{\pi_\theta}$。
+
+> 📝 三种 KL 估计器的精确定义与梯度性质见 [llm-post-training §9.4](cheatsheet-llm-post-training.html)；本节只强调它与 DPO 隐式奖励的区别。
 
 ---
 
@@ -126,6 +175,16 @@ $$\mathcal{L}_{\text{point}} = \mathbb{E}_{(x, y, s)} \left[ (r_\theta(x, y) - s
 - **Monte Carlo 估计 (MC estimation)：** 从每一步继续采样多个 rollout，看最终结果正确率作为该步奖励
 - **LLM-as-Step-Judge：** 用强 LLM 标注每步正确性
 - **ORM-to-PRM 蒸馏：** 从 ORM 反推过程信号
+
+**Math-Shepherd 式自动标注**（Wang et al., [arXiv:2312.08935](https://arxiv.org/abs/2312.08935)）：无需人工，用 MC 完成采样估计每步「能否到达正确答案」。对前缀到第 $i$ 步，采样 $N$ 条完整解 $\{a_j\}$ 与黄金答案 $a^*$ 比对，得二值/软标签：
+
+$$y_{s_i}^{\text{HE}}=\mathbb{I}\!\big[\exists\,a_j=a^*\big]\in\{0,1\}\qquad y_{s_i}^{\text{SE}}=\frac{1}{N}\sum_{j=1}^{N}\mathbb{I}\,[a_j=a^*]$$
+
+（HE = 硬估计，有一条对即为正；SE = 软估计，正确率作软标签。）
+
+**步骤分数聚合成轨迹分数：** Math-Shepherd 用 **MIN**（最小步分数 $\min_i r_{s_i}$，最保守）做 best-of-N reranking；Lightman et al.（[arXiv:2305.20050](https://arxiv.org/abs/2305.20050)，PRM800K，80 万条**人工**步标，每步标正确/中性/错误）的主选则是 **PRODUCT**（各步分数乘积）。
+
+> 📝 自动（MC）vs 人工（PRM800K）：MC 标注可无限扩展但有假阴性（正确步被判错）；人工无 MC 噪声但成本极高。
 
 ---
 
