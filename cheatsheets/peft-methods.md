@@ -230,6 +230,29 @@ $$A = \sqrt{\Sigma_r} \cdot V_r^T, \quad B = U_r \cdot \sqrt{\Sigma_r}$$
 
 ---
 
+### 1.14 量化与 PEFT：NF4 / 量化粒度 / 激活 outlier
+
+QLoRA 把 base 权重量化到 4-bit，省下的显存让单卡能微调更大模型。三个关键点：
+
+**NF4（NormalFloat4）**：预训练权重近似 $\mathcal{N}(0,\sigma^2)$。NF4 先按 block（QLoRA 用 64 个权重一块）做 absmax 归一化 $\hat{w}=w/\text{absmax}$ 到 $[-1,1]$，再量化到 16 个**分位点**——这 16 个 level 取自标准正态的分位数，使每个 bin 对高斯数据承载**等概率质量**（信息论最优），且精确表示 0。对近高斯的权重，NF4 误差小于均匀的 INT4。
+
+**Double Quantization**：每块的 fp32 缩放常数本身再量化（FP8，每 256 块共享一个二级 scale），省约 $0.37$ bit/参数。
+
+**Paged Optimizer**：optimizer states 借 NVIDIA 统一内存在 GPU↔CPU 间分页，吸收显存峰值、防 OOM。
+
+**量化粒度（granularity）**：
+
+| 粒度 | scale 共享范围 | 精度 ↔ 开销 | 典型用途 |
+|---|---|---|---|
+| per-tensor | 整个张量一个 scale | 最粗、最省 | 激活快速量化 |
+| per-channel | 每个输出/输入通道 | 中 | 权重量化 |
+| per-group / block | 每 64–128 个权重 | 细 | QLoRA(64)、GPTQ(128) |
+| per-token | 每个激活 token | 细、需运行时计算 | 激活量化（SmoothQuant） |
+
+**为什么 LLM 比 CNN 难量化——激活 outlier**：LLM 的激活（尤其 LayerNorm 后）会在**少数固定特征维**上出现幅度极大的 outlier（论文 Table 4：达最大**非** outlier 维的 $3\text{–}20\times$，相对普通激活则大若干数量级），且随规模在 $\gtrsim$ 6.7B 时显著涌现（约 6 个维度）（Dettmers et al., LLM.int8(), arXiv:2208.07339）。这些 outlier 撑大动态范围，均匀量化激活会压垮正常值精度；而权重分布平滑。这解释了：① 为何**权重-only 量化**（QLoRA / GPTQ / AWQ）比激活量化容易；② SmoothQuant 为何把激活难度迁移到权重（见 [ml-system-design §1.8](cheatsheet-ml-system-design.html)）。CNN 没有这种极端激活 outlier，故更易量化。
+
+---
+
 ## 第二部分：PyTorch 代码片段 / Part 2: PyTorch Snippets
 
 > 以下代码为从零实现的教学级片段，仅依赖 `torch` 和 `torch.nn`。实际项目建议使用 [PEFT](https://github.com/huggingface/peft) 或 [Lora](https://github.com/microsoft/LoRA) 库。

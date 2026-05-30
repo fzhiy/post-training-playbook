@@ -229,6 +229,29 @@ That is, $BA = U_r \Sigma_r V_r^T \approx$ the principal components of $W_0$. Th
 
 ---
 
+### 1.14 Quantization & PEFT: NF4 / granularity / activation outliers
+
+QLoRA quantizes the base weights to 4-bit; the memory saved lets a single GPU fine-tune much larger models. Three key pieces:
+
+**NF4 (NormalFloat4):** pretrained weights are approximately $\mathcal{N}(0,\sigma^2)$. NF4 first does block-wise absmax normalization (QLoRA uses blocks of 64 weights) $\hat{w}=w/\text{absmax}$ to $[-1,1]$, then quantizes to 16 **quantile levels** — these 16 levels are the quantiles of a standard normal, so each bin carries **equal probability mass** for Gaussian data (information-theoretically optimal), and zero is represented exactly. For near-Gaussian weights, NF4 has lower error than uniform INT4.
+
+**Double Quantization:** the per-block fp32 scale constants are themselves quantized (FP8, one second-level scale per 256 blocks), saving ≈ $0.37$ bit/param.
+
+**Paged Optimizer:** optimizer states are paged between GPU↔CPU via NVIDIA unified memory, absorbing memory spikes to avoid OOM.
+
+**Quantization granularity:**
+
+| Granularity | Scale shared over | Precision ↔ cost | Typical use |
+|---|---|---|---|
+| per-tensor | one scale for the whole tensor | coarsest, cheapest | fast activation quant |
+| per-channel | each output/input channel | medium | weight quant |
+| per-group / block | every 64–128 weights | fine | QLoRA(64), GPTQ(128) |
+| per-token | each activation token | fine, computed at runtime | activation quant (SmoothQuant) |
+
+**Why LLMs are harder to quantize than CNNs — activation outliers:** LLM activations (especially after LayerNorm) develop very large-magnitude outliers in a **few fixed feature dimensions** (paper Table 4: $3\text{–}20\times$ the largest **non**-outlier dimension; orders of magnitude above typical activations), emerging at scale ($\gtrsim$ 6.7B, ~6 dims) (Dettmers et al., LLM.int8(), arXiv:2208.07339). These outliers blow up the dynamic range, so uniformly quantizing activations crushes the precision of normal values; weights, by contrast, are smooth. This explains: (1) why **weight-only quantization** (QLoRA / GPTQ / AWQ) is easier than activation quantization; (2) why SmoothQuant migrates the difficulty from activations to weights (see [ml-system-design §1.8](cheatsheet-ml-system-design-en.html)). CNNs lack these extreme activation outliers, hence are easier to quantize.
+
+---
+
 ## Part 2: PyTorch Snippets
 
 > The code below consists of educational snippets implemented from scratch, depending only on `torch` and `torch.nn`. For production projects, use the [PEFT](https://github.com/huggingface/peft) or [LoRA](https://github.com/microsoft/LoRA) library.
