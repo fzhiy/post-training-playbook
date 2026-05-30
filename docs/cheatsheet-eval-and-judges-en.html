@@ -140,7 +140,7 @@
 <nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-eval-and-judges.html">中文 ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Evaluation &amp; LLM-as-Judge</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. Three Families of Evaluation</a></li><li class="lv2"><a href="#sec-2">2. LLM-as-Judge: How to Use It + Biases</a></li><li class="lv3"><a href="#sec-3">2.1 Position-debiased judge harness (code)</a></li><li class="lv2"><a href="#sec-4">3. Data Contamination</a></li><li class="lv3"><a href="#sec-5">3.1 Types of Contamination</a></li><li class="lv3"><a href="#sec-6">3.2 Detection Methods</a></li><li class="lv3"><a href="#sec-7">3.3 n-gram Deduplication</a></li><li class="lv3"><a href="#sec-8">3.4 Contamination-Resistant Benchmark Design</a></li><li class="lv2"><a href="#sec-9">4. Pitfalls in Preference Evaluation</a></li><li class="lv2"><a href="#sec-10">5. A Practical Evaluation Protocol (Post-Training)</a></li><li class="lv2"><a href="#sec-11">Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-12">L1 Basics</a></li><li class="lv3"><a href="#sec-13">L2 Intermediate</a></li><li class="lv3"><a href="#sec-14">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-15">Extended L3</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. Three Families of Evaluation</a></li><li class="lv3"><a href="#sec-2">1.1 Benchmark cheat-sheet</a></li><li class="lv2"><a href="#sec-3">2. LLM-as-Judge: How to Use It + Biases</a></li><li class="lv3"><a href="#sec-4">2.1 Position-debiased judge harness (code)</a></li><li class="lv2"><a href="#sec-5">3. Data Contamination</a></li><li class="lv3"><a href="#sec-6">3.1 Types of Contamination</a></li><li class="lv3"><a href="#sec-7">3.2 Detection Methods</a></li><li class="lv3"><a href="#sec-8">3.3 n-gram Deduplication</a></li><li class="lv3"><a href="#sec-9">3.4 Contamination-Resistant Benchmark Design</a></li><li class="lv2"><a href="#sec-10">4. Pitfalls in Preference Evaluation</a></li><li class="lv2"><a href="#sec-11">5. A Practical Evaluation Protocol (Post-Training)</a></li><li class="lv2"><a href="#sec-12">Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-13">L1 Basics</a></li><li class="lv3"><a href="#sec-14">L2 Intermediate</a></li><li class="lv3"><a href="#sec-15">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-16">Extended L3</a></li><li class="lv2"><a href="#sec-17">§A Key Papers Timeline</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>In post-training, <strong>evaluation</strong> is often the real bottleneck: training can run, but whether the model actually improved — or where it regressed — is entirely determined by evaluation. This page covers how to evaluate an aligned model and the pitfalls of various evaluation approaches.
 ⚠️ No concrete scores are listed here (they go stale quickly and are easy to misremember); for specific numbers, refer to official benchmark/leaderboard sources.</p>
@@ -177,7 +177,84 @@
 <td>RewardBench (chat / safety / reasoning categories, etc.), agreement rate with human annotations</td>
 </tr>
 </tbody></table>
-<h2 id="sec-2">2. LLM-as-Judge: How to Use It + Biases</h2>
+<h3 id="sec-2">1.1 Benchmark cheat-sheet</h3>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>The tables below list only <strong>mechanism and structure</strong> (signal source, scoring method, pitfalls), not concrete scores.</p>
+</div>
+<p><strong>Preference / dialogue evals</strong> (judge or human):</p>
+<table>
+<thead>
+<tr>
+<th>Eval</th>
+<th>Signal source</th>
+<th>Scoring</th>
+<th>Most prominent bias</th>
+<th>Debias / control</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>AlpacaEval 2.0</strong></td>
+<td>Single LLM-judge (model vs. reference answer)</td>
+<td>Win-rate (vs. the reference)</td>
+<td>Verbosity bias</td>
+<td>Length-controlled win-rate (regress out length)</td>
+</tr>
+<tr>
+<td><strong>MT-Bench</strong></td>
+<td>LLM-judge</td>
+<td>Multi-turn, 1–10 scalar score or pairwise</td>
+<td>Position / verbosity / self-preference</td>
+<td>Average the two orderings in pairwise mode</td>
+</tr>
+<tr>
+<td><strong>Chatbot Arena</strong></td>
+<td>Human blind pairwise battles</td>
+<td>Bradley-Terry / Elo → ranking + confidence intervals</td>
+<td>User distribution / style preference, crowd noise</td>
+<td>Massive vote volume + fresh dynamic questions resist contamination</td>
+</tr>
+</tbody></table>
+<p><strong>Capability benchmarks</strong> (ground-truth, automatic):</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>Measures</th>
+<th>Format</th>
+<th>Scoring</th>
+<th>Known pitfalls</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>MMLU</strong></td>
+<td>57-subject multiple-choice knowledge</td>
+<td>4-way multiple choice</td>
+<td>Option accuracy</td>
+<td>Option / letter-order bias; heavily contaminated</td>
+</tr>
+<tr>
+<td><strong>MATH</strong></td>
+<td>Competition math (7 subjects / 5 difficulty levels)</td>
+<td>Free-form solutions</td>
+<td>Final-answer match (verifiable)</td>
+<td>Brittle answer parsing; partly contaminated</td>
+</tr>
+<tr>
+<td><strong>HumanEval</strong></td>
+<td>Python code generation</td>
+<td>Function completion + unit tests</td>
+<td>pass@k (unit-test pass rate)</td>
+<td>Only 164 problems, high variance, easy to overfit</td>
+</tr>
+<tr>
+<td><strong>IFEval</strong></td>
+<td>Verifiable instruction following</td>
+<td>Constrained instructions (length / format)</td>
+<td>Programmatic verification (no judge needed)</td>
+<td>Covers only machine-checkable constraints</td>
+</tr>
+</tbody></table>
+<h2 id="sec-3">2. LLM-as-Judge: How to Use It + Biases</h2>
 <blockquote>
 <p>📎 <strong>Cross-reference</strong>: This section focuses on LLM-as-Judge from the perspective of <strong>evaluation practice</strong> (how to select a judge, operational details, benchmark applications). For how LLM-as-Judge biases affect RM training and reward hacking when used as a <strong>RLHF training signal</strong>, see <code>cheatsheet-reward-modeling-eval-en.html §5.2</code>.</p>
 </blockquote>
@@ -190,7 +267,7 @@
 General mitigations: <strong>reference-guided</strong> judging (provide a reference answer), <strong>rubrics / scoring scales</strong>, <strong>multi-judge voting</strong>, and <strong>calibration against human annotations</strong>.</li>
 </ul>
 <p><strong>Formalizing position debiasing:</strong> let the judge&#39;s preference on an ordered pair be <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo><mo>∈</mo><mo stretchy="false">{</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">J(a,b)\in\{A,B\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">}</span></span></span></span>. With no position bias, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(a,b)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>b</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(b,a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">b</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> should pick the <strong>same</strong> answer (consistent). Debiased rule: count a win only if both orders pick the same answer, else call it a <strong>tie</strong> — making position bias an explicit tie rather than letting it leak into the win-rate. Note: AlpacaEval uses a single fixed ordering by default (model response first); MT-Bench pairwise mode uses swap augmentation (average the two orderings) — not all tools apply order averaging.</p>
-<h3 id="sec-3">2.1 Position-debiased judge harness (code)</h3>
+<h3 id="sec-4">2.1 Position-debiased judge harness (code)</h3>
 <pre><code class="hljs language-python"><span class="hljs-comment"># LLM-as-judge: pairwise comparison + position debiasing (order-swap) harness.</span>
 <span class="hljs-comment"># In practice judge() calls a strong model and parses its verdict; here a stub shows the protocol.</span>
 
@@ -218,9 +295,9 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <span class="hljs-built_in">print</span>(judge_debiased(<span class="hljs-string">&quot;q&quot;</span>, <span class="hljs-string">&quot;model&quot;</span>, <span class="hljs-string">&quot;ref&quot;</span>, biased_judge))   <span class="hljs-comment"># -&gt; &#x27;tie&#x27;</span>
 <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;win_rate:&quot;</span>, win_rate([<span class="hljs-string">&quot;q&quot;</span>], [<span class="hljs-string">&quot;model&quot;</span>], [<span class="hljs-string">&quot;ref&quot;</span>], biased_judge))  <span class="hljs-comment"># -&gt; 0.5</span>
 </code></pre>
-<h2 id="sec-4">3. Data Contamination</h2>
+<h2 id="sec-5">3. Data Contamination</h2>
 <p>The training set contains test-set examples → inflated scores that do not reflect generalization.</p>
-<h3 id="sec-5">3.1 Types of Contamination</h3>
+<h3 id="sec-6">3.1 Types of Contamination</h3>
 <table>
 <thead>
 <tr>
@@ -245,7 +322,7 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <td>Training set does not contain the exact questions, but contains highly related in-distribution samples, causing score inflation</td>
 </tr>
 </tbody></table>
-<h3 id="sec-6">3.2 Detection Methods</h3>
+<h3 id="sec-7">3.2 Detection Methods</h3>
 <ul>
 <li><strong>n-gram / substring overlap</strong>: compute n-gram Jaccard similarity between the training set and the evaluation set; filter above a threshold</li>
 <li><strong>Min-k% Prob (MIA)</strong>: Membership Inference Attack — compute the minimum k% token probability of a test sample under the model; member samples typically have higher minimum token probabilities than non-members (per Shi et al. 2024 and related work; exact effectiveness varies by setting)</li>
@@ -253,27 +330,27 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li><strong>Anomalously low perplexity</strong>: compute perplexity on test samples; if significantly lower than comparable new samples, this suggests the model may have seen them</li>
 <li><strong>Score drop after paraphrase</strong>: semantically rephrase test questions; if the model scores higher on originals than on rephrased versions, this suggests memorization rather than generalization</li>
 </ul>
-<h3 id="sec-7">3.3 n-gram Deduplication</h3>
+<h3 id="sec-8">3.3 n-gram Deduplication</h3>
 <ul>
 <li>Deduplicating within training data (exact + near-dedup) reduces memorization risk and limits contamination propagation to benchmarks</li>
 <li>Common tools: MinHash LSH, suffix array deduplication (per Lee et al. 2022 and related work)</li>
 <li>⚠️ Deduplication is not the same as decontamination: deduplication targets repeated entries within the training set; decontamination (去污染) specifically targets overlap between the training set and the evaluation set</li>
 </ul>
-<h3 id="sec-8">3.4 Contamination-Resistant Benchmark Design</h3>
+<h3 id="sec-9">3.4 Contamination-Resistant Benchmark Design</h3>
 <ul>
 <li><strong>Dynamic / private evaluation sets</strong>: use new questions each evaluation round (e.g., Chatbot Arena&#39;s continuous collection, LiveBench&#39;s monthly updates)</li>
 <li><strong>Programmatically generated questions</strong>: automatically generate questions with verifiable answers (math, code); novelty is guaranteed by the generation procedure</li>
 <li><strong>Temporal isolation</strong>: explicitly report the training data cutoff date and the evaluation set creation date, so readers can assess temporal leakage risk</li>
 <li><strong>Contamination audit reports</strong>: publicly disclose the decontamination pipeline and filtering rates in papers/reports to increase credibility</li>
 </ul>
-<h2 id="sec-9">4. Pitfalls in Preference Evaluation</h2>
+<h2 id="sec-10">4. Pitfalls in Preference Evaluation</h2>
 <ul>
 <li><strong>Goodhart&#39;s Law</strong>: once a benchmark becomes an optimization target, it ceases to be a good measure (leaderboard gaming ≠ genuine improvement).</li>
 <li><strong>Prompt sensitivity</strong>: the same model can score very differently with different prompt templates → fix evaluation prompts, report variance.</li>
 <li><strong>Judge ≠ ground truth</strong>: LLM-judge win-rate only reflects &quot;what another model thinks is good,&quot; not human preference or real-world utility.</li>
 <li><strong>Single-pass accuracy vs. compute budget</strong>: for reasoning models, report accuracy under a given test-time compute budget, not just single-pass accuracy.</li>
 </ul>
-<h2 id="sec-10">5. A Practical Evaluation Protocol (Post-Training)</h2>
+<h2 id="sec-11">5. A Practical Evaluation Protocol (Post-Training)</h2>
 <ol>
 <li><strong>Capability</strong>: GSM8K/MATH (math), HumanEval (code), MMLU (knowledge), IFEval (instruction following).</li>
 <li><strong>Alignment quality</strong>: AlpacaEval / MT-Bench (judge, with position debiasing); Chatbot Arena when necessary.</li>
@@ -282,56 +359,97 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li><strong>Contamination audit</strong> + <strong>multiple seeds/prompts</strong> to report variance.</li>
 </ol>
 <hr>
-<h2 id="sec-11">Stratified Follow-ups</h2>
-<h3 id="sec-12">L1 Basics</h3>
+<h2 id="sec-12">Stratified Follow-ups</h2>
+<h3 id="sec-13">L1 Basics</h3>
 <ol>
 <li>Why is evaluation considered the bottleneck of post-training? What does each of capability benchmarks and preference evaluation measure?</li>
 <li>What is LLM-as-judge? What known biases does it have?</li>
 <li>What is data contamination? Why does it make scores unreliable?</li>
+<li>What is the fundamental difference between capability benchmarks and preference evaluation? What is each suited to measure?</li>
+<li>How is AlpacaEval&#39;s win-rate computed? Against what reference is the rate measured?</li>
+<li>How do MT-Bench and Chatbot Arena differ in their evaluation signal (who does the scoring)?</li>
+<li>What does pass@k mean? Why do code evals often use it instead of single-pass accuracy?</li>
+<li>What is alignment tax? Why specifically check for regressions after post-training?</li>
+<li>Why fix the prompt template and report variance over multiple seeds?</li>
+<li>How do IFEval and MMLU fundamentally differ in <em>how</em> they score (programmatic verification vs. option accuracy)?</li>
 </ol>
-<h3 id="sec-13">L2 Intermediate</h3>
-<ol start="4">
+<h3 id="sec-14">L2 Intermediate</h3>
+<ol start="11">
 <li>How is position bias mitigated? Why does &quot;evaluate both orderings and average&quot; work?</li>
 <li>How do AlpacaEval / MT-Bench / Chatbot Arena differ in their evaluation signals (automatic judge vs. human Elo)?</li>
 <li>How do you detect whether training data has contaminated a given evaluation set?</li>
+<li>Why is verbosity bias so stubborn? How does length-controlled win-rate factor out the length effect?</li>
+<li>The order-swap rule calls a tie when the two orderings disagree — compared to majority voting, what robustness advantage does this have?</li>
+<li>Chatbot Arena uses Bradley-Terry / Elo to turn pairwise outcomes into rankings — what is the core assumption of this model?</li>
+<li>List several contamination-detection methods (n-gram / Min-k% / canary / paraphrase-drop) — what does each actually catch?</li>
+<li>Why is &quot;dedup ≠ decontamination&quot;?</li>
+<li>Why is self-preference bias especially dangerous when using a homologous model as the judge?</li>
+<li>Why does a high judge win-rate not equal stronger human preference? Where do the two systematically diverge?</li>
 </ol>
-<h3 id="sec-14">L3 Deep Dive</h3>
-<ol start="7">
+<h3 id="sec-15">L3 Deep Dive</h3>
+<ol start="21">
 <li>How does Goodhart&#39;s Law manifest in leaderboard gaming? How do you design &quot;gaming-resistant&quot; evaluations?</li>
 <li>How is a reward model evaluated (the RewardBench approach)? What is the relationship between RM evaluation and final policy performance?</li>
 <li>For reasoning models, why should evaluation shift from &quot;single-pass accuracy&quot; to &quot;accuracy under a compute budget&quot;? What does this demand of the evaluation protocol?</li>
 <li>If online metrics (user retention) conflict with offline evaluation (judge win-rate), which do you trust, and how do you investigate the discrepancy?</li>
+<li>When summarizing a model with a single scalar score, how can it mask Pareto-style regressions like &quot;capability ↑ but safety ↓&quot;? How should evaluation design expose this?</li>
 </ol>
-<h2 id="sec-15">Extended L3</h2>
+<h2 id="sec-16">Extended L3</h2>
 <details>
-<summary>Q11. When using LLM-as-judge to evaluate multi-turn, long-context conversations, what are the common difficulties? What methodological improvements exist?</summary><pre><code class="hljs">The core challenge <span class="hljs-keyword">in</span> evaluating multi-turn conversations <span class="hljs-keyword">is</span> <span class="hljs-keyword">that</span> <span class="hljs-keyword">the</span> judge model tends <span class="hljs-keyword">to</span> exhibit **context forgetting** <span class="hljs-keyword">or</span> **<span class="hljs-keyword">local</span> bias** — focusing only <span class="hljs-keyword">on</span> <span class="hljs-keyword">the</span> quality <span class="hljs-keyword">of</span> <span class="hljs-keyword">the</span> most recent one <span class="hljs-keyword">or</span> two turns <span class="hljs-keyword">while</span> <span class="hljs-keyword">ignoring</span> overall conversational coherence <span class="hljs-keyword">and</span> task completion. A key improvement <span class="hljs-keyword">is</span> designing **process-oriented rubrics** <span class="hljs-keyword">that</span> explicitly require evaluating each turn&#x27;s contribution <span class="hljs-keyword">to</span> <span class="hljs-keyword">the</span> final goal, <span class="hljs-keyword">and</span> introducing a **segment summarization** mechanism <span class="hljs-keyword">that</span> forces <span class="hljs-keyword">the</span> judge <span class="hljs-keyword">to</span> <span class="hljs-built_in">summarize</span> <span class="hljs-keyword">before</span> scoring, thereby partially mitigating <span class="hljs-keyword">its</span> short-sightedness.
+<summary>Q26. When using LLM-as-judge to evaluate multi-turn, long-context conversations, what are the common difficulties? What methodological improvements exist?</summary><pre><code class="hljs">The core challenge <span class="hljs-keyword">in</span> evaluating multi-turn conversations <span class="hljs-keyword">is</span> <span class="hljs-keyword">that</span> <span class="hljs-keyword">the</span> judge model tends <span class="hljs-keyword">to</span> exhibit **context forgetting** <span class="hljs-keyword">or</span> **<span class="hljs-keyword">local</span> bias** — focusing only <span class="hljs-keyword">on</span> <span class="hljs-keyword">the</span> quality <span class="hljs-keyword">of</span> <span class="hljs-keyword">the</span> most recent one <span class="hljs-keyword">or</span> two turns <span class="hljs-keyword">while</span> <span class="hljs-keyword">ignoring</span> overall conversational coherence <span class="hljs-keyword">and</span> task completion. A key improvement <span class="hljs-keyword">is</span> designing **process-oriented rubrics** <span class="hljs-keyword">that</span> explicitly require evaluating each turn&#x27;s contribution <span class="hljs-keyword">to</span> <span class="hljs-keyword">the</span> final goal, <span class="hljs-keyword">and</span> introducing a **segment summarization** mechanism <span class="hljs-keyword">that</span> forces <span class="hljs-keyword">the</span> judge <span class="hljs-keyword">to</span> <span class="hljs-built_in">summarize</span> <span class="hljs-keyword">before</span> scoring, thereby partially mitigating <span class="hljs-keyword">its</span> short-sightedness.
 **Follow-up**: Beyond improving <span class="hljs-keyword">the</span> rubric, can <span class="hljs-keyword">the</span> evaluation protocol itself be changed <span class="hljs-keyword">to</span> reduce judging difficulty — <span class="hljs-keyword">for</span> example, decomposing <span class="hljs-keyword">it</span> <span class="hljs-keyword">into</span> a series <span class="hljs-keyword">of</span> simpler subtask evaluations?
 </code></pre>
 </details><details>
-<summary>Q12. What are the main limitations of LLM-as-judge in assessing factual accuracy and logical soundness? How can they be mitigated?</summary><pre><code class="hljs">The main limitations are that the judge model<span class="hljs-comment">&#x27;s own **knowledge boundary** and **reasoning flaws** can lead to incorrect verdicts. It may fail to detect factual errors, or mistakenly accept an answer with logical gaps as sound. Mitigation typically involves a **hybrid evaluation** approach: for fact-checking, combine **retrieval-augmented verification** — retrieve authoritative information first, then compare; for logical evaluation, attempt to use **formal verification** tools or design **step-by-step verification prompts** specifically targeting reasoning chains.</span>
+<summary>Q27. What are the main limitations of LLM-as-judge in assessing factual accuracy and logical soundness? How can they be mitigated?</summary><pre><code class="hljs">The main limitations are that the judge model<span class="hljs-comment">&#x27;s own **knowledge boundary** and **reasoning flaws** can lead to incorrect verdicts. It may fail to detect factual errors, or mistakenly accept an answer with logical gaps as sound. Mitigation typically involves a **hybrid evaluation** approach: for fact-checking, combine **retrieval-augmented verification** — retrieve authoritative information first, then compare; for logical evaluation, attempt to use **formal verification** tools or design **step-by-step verification prompts** specifically targeting reasoning chains.</span>
 **Follow-up**: Given limited resources, which judge capabilities (breadth <span class="hljs-keyword">of</span> knowledge, reasoning ability, tool use) should be prioritized <span class="hljs-keyword">for</span> improvement <span class="hljs-keyword">to</span> most effectively increase evaluation accuracy?
 </code></pre>
 </details><details>
-<summary>Q13. How do you evaluate a model's "emergent capabilities"? How does this fundamentally differ from evaluating conventional capabilities?</summary><pre><code class="hljs">The <span class="hljs-keyword">key</span> difference <span class="hljs-keyword">in</span> evaluating emergent capabilities lies <span class="hljs-keyword">in</span> their <span class="hljs-comment">**unpredictability** and **non-smoothness**. Conventional capabilities typically improve predictably on a benchmark as model scale or training data increases. Emergent capabilities, by contrast, appear suddenly past some threshold and are often not directly reflected in standard benchmarks. As a result, evaluation methods must shift from **fixed test sets** to **open-ended, programmatically generated probe tasks**, and must focus on detecting **behavioral pattern shifts** when the model faces entirely novel, complex task combinations.
+<summary>Q28. How do you evaluate a model's "emergent capabilities"? How does this fundamentally differ from evaluating conventional capabilities?</summary><pre><code class="hljs">The <span class="hljs-keyword">key</span> difference <span class="hljs-keyword">in</span> evaluating emergent capabilities lies <span class="hljs-keyword">in</span> their <span class="hljs-comment">**unpredictability** and **non-smoothness**. Conventional capabilities typically improve predictably on a benchmark as model scale or training data increases. Emergent capabilities, by contrast, appear suddenly past some threshold and are often not directly reflected in standard benchmarks. As a result, evaluation methods must shift from **fixed test sets** to **open-ended, programmatically generated probe tasks**, and must focus on detecting **behavioral pattern shifts** when the model faces entirely novel, complex task combinations.
 **Follow-up**: Can one design an evaluation framework that not only discovers emergent capabilities but also, to some degree, predicts the conditions under which they will appear?
 </span></code></pre>
 </details><details>
-<summary>Q14. Why does calibrating the confidence of LLM-as-judge outputs matter? How is it achieved in practice?</summary><pre><code class="hljs">Calibrating <span class="hljs-keyword">judge </span>output confidence gives its <span class="hljs-keyword">scores </span><span class="hljs-keyword">or </span>comparison results **interpretable probabilistic meaning**. For example, when a <span class="hljs-keyword">judge </span>says <span class="hljs-string">&quot;90% confident that A is better than B,&quot;</span> that number <span class="hljs-keyword">should, </span>in the long run, approximate the true frequency with which A is actually <span class="hljs-keyword">preferred </span>over <span class="hljs-keyword">B. </span>In practice, calibration requires a **human-annotated calibration set**. <span class="hljs-keyword">By </span>repeatedly evaluating the <span class="hljs-keyword">judge </span>on this set, one can analyze the <span class="hljs-keyword">distribution </span>of its <span class="hljs-keyword">scoring </span>deviations from human consensus, then apply **post-hoc calibration algorithms** (such as Platt <span class="hljs-keyword">Scaling </span><span class="hljs-keyword">or </span>Isotonic Regression) to adjust raw <span class="hljs-keyword">scores </span>so they <span class="hljs-keyword">better </span>match the statistical patterns of human <span class="hljs-keyword">judgment.
+<summary>Q29. Why does calibrating the confidence of LLM-as-judge outputs matter? How is it achieved in practice?</summary><pre><code class="hljs">Calibrating <span class="hljs-keyword">judge </span>output confidence gives its <span class="hljs-keyword">scores </span><span class="hljs-keyword">or </span>comparison results **interpretable probabilistic meaning**. For example, when a <span class="hljs-keyword">judge </span>says <span class="hljs-string">&quot;90% confident that A is better than B,&quot;</span> that number <span class="hljs-keyword">should, </span>in the long run, approximate the true frequency with which A is actually <span class="hljs-keyword">preferred </span>over <span class="hljs-keyword">B. </span>In practice, calibration requires a **human-annotated calibration set**. <span class="hljs-keyword">By </span>repeatedly evaluating the <span class="hljs-keyword">judge </span>on this set, one can analyze the <span class="hljs-keyword">distribution </span>of its <span class="hljs-keyword">scoring </span>deviations from human consensus, then apply **post-hoc calibration algorithms** (such as Platt <span class="hljs-keyword">Scaling </span><span class="hljs-keyword">or </span>Isotonic Regression) to adjust raw <span class="hljs-keyword">scores </span>so they <span class="hljs-keyword">better </span>match the statistical patterns of human <span class="hljs-keyword">judgment.
 </span>**Follow-up**: If the human-annotated data used for calibration is itself low-quality <span class="hljs-keyword">or </span>very small in <span class="hljs-keyword">scale, </span>what effect does this have on the calibrated <span class="hljs-keyword">judge? </span>What are the alternatives?
 </code></pre>
 </details><details>
-<summary>Q15. When evaluating the safety of conversational models, why is "over-refusal" an important metric? How do you analyze the trade-off it forms with the harmful-prompt refusal rate?</summary><pre><code class="hljs">Over-refusal measures the degree to which a model incorrectly refuses **<span class="hljs-keyword">benign </span><span class="hljs-keyword">or </span><span class="hljs-keyword">borderline </span>queries**, <span class="hljs-keyword">directly </span>affecting user experience <span class="hljs-keyword">and </span>model **utility**. A model with a very high over-refusal rate may <span class="hljs-keyword">be </span>safe <span class="hljs-keyword">but </span><span class="hljs-keyword">becomes </span>effectively useless. Analyzing this trade-off cannot simply pursue Pareto optimality across <span class="hljs-keyword">both </span>metrics<span class="hljs-comment">; instead, **risk tiering** should be introduced. Categorize harmful prompts by severity and set different refusal strictness thresholds for each tier. Evaluation should separately report refusal rates for each tier and use **cost-sensitive analysis** to assess the model&#x27;s balance between overall risk exposure and user experience loss.</span>
+<summary>Q30. When evaluating the safety of conversational models, why is "over-refusal" an important metric? How do you analyze the trade-off it forms with the harmful-prompt refusal rate?</summary><pre><code class="hljs">Over-refusal measures the degree to which a model incorrectly refuses **<span class="hljs-keyword">benign </span><span class="hljs-keyword">or </span><span class="hljs-keyword">borderline </span>queries**, <span class="hljs-keyword">directly </span>affecting user experience <span class="hljs-keyword">and </span>model **utility**. A model with a very high over-refusal rate may <span class="hljs-keyword">be </span>safe <span class="hljs-keyword">but </span><span class="hljs-keyword">becomes </span>effectively useless. Analyzing this trade-off cannot simply pursue Pareto optimality across <span class="hljs-keyword">both </span>metrics<span class="hljs-comment">; instead, **risk tiering** should be introduced. Categorize harmful prompts by severity and set different refusal strictness thresholds for each tier. Evaluation should separately report refusal rates for each tier and use **cost-sensitive analysis** to assess the model&#x27;s balance between overall risk exposure and user experience loss.</span>
 **Follow-up**: How do you construct a high-quality adversarial safety evaluation set that can automatically generate prompts spanning various risk tiers <span class="hljs-keyword">and </span><span class="hljs-string">&quot;gray area&quot;</span> cases?
 </code></pre>
 </details><details>
-<summary>Q16. How do you conduct "meta-evaluation" — that is, how do you judge whether an evaluation benchmark or an LLM-as-judge is itself valid and reliable?</summary><pre><code class="hljs">Meta-evaluation <span class="hljs-keyword">of</span> a benchmark primarily examines <span class="hljs-keyword">its</span> **discriminability** (can <span class="hljs-keyword">it</span> effectively distinguish models <span class="hljs-keyword">at</span> different capability levels), **robustness** (<span class="hljs-keyword">is</span> <span class="hljs-keyword">it</span> sensitive <span class="hljs-keyword">to</span> minor prompt changes), <span class="hljs-keyword">and</span> **ecological validity** (<span class="hljs-keyword">does</span> <span class="hljs-keyword">the</span> capability <span class="hljs-keyword">it</span> measures relate <span class="hljs-keyword">to</span> <span class="hljs-built_in">real</span>-world needs). Meta-evaluation <span class="hljs-keyword">of</span> an LLM-<span class="hljs-keyword">as</span>-judge focuses <span class="hljs-keyword">on</span> <span class="hljs-keyword">its</span> **agreement** <span class="hljs-keyword">with</span> human judgments (e.g., Cohen&#x27;s Kappa) <span class="hljs-keyword">and</span> <span class="hljs-keyword">its</span> **fairness** across different subgroups. A key method <span class="hljs-keyword">is</span> **cross-validation**: have multiple distinct, high-quality judges (<span class="hljs-keyword">or</span> humans) evaluate <span class="hljs-keyword">the</span> same <span class="hljs-keyword">set</span> <span class="hljs-keyword">of</span> data, <span class="hljs-keyword">and</span> check whether <span class="hljs-keyword">the</span> target judge <span class="hljs-keyword">or</span> benchmark agrees <span class="hljs-keyword">with</span> <span class="hljs-keyword">the</span> consensus.
+<summary>Q31. How do you conduct "meta-evaluation" — that is, how do you judge whether an evaluation benchmark or an LLM-as-judge is itself valid and reliable?</summary><pre><code class="hljs">Meta-evaluation <span class="hljs-keyword">of</span> a benchmark primarily examines <span class="hljs-keyword">its</span> **discriminability** (can <span class="hljs-keyword">it</span> effectively distinguish models <span class="hljs-keyword">at</span> different capability levels), **robustness** (<span class="hljs-keyword">is</span> <span class="hljs-keyword">it</span> sensitive <span class="hljs-keyword">to</span> minor prompt changes), <span class="hljs-keyword">and</span> **ecological validity** (<span class="hljs-keyword">does</span> <span class="hljs-keyword">the</span> capability <span class="hljs-keyword">it</span> measures relate <span class="hljs-keyword">to</span> <span class="hljs-built_in">real</span>-world needs). Meta-evaluation <span class="hljs-keyword">of</span> an LLM-<span class="hljs-keyword">as</span>-judge focuses <span class="hljs-keyword">on</span> <span class="hljs-keyword">its</span> **agreement** <span class="hljs-keyword">with</span> human judgments (e.g., Cohen&#x27;s Kappa) <span class="hljs-keyword">and</span> <span class="hljs-keyword">its</span> **fairness** across different subgroups. A key method <span class="hljs-keyword">is</span> **cross-validation**: have multiple distinct, high-quality judges (<span class="hljs-keyword">or</span> humans) evaluate <span class="hljs-keyword">the</span> same <span class="hljs-keyword">set</span> <span class="hljs-keyword">of</span> data, <span class="hljs-keyword">and</span> check whether <span class="hljs-keyword">the</span> target judge <span class="hljs-keyword">or</span> benchmark agrees <span class="hljs-keyword">with</span> <span class="hljs-keyword">the</span> consensus.
 **Follow-up**: After discovering <span class="hljs-keyword">that</span> a widely used benchmark likely has serious biases <span class="hljs-keyword">or</span> <span class="hljs-keyword">is</span> outdated, what responsibilities <span class="hljs-keyword">and</span> feasible actions <span class="hljs-keyword">does</span> a researcher have <span class="hljs-keyword">to</span> promote <span class="hljs-keyword">its</span> iteration <span class="hljs-keyword">or</span> warn <span class="hljs-keyword">the</span> community?
 </code></pre>
 </details><details>
-<summary>Q17. In domain-specific settings (e.g., medical, legal), what unique challenges arise for general-purpose LLM-as-judge evaluation? What are the key steps in building a domain-expert evaluation pipeline?</summary><pre><code class="hljs">The core challenges are the **domain knowledge <span class="hljs-keyword">barrier** </span><span class="hljs-keyword">and </span>the **specialized evaluation criteria** required. A general-purpose <span class="hljs-keyword">judge </span>may not understand the nuances of domain terminology <span class="hljs-keyword">or </span>the rigor of professional logic. Key steps in <span class="hljs-keyword">building </span>a domain evaluation pipeline are, first, **co-defining evaluation <span class="hljs-keyword">dimensions** </span>with domain experts — <span class="hljs-keyword">jointly </span>determining <span class="hljs-keyword">dimensions </span>such as <span class="hljs-string">&quot;conservatism of medical advice&quot;</span> <span class="hljs-keyword">or </span><span class="hljs-string">&quot;accuracy of legal citations.&quot;</span> Second, **<span class="hljs-keyword">building </span>a domain gold standard** — a set of authoritative reference answers <span class="hljs-keyword">or </span><span class="hljs-keyword">judgments </span>annotated <span class="hljs-keyword">by </span>experts. Finally, designing a **human-AI collaborative evaluation process** in which the AI <span class="hljs-keyword">judge </span>handles initial <span class="hljs-keyword">screening </span>while human experts handle edge-case review <span class="hljs-keyword">and </span>final adjudication.
+<summary>Q32. In domain-specific settings (e.g., medical, legal), what unique challenges arise for general-purpose LLM-as-judge evaluation? What are the key steps in building a domain-expert evaluation pipeline?</summary><pre><code class="hljs">The core challenges are the **domain knowledge <span class="hljs-keyword">barrier** </span><span class="hljs-keyword">and </span>the **specialized evaluation criteria** required. A general-purpose <span class="hljs-keyword">judge </span>may not understand the nuances of domain terminology <span class="hljs-keyword">or </span>the rigor of professional logic. Key steps in <span class="hljs-keyword">building </span>a domain evaluation pipeline are, first, **co-defining evaluation <span class="hljs-keyword">dimensions** </span>with domain experts — <span class="hljs-keyword">jointly </span>determining <span class="hljs-keyword">dimensions </span>such as <span class="hljs-string">&quot;conservatism of medical advice&quot;</span> <span class="hljs-keyword">or </span><span class="hljs-string">&quot;accuracy of legal citations.&quot;</span> Second, **<span class="hljs-keyword">building </span>a domain gold standard** — a set of authoritative reference answers <span class="hljs-keyword">or </span><span class="hljs-keyword">judgments </span>annotated <span class="hljs-keyword">by </span>experts. Finally, designing a **human-AI collaborative evaluation process** in which the AI <span class="hljs-keyword">judge </span>handles initial <span class="hljs-keyword">screening </span>while human experts handle edge-case review <span class="hljs-keyword">and </span>final adjudication.
 **Follow-up**: When domain experts themselves <span class="hljs-keyword">disagree </span>on the same response (e.g., physicians from <span class="hljs-keyword">different </span><span class="hljs-keyword">schools </span>of thought), how do you design a system that accommodates reasonable expert <span class="hljs-keyword">disagreement </span>while still enabling effective automated evaluation?
 </code></pre>
-</details>
+</details><h2 id="sec-17">§A Key Papers Timeline</h2>
+<ul class="timeline">
+<li><p><strong>2020-09 · MMLU</strong> — Hendrycks et al., ICLR 2021. <a href="https://arxiv.org/abs/2009.03300">arXiv:2009.03300</a> — 57-subject four-way multiple-choice knowledge eval; established the &quot;broad-coverage MCQ&quot; paradigm. Its main weaknesses are option/letter-order bias and heavy later-stage contamination.</p>
+</li>
+<li><p><strong>2021-03 · MATH</strong> — Hendrycks et al., NeurIPS 2021. <a href="https://arxiv.org/abs/2103.03874">arXiv:2103.03874</a> — Competition mathematics (7 subjects / 5 difficulty levels) with free-form solutions and verifiable final-answer matching; became the standard math-reasoning benchmark.</p>
+</li>
+<li><p><strong>2021-07 · HumanEval</strong> — Chen et al., arXiv preprint. <a href="https://arxiv.org/abs/2107.03374">arXiv:2107.03374</a> — 164 function-completion problems with hidden unit tests; introduced pass@k as the code-generation metric. Small size means high variance.</p>
+</li>
+<li><p><strong>2021-10 · GSM8K</strong> — Cobbe et al., arXiv preprint. <a href="https://arxiv.org/abs/2110.14168">arXiv:2110.14168</a> — 8.5K grade-school math word problems plus a trained verifier for reranking; grounded the chain-of-thought + answer-verification paradigm for eval and training.</p>
+</li>
+<li><p><strong>2023-05 · AlpacaFarm</strong> — Dubois et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2305.14387">arXiv:2305.14387</a> — Uses an LLM-judge to cheaply simulate RLHF human-preference labeling, making win-rate-style alignment evaluation reproducible and iterable.</p>
+</li>
+<li><p><strong>2023-06 · MT-Bench / LLM-as-a-Judge</strong> — Zheng et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2306.05685">arXiv:2306.05685</a> — Multi-turn dialogue judge scoring plus systematic quantification of position/verbosity/self-preference bias; set the methodological baseline for LLM-as-judge.</p>
+</li>
+<li><p><strong>2023-10 · Min-K% Prob</strong> — Shi et al., ICLR 2024. <a href="https://arxiv.org/abs/2310.16789">arXiv:2310.16789</a> — Uses a sample&#39;s lowest k% token probabilities for pretraining-data membership inference, probing whether an eval set has been &quot;seen&quot; (contamination probe).</p>
+</li>
+<li><p><strong>2023-11 · IFEval</strong> — Zhou et al., arXiv preprint. <a href="https://arxiv.org/abs/2311.07911">arXiv:2311.07911</a> — Instruction-following eval built on programmatically verifiable instructions (word count / format), requiring no judge and objectively recomputable.</p>
+</li>
+<li><p><strong>2024-03 · Chatbot Arena</strong> — Chiang et al., ICML 2024. <a href="https://arxiv.org/abs/2403.04132">arXiv:2403.04132</a> — Human blind pairwise battles converted to rankings via Bradley-Terry/Elo; massive votes plus fresh prompts make it the contamination-resistant human-preference gold standard.</p>
+</li>
+<li><p><strong>2024-03 · RewardBench</strong> — Lambert et al., arXiv preprint. <a href="https://arxiv.org/abs/2403.13787">arXiv:2403.13787</a> — First systematic RM evaluation benchmark (chat / safety / reasoning categories), measuring reward-model quality via pairwise-preference accuracy.</p>
+</li>
+<li><p><strong>2024-04 · Length-Controlled AlpacaEval</strong> — Dubois et al., COLM 2024. <a href="https://arxiv.org/abs/2404.04475">arXiv:2404.04475</a> — Regresses &quot;length&quot; out of win-rate, substantially reducing verbosity bias and improving correlation with human rankings.</p>
+</li>
+<li><p><strong>2024-06 · LiveBench</strong> — White et al., ICLR 2025. <a href="https://arxiv.org/abs/2406.19314">arXiv:2406.19314</a> — Monthly rolling updates with objective, verifiable answers for contamination-resistant evaluation, reducing inflation from data leakage.</p>
+</li>
+</ul>
 </main>
 </div>
 <script>
