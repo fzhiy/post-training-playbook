@@ -18,6 +18,31 @@ $$A_i=\frac{r_i-\mathrm{mean}(r)}{\mathrm{std}(r)+\varepsilon}$$
 - 目标同 PPO 的 clipped surrogate,但优势用 $A_i$、**无 critic、无 GAE**;保留对 ref 的 KL（估计器 k1/k2/k3 与 in-reward/in-loss 放置见 [llm-post-training §9.4](cheatsheet-llm-post-training.html)）。
 - 收益:省一个 value 模型且不用学 value;对**可验证奖励**(数学/代码)特别稳。DeepSeek 系用它。
 
+**from-scratch 实现**(组内 z-score 优势 + 逐 token clip + K3 KL,in-loss):
+
+```python
+import torch
+
+def grpo_loss(logp, logp_old, logp_ref, rewards, mask, group_size,
+              clip_eps=0.2, beta=0.04):
+    # logp/logp_old/logp_ref: (B, T) 逐 token logprob；B = n_prompts * group_size
+    r = rewards.view(-1, group_size)                       # (n_prompts, G)
+    adv = (r - r.mean(1, keepdim=True)) / (r.std(1, keepdim=True) + 1e-6)
+    adv = adv.reshape(-1, 1)                               # (B,1) 组内 z-score 优势
+    ratio = torch.exp(logp - logp_old)                     # importance ratio ρ
+    surr1 = ratio * adv
+    surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * adv
+    policy = torch.min(surr1, surr2)                       # clipped surrogate
+    logr = logp_ref - logp                                 # log(π_ref/π_θ)
+    kl = torch.exp(logr) - logr - 1                        # K3 估计器，恒 ≥ 0
+    per_tok = policy - beta * kl                           # KL 放在 loss 里
+    seq = (per_tok * mask).sum(1) / mask.sum(1).clamp(min=1)  # 1/|o_i| 长度归一化
+    return -seq.mean()
+# Dr.GRPO 去偏：优势去掉 /std；seq 改用常数归一化（如最大长度）而非 1/|o_i|。
+```
+
+- 关键点:① 优势在**组内**标准化(z-score),取代 value baseline;② `min(surr1, surr2)` 是 PPO 同款裁剪,但 ratio 用**逐 token** logprob;③ K3 = $e^{\log r}-\log r-1\ge0$ 是无偏且非负的 KL 估计器(`logr` 方向要对:$\log(\pi_{ref}/\pi_\theta)$);④ 末行 `1/|o_i|` 长度归一化是原始 GRPO 的写法——Dr.GRPO 指出它偏好长错误回答,去偏时改常数。
+
 ## 3. RLOO — REINFORCE leave-one-out
 - 也 critic-free:样本 $i$ 的 baseline = **其余 $G-1$ 个样本奖励的均值**,REINFORCE 式梯度。
 - 比 PPO 简单(无 clip/critic),RLHF 上与 PPO 竞争。与 GRPO 的差异在 baseline 构造(留一 vs 组内标准化)与是否 clip。
@@ -33,9 +58,93 @@ ByteDance 2025 开源配方,针对长链推理 RL 的四个改动:
 - 指出 GRPO 两处**偏置**:优势里的 **std 归一化**(放大题目难易不平衡)+ loss 里的 **1/回答长度** 归一化(偏好「更长的错误回答」)。
 - 解法:**去掉 std 除法 + 去掉长度归一化**(改用常数)→ 更**无偏**的估计,同性能下 token 更省、回答不虚长。
 
+## 5.5 GSPO — 序列级重要性比 / Group Sequence Policy Optimization
+
+> 💡 GSPO(Qwen 团队,Zheng et al., [arXiv:2507.18071](https://arxiv.org/abs/2507.18071),2025-07)把重要性采样(IS)校正的粒度从「每个 token」升到「整条序列」,缓解 GRPO 在大规模 MoE 训练中的不稳定。
+
+**GRPO 的 token 级比率为何不稳。** GRPO 沿用 PPO,对每个 token 单独算比率 $w_{i,t}=\pi_\theta(y_{i,t}\mid x,y_{i,<t})/\pi_{\theta_\text{old}}(\cdots)$:
+
+- 单 token 比率是单样本估计,方差天然高,长 CoT 中噪声沿序列累积。
+- 单个 $w_{i,t}$ 偶尔越过 $[1-\epsilon,1+\epsilon]$,该 token 梯度即被 clip 置零 —— 长序列里频繁发生,即便整体策略偏移很小。
+- **MoE 尤甚**:一次更新后路由器可能把同一 token 发给不同专家,分子/分母走了不同计算路径;路由漂移直接表现为比率尖峰,触发 clip,论文称之为「灾难性且不可逆的模型崩溃」(原文)。
+
+**GSPO 的解法:单元匹配(unit matching)。** 奖励赋予整条序列,IS 校正的单元也应是序列。序列级比率取**长度归一化的几何平均**:
+
+$$s_i(\theta)=\left(\frac{\pi_\theta(y_i\mid x)}{\pi_{\theta_\text{old}}(y_i\mid x)}\right)^{1/|y_i|}=\exp\!\left(\frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\log\frac{\pi_\theta(y_{i,t}\mid x,y_{i,<t})}{\pi_{\theta_\text{old}}(\cdots)}\right)$$
+
+目标函数形同 PPO clip,但比率换成 $s_i$、优势 $\hat A_i$ 为序列级组内 z-score(同 GRPO):
+
+$$J_\text{GSPO}(\theta)=\mathbb{E}\!\left[\frac{1}{G}\sum_{i=1}^G\min\!\big(s_i\hat A_i,\ \mathrm{clip}(s_i,1{-}\varepsilon_l,1{+}\varepsilon_r)\,\hat A_i\big)\right]$$
+
+整条序列要么采用、要么整体被 clip —— 单个 token 的路由跳变不再能独立触发梯度截断。
+
+| 维度 | GRPO(token 级) | GSPO(序列级) |
+|---|---|---|
+| IS 比率 | $w_{i,t}=\pi_\theta(y_{i,t})/\pi_{\theta_\text{old}}(y_{i,t})$ | $s_i=(\pi_\theta(y_i)/\pi_{\theta_\text{old}}(y_i))^{1/|y_i|}$ |
+| clip 范围(论文设置) | $\varepsilon_l{=}0.2,\ \varepsilon_r{=}0.27$ | $\varepsilon_l{=}3{\times}10^{-4},\ \varepsilon_r{=}4{\times}10^{-4}$ |
+| 截断粒度 | 每 token 独立 | 整条序列 |
+| MoE 路由漂移 | 比率尖峰 → 误触发 clip | 几何平均平滑大部分抖动 |
+
+> 📝 **别误读 clip 数量级差异。** GSPO 的 $\varepsilon\sim10^{-4}$ 远小于 GRPO 的 $\sim0.2$,这是两种比率**定义不同**带来的设计选择,**不是**几何平均把偏移「压缩到 1」的数学必然 —— 若所有 token 同向偏移,$s_i$ 与 token 比率同阶、并不收缩。几何平均只抹平序列内正负抖动(降方差);GSPO 用极小 $\varepsilon$ 在序列级施加更紧的 proximal 约束,实践中 clip 几乎每步都激活。
+
+**稳定性与工程收益(论文结果,无独立复现):**
+- MoE 稳定:序列似然不随单 token 路由漂移剧烈波动,无需此前的 Routing Replay(内部临时方案,本文首次披露)。
+- 精度容忍度(precision robustness):序列级聚合对单 token 数值精度不敏感,可直接用推理引擎(如 vLLM)的 log-prob,省去训练引擎重算。
+- 在 Qwen3-30B-A3B-Base 上,GSPO 训练曲线(AIME'24 / LiveCodeBench / CodeForces Elo)优于 GRPO;论文称其促成了 Qwen3 模型的性能提升(关联声明,无受控消融)。
+
+> ⚠️ GMPO([arXiv:2507.20673](https://arxiv.org/abs/2507.20673))认为序列级 clip「过于激进」、丢失梯度信息,主张 token 级 clip + 几何平均加权;两者各有取舍,尚无定论。
+
+**CISPO**(MiniMax,[arXiv:2506.13585](https://arxiv.org/abs/2506.13585),2025-06)从另一角度修 clip 截断梯度:不 clip 概率比率(那会让越界 token 梯度归零),而是 clip **标量 IS 权重**本身、保留所有 token 的梯度。论文报告在 Qwen2.5-32B 上对比 DAPO 约 2× 训练加速。GSPO 在序列级做单元匹配,CISPO 在 token 级保梯度完整 —— 是修复 GRPO clip 的两条互补路线。
+
+```python
+import torch
+# 玩具:G=3 条回答,长度 6/5/4;新旧策略下的逐 token logprob
+logp_new = torch.tensor([[-1.2,-0.8,-1.5,-0.4,-2.1,-1.0],
+                         [-0.9,-1.3,-0.7,-1.8,-0.6, 0.0],
+                         [-1.1,-0.5,-1.4,-0.9, 0.0, 0.0]])
+logp_old = torch.tensor([[-1.3,-0.9,-1.4,-0.5,-2.0,-1.1],
+                         [-1.0,-1.2,-0.8,-1.7,-0.7, 0.0],
+                         [-1.0,-0.6,-1.3,-1.0, 0.0, 0.0]])
+lengths = torch.tensor([6., 5., 4.])
+mask = torch.arange(6)[None, :] < lengths[:, None].long()   # (G,T) 真实 token 掩码
+
+log_ratio = logp_new - logp_old                             # 逐 token 对数比率
+w_token = torch.exp(log_ratio)                              # GRPO:token 级比率 w_{i,t}
+# GSPO:序列级比率 = 各 token 比率的长度归一化几何平均
+mean_log_ratio = (log_ratio * mask.float()).sum(1) / lengths
+s_seq = torch.exp(mean_log_ratio)                           # s_i = (π_θ/π_old)^(1/|y_i|)
+
+eps = 0.2                      # GRPO token 级 clip
+eps_l, eps_r = 3e-4, 4e-4      # GSPO 序列级 clip(非对称)
+grpo_clip = (((w_token < 1-eps) | (w_token > 1+eps)) & mask).sum().item()
+gspo_clip = ((s_seq < 1-eps_l) | (s_seq > 1+eps_r)).sum().item()
+
+for i in range(3):
+    r = mask[i]
+    print(f"resp{i} len={int(lengths[i])}  token比率[{w_token[i][r].min():.3f},{w_token[i][r].max():.3f}]  s_i={s_seq[i]:.4f}")
+print(f"GRPO 截断 {grpo_clip}/{int(mask.sum())} 个 token (eps={eps})")
+print(f"GSPO 截断 {gspo_clip}/3 条序列 (eps_l={eps_l}, eps_r={eps_r})")
+# 注:此处 s_i(~1.02–1.03)已超出 GSPO 的极小 eps → 实践中几乎每条序列都被 clip。
+# 极小 eps 是有意施加的紧 proximal 约束,而非「GSPO 比 GRPO 截断更少」的证据。
+```
+
 ## 6. RLVR — 可验证奖励 / RL from Verifiable Rewards
 - 奖励来自**规则/验证器**(数学 exact-match、代码跑单测),而非学习的神经 RM。
 - 利:几乎无「神经 RM 被 hack」(验证器 ≈ ground truth);弊:**只适用可验证域**。是 o1 / R1 式推理 RL 的奖励基座。
+
+## 6.5 DeepSeek-R1 四阶段配方 / DeepSeek-R1 recipe
+把上面的 GRPO + RLVR 串成一条完整产线。R1 不是「一把 RL 到底」,而是 **SFT 与 RL 交替** 四阶段:
+
+| 阶段 | 名称 | 做什么 | 奖励 / 数据 |
+|---|---|---|---|
+| 1 | 冷启动 SFT | 用少量高质量 long-CoT 样本微调 base | 监督数据(修可读性 / 格式 / 语言混杂) |
+| 2 | 推理 RL | GRPO + RLVR 在数学/代码上拉推理 | 规则奖励(答案 exact-match + 格式 + 语言一致性) |
+| 3 | 拒绝采样 SFT | 用阶段 2 的策略大量采样、筛对的,再 SFT | 自蒸馏数据(论文约 80 万条:推理 + 通用混合) |
+| 4 | 全场景 RL | 在全部 prompt 上再 RL,对齐通用偏好 | 可验证域用规则奖励 + 通用域用 helpful/harmless RM |
+
+- **R1-Zero**:**纯 RL、无 SFT**(直接从 base 跑 GRPO + 规则奖励)。证明推理能力可由 RL **自发涌现**(自我反思 / 验算),但有**可读性差 / 中英混杂**问题 → 正是阶段 1 冷启动 SFT 的动机。
+- **R1-Distill**:把 R1 产出的推理数据**只做 SFT**(不跑 RL)蒸馏进小稠密模型(Qwen / Llama 1.5B–70B)。论文结论:**蒸馏 > 在小模型上直接 RL**——小模型自身 RL 探索不动,不如直接吃大模型的推理轨迹。
+- 过程奖励(PRM)与结果奖励(ORM)的取舍、Math-Shepherd 式 rollout 自动标注,见 [reward-modeling-eval §2](cheatsheet-reward-modeling-eval.html);R1 主线用的是**规则化 ORM**(RLVR),而非神经 PRM。
 
 ## 7. long-CoT 与测试时扩展 / long chain-of-thought & test-time scaling
 - RLVR 在**长 CoT** 上训练 → 模型学会「想得更久」(更多推理 token),准确率随**测试时计算**上升(inference-time scaling)。
@@ -155,3 +264,5 @@ ByteDance 2025 开源配方,针对长链推理 RL 的四个改动:
 - **2025-01 · DeepSeek-R1 / RLVR** — Guo et al., Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948) — 用规则/验证器（数学 exact-match、代码单测）替代神经 RM，几乎消除 reward hacking；GRPO + 长 CoT RL 涌现自我反思，开启 inference-time scaling。
 - **2025-03 · DAPO** — Yu et al., 预印本 (ByteDance Seed / 清华 AIR). [arXiv:2503.14476](https://arxiv.org/abs/2503.14476) — 长 CoT RL 四项改动：Clip-Higher（防熵塌缩）、Dynamic Sampling、Token-level loss、Overlong reward shaping。
 - **2025-03 · Dr.GRPO** — Liu et al., 预印本. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783) — 修 GRPO 两处偏置（std 归一化、1/长度归一化），去掉后估计更无偏、token 更省、回答不虚长。
+- **2025-06 · CISPO** — MiniMax team, 预印本 (MiniMax-M1 技术报告). [arXiv:2506.13585](https://arxiv.org/abs/2506.13585) — 对标量 IS 权重本身做 clip 而非对概率比率做 clip，保留所有 token 的梯度信号；论文报告在 Qwen2.5-32B 上对比 DAPO 约 2× 训练加速。
+- **2025-07 · GSPO** — Zheng et al., 预印本 (阿里 Qwen). [arXiv:2507.18071](https://arxiv.org/abs/2507.18071) — 将 IS 校正粒度从 token 级提升到序列级（长度归一化几何平均），缓解 GRPO 在大规模 MoE 训练中的崩溃，并用于 Qwen3 训练。

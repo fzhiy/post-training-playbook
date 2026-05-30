@@ -20,6 +20,31 @@ $$A_i=\frac{r_i-\mathrm{mean}(r)}{\mathrm{std}(r)+\varepsilon}$$
 - Objective is the same clipped surrogate as PPO, but the advantage is $A_i$, with **no critic, no GAE**; KL penalty against the reference is retained (k1/k2/k3 estimators and in-reward vs in-loss placement: see [llm-post-training §9.4](cheatsheet-llm-post-training-en.html)).
 - Benefits: saves one value model and avoids training a value function; especially stable for **verifiable rewards** (math / code). Used by the DeepSeek family.
 
+**From-scratch implementation** (group z-score advantage + per-token clip + K3 KL, in-loss):
+
+```python
+import torch
+
+def grpo_loss(logp, logp_old, logp_ref, rewards, mask, group_size,
+              clip_eps=0.2, beta=0.04):
+    # logp/logp_old/logp_ref: (B, T) per-token logprobs; B = n_prompts * group_size
+    r = rewards.view(-1, group_size)                       # (n_prompts, G)
+    adv = (r - r.mean(1, keepdim=True)) / (r.std(1, keepdim=True) + 1e-6)
+    adv = adv.reshape(-1, 1)                               # (B,1) group z-score advantage
+    ratio = torch.exp(logp - logp_old)                     # importance ratio ρ
+    surr1 = ratio * adv
+    surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * adv
+    policy = torch.min(surr1, surr2)                       # clipped surrogate
+    logr = logp_ref - logp                                 # log(π_ref/π_θ)
+    kl = torch.exp(logr) - logr - 1                        # K3 estimator, always ≥ 0
+    per_tok = policy - beta * kl                           # KL placed in the loss
+    seq = (per_tok * mask).sum(1) / mask.sum(1).clamp(min=1)  # 1/|o_i| length normalization
+    return -seq.mean()
+# Dr.GRPO de-bias: drop the /std in adv; replace 1/|o_i| with a constant (e.g. max length).
+```
+
+- Key points: ① the advantage is standardized **within the group** (z-score), replacing the value baseline; ② `min(surr1, surr2)` is the same clipping as PPO, but the ratio uses **per-token** logprobs; ③ K3 = $e^{\log r}-\log r-1\ge0$ is an unbiased, non-negative KL estimator (mind the direction of `logr`: $\log(\pi_{ref}/\pi_\theta)$); ④ the trailing `1/|o_i|` length normalization is the original GRPO formulation — Dr.GRPO shows it favors long wrong responses, so de-biasing replaces it with a constant.
+
 ## 3. RLOO — REINFORCE leave-one-out
 
 - Also critic-free: the baseline for sample $i$ = **the mean reward of the other $G-1$ samples**, REINFORCE-style gradient.
@@ -38,10 +63,95 @@ ByteDance 2025 open-source recipe — four modifications targeting long-chain re
 - Identifies two **biases** in GRPO: **std normalization** in the advantage (amplifies imbalance across problem difficulty) + **1/response-length** normalization in the loss (biases toward "longer wrong responses").
 - Fix: **remove the std division + remove length normalization** (replace with a constant) → a more **unbiased** estimate; same performance with fewer tokens and no artificially inflated response length.
 
+## 5.5 GSPO — sequence-level importance ratio / Group Sequence Policy Optimization
+
+> 💡 GSPO (Qwen team, Zheng et al., [arXiv:2507.18071](https://arxiv.org/abs/2507.18071), 2025-07) lifts the granularity of importance-sampling (IS) correction from "each token" to "the whole sequence", mitigating GRPO's instability when training large-scale MoE models.
+
+**Why GRPO's token-level ratio is unstable.** Following PPO, GRPO computes a separate ratio per token, $w_{i,t}=\pi_\theta(y_{i,t}\mid x,y_{i,<t})/\pi_{\theta_\text{old}}(\cdots)$:
+
+- A single-token ratio is a single-sample estimate — intrinsically high variance — and the noise accumulates along long CoT sequences.
+- Whenever some $w_{i,t}$ strays outside $[1-\epsilon,1+\epsilon]$, that token's gradient is clipped to zero — frequent in long sequences even when the overall policy shift is small.
+- **Acute for MoE**: after an update the router may send the same token to a different set of experts, so numerator and denominator run through different compute paths; routing drift shows up as ratio spikes that trigger clipping, which the paper calls "catastrophic and irreversible model collapse" (its words).
+
+**GSPO's fix: unit matching.** The reward is granted to the whole sequence, so the unit of IS correction should be the sequence too. The sequence-level ratio is the **length-normalized geometric mean**:
+
+$$s_i(\theta)=\left(\frac{\pi_\theta(y_i\mid x)}{\pi_{\theta_\text{old}}(y_i\mid x)}\right)^{1/|y_i|}=\exp\!\left(\frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\log\frac{\pi_\theta(y_{i,t}\mid x,y_{i,<t})}{\pi_{\theta_\text{old}}(\cdots)}\right)$$
+
+The objective has the same PPO-clip form, but with the ratio replaced by $s_i$ and a sequence-level advantage $\hat A_i$ (within-group z-score, as in GRPO):
+
+$$J_\text{GSPO}(\theta)=\mathbb{E}\!\left[\frac{1}{G}\sum_{i=1}^G\min\!\big(s_i\hat A_i,\ \mathrm{clip}(s_i,1{-}\varepsilon_l,1{+}\varepsilon_r)\,\hat A_i\big)\right]$$
+
+The whole sequence is either used or clipped as a unit — a single token's routing jump can no longer trigger gradient zeroing on its own.
+
+| Aspect | GRPO (token-level) | GSPO (sequence-level) |
+|---|---|---|
+| IS ratio | $w_{i,t}=\pi_\theta(y_{i,t})/\pi_{\theta_\text{old}}(y_{i,t})$ | $s_i=(\pi_\theta(y_i)/\pi_{\theta_\text{old}}(y_i))^{1/|y_i|}$ |
+| clip range (paper's setup) | $\varepsilon_l{=}0.2,\ \varepsilon_r{=}0.27$ | $\varepsilon_l{=}3{\times}10^{-4},\ \varepsilon_r{=}4{\times}10^{-4}$ |
+| clipping granularity | each token independently | whole sequence |
+| MoE routing drift | ratio spikes → spurious clipping | geometric mean smooths most jitter |
+
+> 📝 **Don't misread the order-of-magnitude gap in $\varepsilon$.** GSPO's $\varepsilon\sim10^{-4}$ is far smaller than GRPO's $\sim0.2$, but that is a design choice flowing from the **different ratio definitions** — **not** a mathematical inevitability of the geometric mean "compressing shifts to 1". If all tokens move the same direction, $s_i$ is the same order as the token ratios and is **not** compressed. The geometric mean only smooths within-sequence sign-mixed jitter (lower variance); GSPO uses a tiny $\varepsilon$ to impose a tighter sequence-level proximal constraint, so in practice clipping is active almost every step.
+
+**Stability and engineering payoffs (paper's results, no independent replication):**
+- MoE stability: sequence likelihood doesn't fluctuate wildly with per-token routing drift, removing the need for the earlier Routing Replay (an internal stopgap, first disclosed in this paper).
+- Precision robustness: sequence-level aggregation is insensitive to per-token numerical precision, so one can feed log-probs straight from an inference engine (e.g. vLLM) without recomputing through the training engine.
+- On Qwen3-30B-A3B-Base, GSPO's training curves (AIME'24 / LiveCodeBench / CodeForces Elo) beat GRPO; the paper credits it with contributing to Qwen3's performance gains (an association claim, no controlled ablation).
+
+> ⚠️ GMPO ([arXiv:2507.20673](https://arxiv.org/abs/2507.20673)) argues sequence-level clipping is "too aggressive" and discards gradient information, advocating token-level clipping with geometric-mean weighting instead; the two trade off differently and there is no settled verdict yet.
+
+**CISPO** (MiniMax, [arXiv:2506.13585](https://arxiv.org/abs/2506.13585), 2025-06) attacks the clip-zeroes-gradients problem from another angle: instead of clipping the probability ratio (which zeroes the gradient of out-of-range tokens), it clips the **scalar IS weight** itself while keeping every token's gradient. The paper reports ~2× training speedup over DAPO on Qwen2.5-32B. GSPO does unit-matching at the sequence level, CISPO preserves gradient integrity at the token level — two complementary ways to repair GRPO's clipping.
+
+```python
+import torch
+# Toy: G=3 responses of lengths 6/5/4; per-token logprobs under new vs old policy.
+logp_new = torch.tensor([[-1.2,-0.8,-1.5,-0.4,-2.1,-1.0],
+                         [-0.9,-1.3,-0.7,-1.8,-0.6, 0.0],
+                         [-1.1,-0.5,-1.4,-0.9, 0.0, 0.0]])
+logp_old = torch.tensor([[-1.3,-0.9,-1.4,-0.5,-2.0,-1.1],
+                         [-1.0,-1.2,-0.8,-1.7,-0.7, 0.0],
+                         [-1.0,-0.6,-1.3,-1.0, 0.0, 0.0]])
+lengths = torch.tensor([6., 5., 4.])
+mask = torch.arange(6)[None, :] < lengths[:, None].long()   # (G,T) real-token mask
+
+log_ratio = logp_new - logp_old                             # per-token log-ratio
+w_token = torch.exp(log_ratio)                              # GRPO: token-level ratio w_{i,t}
+# GSPO: sequence-level ratio = length-normalized geometric mean of token ratios
+mean_log_ratio = (log_ratio * mask.float()).sum(1) / lengths
+s_seq = torch.exp(mean_log_ratio)                           # s_i = (pi_theta/pi_old)^(1/|y_i|)
+
+eps = 0.2                      # GRPO token-level clip
+eps_l, eps_r = 3e-4, 4e-4      # GSPO sequence-level clip (asymmetric)
+grpo_clip = (((w_token < 1-eps) | (w_token > 1+eps)) & mask).sum().item()
+gspo_clip = ((s_seq < 1-eps_l) | (s_seq > 1+eps_r)).sum().item()
+
+for i in range(3):
+    r = mask[i]
+    print(f"resp{i} len={int(lengths[i])}  token-ratio[{w_token[i][r].min():.3f},{w_token[i][r].max():.3f}]  s_i={s_seq[i]:.4f}")
+print(f"GRPO clipped {grpo_clip}/{int(mask.sum())} tokens (eps={eps})")
+print(f"GSPO clipped {gspo_clip}/3 sequences (eps_l={eps_l}, eps_r={eps_r})")
+# Note: s_i here (~1.02-1.03) already exceeds GSPO's tiny eps -> nearly every
+# sequence is clipped in practice. The small eps is an intentional tight proximal
+# constraint, NOT evidence that GSPO clips less than GRPO.
+```
+
 ## 6. RLVR — RL from Verifiable Rewards
 
 - Rewards come from **rules / verifiers** (math exact-match, code unit tests), not a learned neural RM.
 - Advantages: almost no "neural RM being hacked" (verifier ≈ ground truth); disadvantage: **only applicable to verifiable domains**. This is the reward foundation for o1 / R1-style reasoning RL.
+
+## 6.5 DeepSeek-R1 recipe
+Chains the GRPO + RLVR pieces above into a full pipeline. R1 is not "RL all the way through" but **four stages alternating SFT and RL**:
+
+| Stage | Name | What it does | Reward / data |
+|---|---|---|---|
+| 1 | Cold-start SFT | Fine-tune base on a small set of high-quality long-CoT samples | Supervised data (fixes readability / format / language mixing) |
+| 2 | Reasoning RL | GRPO + RLVR to push reasoning on math/code | Rule rewards (answer exact-match + format + language consistency) |
+| 3 | Rejection-sampling SFT | Sample heavily from the stage-2 policy, keep the correct ones, then SFT | Self-distilled data (~800k in the paper: reasoning + general mixed) |
+| 4 | All-scenario RL | RL again over all prompts to align general preferences | Rule rewards for verifiable domains + helpful/harmless RM for general |
+
+- **R1-Zero**: **pure RL, no SFT** (run GRPO + rule rewards directly from base). Proves reasoning can **emerge spontaneously** from RL (self-reflection / verification), but suffers **poor readability / language mixing** — precisely the motivation for the stage-1 cold-start SFT.
+- **R1-Distill**: distill R1's generated reasoning data into smaller dense models (Qwen / Llama 1.5B–70B) via **SFT only** (no RL). Paper finding: **distillation > running RL directly on small models** — small models can't explore enough on their own, so feeding them the big model's reasoning traces wins.
+- For the process-reward (PRM) vs outcome-reward (ORM) trade-off and Math-Shepherd-style rollout auto-labeling, see [reward-modeling-eval §2](cheatsheet-reward-modeling-eval-en.html); R1's main line uses a **rule-based ORM** (RLVR) rather than a neural PRM.
 
 ## 7. long chain-of-thought & test-time scaling
 
@@ -163,3 +273,5 @@ ByteDance 2025 open-source recipe — four modifications targeting long-chain re
 - **2025-01 · DeepSeek-R1 / RLVR** — Guo et al., Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948) — Rule/verifier rewards (math exact-match, code unit tests) replace the neural RM, nearly eliminating reward hacking; GRPO + long-CoT RL induces self-reflection; opens inference-time scaling.
 - **2025-03 · DAPO** — Yu et al., Preprint (ByteDance Seed / Tsinghua AIR). [arXiv:2503.14476](https://arxiv.org/abs/2503.14476) — Four long-CoT-RL fixes: Clip-Higher (anti entropy-collapse), Dynamic Sampling, token-level loss, overlong reward shaping.
 - **2025-03 · Dr.GRPO** — Liu et al., Preprint. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783) — Fixes two GRPO biases (std normalization, 1/length normalization); removing both yields an unbiased estimator with better token efficiency.
+- **2025-06 · CISPO** — MiniMax team, Preprint (MiniMax-M1 tech report). [arXiv:2506.13585](https://arxiv.org/abs/2506.13585) — Clips the scalar IS weight itself rather than the probability ratio, keeping every token's gradient signal; the paper reports ~2× training speedup over DAPO on Qwen2.5-32B.
+- **2025-07 · GSPO** — Zheng et al., Preprint (Alibaba Qwen). [arXiv:2507.18071](https://arxiv.org/abs/2507.18071) — Lifts IS correction from token-level to sequence-level (length-normalized geometric mean), mitigating GRPO's collapse when training large-scale MoE models; used for Qwen3 training.
