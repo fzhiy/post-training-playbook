@@ -204,6 +204,20 @@ $$
 
 > **关键**：FlashAttention 是**精确算法**，不是近似。
 
+### 1.9b Online Softmax 递推（FlashAttention 核心）
+
+把 $Q,K,V$ 切成 tile，每次只在 SRAM 里处理一对 K/V tile，从不物化完整 $N\times N$ 矩阵。对一行 query 处理第 $j$ 个 KV tile（局部分数 $S_j=qK_j^\top/\sqrt{d}$），维护三元状态 $(m_j,\ell_j,O_j)$：
+
+$$m_j=\max\!\big(m_{j-1},\ \operatorname{rowmax}(S_j)\big)$$
+
+$$\ell_j=e^{\,m_{j-1}-m_j}\,\ell_{j-1}+\operatorname{rowsum}\!\big(e^{\,S_j-m_j}\big)$$
+
+$$O_j=\frac{e^{\,m_{j-1}-m_j}\,\ell_{j-1}\,O_{j-1}+e^{\,S_j-m_j}\,V_j}{\ell_j}$$
+
+初值 $m_0=-\infty,\ \ell_0=0,\ O_0=0$；扫完所有 tile 后 $O$ 即**精确** attention 输出。只需保存 $(m,\ell,O)$ 三个 $O(N)$ 向量，故显存 $O(N^2)\to O(N)$。
+
+> 📝 **rescaling trick：** 当新 tile 的局部 max 超过当前 $m$，因子 $e^{\,m_{j-1}-m_j}<1$ 把已累积的 $\ell,O$ **向下缩放**，使归一化因子始终对应全局 max —— 等价于一次性全局 softmax。来源：FlashAttention（Dao et al., [arXiv:2205.14135](https://arxiv.org/abs/2205.14135)）；online softmax 原始算法（Milakov & Gimelshein, [arXiv:1805.02867](https://arxiv.org/abs/1805.02867)）。
+
 ---
 
 ### 1.10 FFN 层
@@ -245,6 +259,16 @@ $$
 $f_i$ = 分配到 expert $i$ 的 token 比例，$p_i$ = router 分配概率均值。鼓励 $f_i, p_i$ 均匀。
 
 **Expert Capacity**：每个 expert 在一个 batch 内有容量上限。超出的 token 被 **drop**（跳过该 expert）。训练时 capacity factor 通常 1.0–1.25。
+
+### 1.11b MoE 扩展：Expert Parallelism / DeepSeek-MoE / 无辅助损失均衡
+
+**Expert Parallelism (EP)** —— GShard（[arXiv:2006.16668](https://arxiv.org/abs/2006.16668)）：专家数超过单卡容量时，每卡持 $E/P$ 个 expert，token 经两次 **All-to-All**（dispatch 把 token 发到对应专家所在卡 → 各卡本地算 → combine 汇回）。容量内溢出的 token：Switch 直接 drop，GShard 经残差透传（gating 置零）。常与 TP/DP 组合。
+
+**DeepSeek-MoE**（[arXiv:2401.06066](https://arxiv.org/abs/2401.06066)）两招：
+- **细粒度切分**：把 $N$ 个 expert 拆成 $mN$ 个更小的（FFN 中间维 $\div m$），激活数 $K\to mK$ —— 参数量/FLOPs 不变，但组合空间更大、更专精。
+- **共享专家隔离**：留 $K_s$ 个 expert 对所有 token 恒激活（学通用知识），其余走 top-K 路由（学专精），减少路由专家间的知识冗余。
+
+**无辅助损失均衡**（[arXiv:2408.15664](https://arxiv.org/abs/2408.15664)；DeepSeek-V3 [arXiv:2412.19437](https://arxiv.org/abs/2412.19437) 采用）：给每个 expert 一个可调 **bias** $b_i$，**只加到 router logit 用于 top-K 选择**（不改加权系数 $g_i$）；每步后按负载更新：过载 $b_i-\gamma$、欠载 $b_i+\gamma$。零梯度干扰、无需调 $\alpha$。
 
 ---
 

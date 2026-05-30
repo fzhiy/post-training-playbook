@@ -204,6 +204,20 @@ Relationship with **Continuous Batching** (iteration-level scheduling): Continuo
 
 > **Key point**: FlashAttention is an **exact algorithm**, not an approximation.
 
+### 1.9b Online Softmax recurrence (the heart of FlashAttention)
+
+Tile $Q,K,V$ and process one K/V tile pair at a time in SRAM, never materializing the full $N\times N$ matrix. For a query row processing the $j$-th KV tile (local scores $S_j=qK_j^\top/\sqrt{d}$), maintain the state triple $(m_j,\ell_j,O_j)$:
+
+$$m_j=\max\!\big(m_{j-1},\ \operatorname{rowmax}(S_j)\big)$$
+
+$$\ell_j=e^{\,m_{j-1}-m_j}\,\ell_{j-1}+\operatorname{rowsum}\!\big(e^{\,S_j-m_j}\big)$$
+
+$$O_j=\frac{e^{\,m_{j-1}-m_j}\,\ell_{j-1}\,O_{j-1}+e^{\,S_j-m_j}\,V_j}{\ell_j}$$
+
+with $m_0=-\infty,\ \ell_0=0,\ O_0=0$; after sweeping all tiles, $O$ is the **exact** attention output. Only the three $O(N)$ vectors $(m,\ell,O)$ are kept, so memory drops $O(N^2)\to O(N)$.
+
+> 📝 **Rescaling trick:** when a new tile's local max exceeds the running $m$, the factor $e^{\,m_{j-1}-m_j}<1$ **scales down** the accumulated $\ell,O$ so the normalizer always matches the global max — exactly equivalent to a single global softmax. Sources: FlashAttention (Dao et al., [arXiv:2205.14135](https://arxiv.org/abs/2205.14135)); the original online-softmax algorithm (Milakov & Gimelshein, [arXiv:1805.02867](https://arxiv.org/abs/1805.02867)).
+
 ---
 
 ### 1.10 FFN Layer
@@ -245,6 +259,16 @@ $$
 $f_i$ = fraction of tokens assigned to expert $i$, $p_i$ = mean router assignment probability. Encourages $f_i, p_i$ to be uniform.
 
 **Expert Capacity**: each expert has a capacity limit within a batch. Tokens that exceed the limit are **dropped** (that expert is skipped). During training, the capacity factor is typically 1.0–1.25.
+
+### 1.11b MoE extensions: Expert Parallelism / DeepSeek-MoE / aux-loss-free balancing
+
+**Expert Parallelism (EP)** — GShard ([arXiv:2006.16668](https://arxiv.org/abs/2006.16668)): when experts exceed one device's capacity, each device holds $E/P$ experts and tokens go through two **All-to-All** steps (dispatch tokens to the device holding their expert → compute locally → combine back). Overflow beyond the capacity limit: Switch drops it, GShard passes it through via the residual (gating zeroed). Usually combined with TP/DP.
+
+**DeepSeek-MoE** ([arXiv:2401.06066](https://arxiv.org/abs/2401.06066)), two ideas:
+- **Fine-grained segmentation**: split $N$ experts into $mN$ smaller ones (FFN inner dim $\div m$) and activate $K\to mK$ — params/FLOPs unchanged, but a larger combinatorial space and finer specialization.
+- **Shared-expert isolation**: keep $K_s$ experts always active for all tokens (common knowledge), route the rest top-K (specialized), reducing knowledge redundancy across routed experts.
+
+**Aux-loss-free balancing** ([arXiv:2408.15664](https://arxiv.org/abs/2408.15664); adopted by DeepSeek-V3, [arXiv:2412.19437](https://arxiv.org/abs/2412.19437)): give each expert a tunable **bias** $b_i$ **added to the router logit for top-K selection only** (it does not change the gating weight $g_i$); after each step update by load: $b_i-\gamma$ if overloaded, $b_i+\gamma$ if underloaded. Zero gradient interference, no $\alpha$ to tune.
 
 ---
 
