@@ -902,4 +902,6 @@ RM 质量的上限由偏好数据质量决定。以下是核心设计选择：
 
 - **2023-07 · Llama 2: Open Foundation and Fine-Tuned Chat Models** — Touvron et al., arXiv preprint. [arXiv:2307.09288](https://arxiv.org/abs/2307.09288) — 大规模开源 RLHF 实践报告，详细描述 margin 置信度过滤（significantly/slightly/negligibly better 分层加权）在偏好数据构建中的应用。
 
+- **2023-12 · Math-Shepherd** — Wang et al., ACL 2024. [arXiv:2312.08935](https://arxiv.org/abs/2312.08935) — 无需人工标注，通过蒙特卡洛完成采样（HE 硬估计 / SE 软估计）自动构造逐步过程奖励标签，用 MIN 聚合步骤分数做 Best-of-N 重排序。
+
 - **2024-03 · RewardBench: Evaluating Reward Models for Language Modeling** — Lambert et al., arXiv preprint. [arXiv:2403.13787](https://arxiv.org/abs/2403.13787) — 提出奖励模型标准化评测基准，覆盖对话、对话难例、安全性、推理四个维度，以成对比较准确率衡量 RM 能力，为模型选型与诊断提供统一框架。

@@ -891,4 +891,6 @@ Key decision points:
 
 - **2023-07 · Llama 2: Open Foundation and Fine-Tuned Chat Models** — Touvron et al., arXiv preprint. [arXiv:2307.09288](https://arxiv.org/abs/2307.09288) — Large-scale open RLHF practice report detailing margin-based confidence filtering (significantly/slightly/negligibly better stratified weighting) as a core technique for preference data quality control.
 
+- **2023-12 · Math-Shepherd** — Wang et al., ACL 2024. [arXiv:2312.08935](https://arxiv.org/abs/2312.08935) — Auto-constructs per-step process-reward labels via Monte-Carlo completions (HE hard / SE soft estimation) with no human annotation, aggregating step scores by MIN for Best-of-N reranking.
+
 - **2024-03 · RewardBench: Evaluating Reward Models for Language Modeling** — Lambert et al., arXiv preprint. [arXiv:2403.13787](https://arxiv.org/abs/2403.13787) — Introduces a standardized RM evaluation benchmark spanning chat, hard chat, safety, and reasoning dimensions, using pairwise accuracy as the metric to enable systematic diagnosis and model selection.
