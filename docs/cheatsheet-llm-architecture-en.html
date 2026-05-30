@@ -1075,7 +1075,11 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <ul class="timeline">
 <li><p><strong>2017-06 · Attention Is All You Need</strong> — Vaswani et al., NeurIPS 2017. <a href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a> — Introduces the pure-attention Transformer: scaled dot-product + multi-head self-attention replace recurrence/convolution, enabling parallelism and direct long-range dependencies — the foundation of every later LLM.</p>
 </li>
+<li><p><strong>2018-05 · Online Softmax</strong> — Milakov &amp; Gimelshein, arXiv preprint. <a href="https://arxiv.org/abs/1805.02867">arXiv:1805.02867</a> — Stable single-pass softmax via running max/sum — the algorithmic basis for FlashAttention&#39;s tiling without materializing the N×N matrix.</p>
+</li>
 <li><p><strong>2019-11 · Multi-Query Attention</strong> — Shazeer, arXiv preprint. <a href="https://arxiv.org/abs/1911.02150">arXiv:1911.02150</a> — Shares a single K/V head across all query heads (One Write-Head), shrinking the decode-time KV cache and memory bandwidth at slight quality cost — the ancestor of GQA/MLA.</p>
+</li>
+<li><p><strong>2020-06 · GShard</strong> — Lepikhin et al., ICLR 2021. <a href="https://arxiv.org/abs/2006.16668">arXiv:2006.16668</a> — Introduces expert parallelism (all-to-all dispatch/combine) and the capacity factor for MoE, establishing the distributed sparse-expert training recipe.</p>
 </li>
 <li><p><strong>2021-01 · Switch Transformers</strong> — Fedus et al., JMLR 2022. <a href="https://arxiv.org/abs/2101.03961">arXiv:2101.03961</a> — Simplifies MoE to top-1 routing + a load-balancing loss, scaling parameters to the trillions at constant FLOPs and establishing the sparse-expert engineering recipe.</p>
 </li>
@@ -1085,13 +1089,19 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </li>
 <li><p><strong>2022-03 · Chinchilla</strong> — Hoffmann et al., NeurIPS 2022. <a href="https://arxiv.org/abs/2203.15556">arXiv:2203.15556</a> — Compute-optimal scaling law: under fixed compute, parameters and training tokens should grow ~1:1, correcting the &quot;just add parameters&quot; bias and redefining pretraining budgets.</p>
 </li>
+<li><p><strong>2022-05 · FlashAttention</strong> — Dao et al., NeurIPS 2022. <a href="https://arxiv.org/abs/2205.14135">arXiv:2205.14135</a> — IO-aware exact attention: online-softmax tiling computes entirely in SRAM without materializing the N×N matrix, cutting memory from O(N²) to O(N).</p>
+</li>
 <li><p><strong>2022-11 · Speculative Decoding</strong> — Leviathan et al., ICML 2023. <a href="https://arxiv.org/abs/2211.17192">arXiv:2211.17192</a> — A small draft model guesses several steps in parallel and the large model verifies in one pass; accept-reject sampling keeps the output distribution lossless while cutting decode latency.</p>
 </li>
 <li><p><strong>2023-05 · Grouped-Query Attention</strong> — Ainslie et al., EMNLP 2023. <a href="https://arxiv.org/abs/2305.13245">arXiv:2305.13245</a> — Interpolates between MHA and MQA: each group of heads shares one K/V, trading off KV-cache size against quality at a tunable knob — the default in Llama-2/3.</p>
 </li>
 <li><p><strong>2023-09 · YaRN</strong> — Peng et al., ICLR 2024. <a href="https://arxiv.org/abs/2309.00071">arXiv:2309.00071</a> — Applies band-wise NTK interpolation to RoPE plus attention-temperature scaling, efficiently extending the context window several-fold with minimal continued training.</p>
 </li>
+<li><p><strong>2024-01 · DeepSeekMoE</strong> — Dai et al., ACL 2024. <a href="https://arxiv.org/abs/2401.06066">arXiv:2401.06066</a> — Fine-grained expert segmentation + shared-expert isolation, improving specialization and cutting routed-expert redundancy at constant compute.</p>
+</li>
 <li><p><strong>2024-05 · DeepSeek-V2 (MLA)</strong> — DeepSeek-AI, arXiv preprint. <a href="https://arxiv.org/abs/2405.04434">arXiv:2405.04434</a> — Multi-head Latent Attention compresses K/V into a low-rank latent cache with an absorption trick and decoupled RoPE, slashing KV cache while preserving multi-head expressivity.</p>
+</li>
+<li><p><strong>2024-08 · Auxiliary-Loss-Free Load Balancing</strong> — Wang et al., arXiv preprint. <a href="https://arxiv.org/abs/2408.15664">arXiv:2408.15664</a> — Replaces the auxiliary loss with a per-expert bias (affecting routing selection only, not the gating weight) for zero-gradient-interference MoE balancing; adopted by DeepSeek-V3 (<a href="https://arxiv.org/abs/2412.19437">arXiv:2412.19437</a>).</p>
 </li>
 </ul>
 </main>

@@ -1088,7 +1088,11 @@ The Chinchilla Scaling Law optimizes **training loss given a FLOPs budget**. But
 
 - **2017-06 · Attention Is All You Need** — Vaswani et al., NeurIPS 2017. [arXiv:1706.03762](https://arxiv.org/abs/1706.03762) — Introduces the pure-attention Transformer: scaled dot-product + multi-head self-attention replace recurrence/convolution, enabling parallelism and direct long-range dependencies — the foundation of every later LLM.
 
+- **2018-05 · Online Softmax** — Milakov & Gimelshein, arXiv preprint. [arXiv:1805.02867](https://arxiv.org/abs/1805.02867) — Stable single-pass softmax via running max/sum — the algorithmic basis for FlashAttention's tiling without materializing the N×N matrix.
+
 - **2019-11 · Multi-Query Attention** — Shazeer, arXiv preprint. [arXiv:1911.02150](https://arxiv.org/abs/1911.02150) — Shares a single K/V head across all query heads (One Write-Head), shrinking the decode-time KV cache and memory bandwidth at slight quality cost — the ancestor of GQA/MLA.
+
+- **2020-06 · GShard** — Lepikhin et al., ICLR 2021. [arXiv:2006.16668](https://arxiv.org/abs/2006.16668) — Introduces expert parallelism (all-to-all dispatch/combine) and the capacity factor for MoE, establishing the distributed sparse-expert training recipe.
 
 - **2021-01 · Switch Transformers** — Fedus et al., JMLR 2022. [arXiv:2101.03961](https://arxiv.org/abs/2101.03961) — Simplifies MoE to top-1 routing + a load-balancing loss, scaling parameters to the trillions at constant FLOPs and establishing the sparse-expert engineering recipe.
 
@@ -1098,10 +1102,16 @@ The Chinchilla Scaling Law optimizes **training loss given a FLOPs budget**. But
 
 - **2022-03 · Chinchilla** — Hoffmann et al., NeurIPS 2022. [arXiv:2203.15556](https://arxiv.org/abs/2203.15556) — Compute-optimal scaling law: under fixed compute, parameters and training tokens should grow ~1:1, correcting the "just add parameters" bias and redefining pretraining budgets.
 
+- **2022-05 · FlashAttention** — Dao et al., NeurIPS 2022. [arXiv:2205.14135](https://arxiv.org/abs/2205.14135) — IO-aware exact attention: online-softmax tiling computes entirely in SRAM without materializing the N×N matrix, cutting memory from O(N²) to O(N).
+
 - **2022-11 · Speculative Decoding** — Leviathan et al., ICML 2023. [arXiv:2211.17192](https://arxiv.org/abs/2211.17192) — A small draft model guesses several steps in parallel and the large model verifies in one pass; accept-reject sampling keeps the output distribution lossless while cutting decode latency.
 
 - **2023-05 · Grouped-Query Attention** — Ainslie et al., EMNLP 2023. [arXiv:2305.13245](https://arxiv.org/abs/2305.13245) — Interpolates between MHA and MQA: each group of heads shares one K/V, trading off KV-cache size against quality at a tunable knob — the default in Llama-2/3.
 
 - **2023-09 · YaRN** — Peng et al., ICLR 2024. [arXiv:2309.00071](https://arxiv.org/abs/2309.00071) — Applies band-wise NTK interpolation to RoPE plus attention-temperature scaling, efficiently extending the context window several-fold with minimal continued training.
 
+- **2024-01 · DeepSeekMoE** — Dai et al., ACL 2024. [arXiv:2401.06066](https://arxiv.org/abs/2401.06066) — Fine-grained expert segmentation + shared-expert isolation, improving specialization and cutting routed-expert redundancy at constant compute.
+
 - **2024-05 · DeepSeek-V2 (MLA)** — DeepSeek-AI, arXiv preprint. [arXiv:2405.04434](https://arxiv.org/abs/2405.04434) — Multi-head Latent Attention compresses K/V into a low-rank latent cache with an absorption trick and decoupled RoPE, slashing KV cache while preserving multi-head expressivity.
+
+- **2024-08 · Auxiliary-Loss-Free Load Balancing** — Wang et al., arXiv preprint. [arXiv:2408.15664](https://arxiv.org/abs/2408.15664) — Replaces the auxiliary loss with a per-expert bias (affecting routing selection only, not the gating weight) for zero-gradient-interference MoE balancing; adopted by DeepSeek-V3 ([arXiv:2412.19437](https://arxiv.org/abs/2412.19437)).
