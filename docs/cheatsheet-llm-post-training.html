@@ -2167,6 +2167,8 @@ Post-training的scaling规律与预训练不同。对于<strong>数据量</stron
 </blockquote>
 </details><h2 id="sec-66">§A 核心论文时间线 / Key Papers Timeline</h2>
 <ul class="timeline">
+<li><p><strong>2015-06 · GAE</strong> — Schulman et al., ICLR 2016. <a href="https://arxiv.org/abs/1506.02438">arXiv:1506.02438</a> — 提出广义优势估计（GAE），用指数加权的 TD(λ) 多步回报替代单步 TD，通过 λ 连续调节 bias-variance 权衡，是 PPO/RLHF 中优势估计的标准基础。</p>
+</li>
 <li><p><strong>2022-03 · InstructGPT</strong> — Ouyang et al., NeurIPS 2022. <a href="https://arxiv.org/abs/2203.02155">arXiv:2203.02155</a> — 确立标准三阶段 RLHF 流程（SFT → Bradley-Terry 奖励模型 → 带 KL 惩罚的 PPO），将 GPT-3 对齐为可遵循指令的助手。</p>
 </li>
 <li><p><strong>2022-09 · WiSE-FT</strong> — Wortsman et al., CVPR 2022. <a href="https://arxiv.org/abs/2109.01903">arXiv:2109.01903</a> — 通过在权重空间中对微调模型与基座模型做线性插值来缓解对齐税，保留预训练鲁棒性的同时维持任务性能。</p>

@@ -1965,6 +1965,8 @@ Standard multi-turn RLHF implicitly makes a **stationary user assumption** — t
 
 ## §A Key Papers Timeline
 
+- **2015-06 · GAE** — Schulman et al., ICLR 2016. [arXiv:1506.02438](https://arxiv.org/abs/1506.02438) — Introduces Generalized Advantage Estimation, a TD(λ)-style exponentially-weighted multi-step return that continuously interpolates the bias-variance trade-off via λ; the standard advantage estimator underlying PPO and RLHF.
+
 - **2022-03 · InstructGPT** — Ouyang et al., NeurIPS 2022. [arXiv:2203.02155](https://arxiv.org/abs/2203.02155) — Establishes the canonical 3-stage RLHF pipeline (SFT → Bradley-Terry reward model → PPO with KL penalty) for aligning GPT-3 into an instruction-following assistant.
 
 - **2022-09 · WiSE-FT** — Wortsman et al., CVPR 2022. [arXiv:2109.01903](https://arxiv.org/abs/2109.01903) — Reduces alignment tax by linearly interpolating weights of the fine-tuned and base models in weight space, preserving pre-training robustness while retaining task performance.

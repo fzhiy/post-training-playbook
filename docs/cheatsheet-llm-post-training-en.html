@@ -2162,6 +2162,8 @@ If we treat both model scale and data volume as resources, in the post-training 
 </blockquote>
 </details><h2 id="sec-64">§A Key Papers Timeline</h2>
 <ul class="timeline">
+<li><p><strong>2015-06 · GAE</strong> — Schulman et al., ICLR 2016. <a href="https://arxiv.org/abs/1506.02438">arXiv:1506.02438</a> — Introduces Generalized Advantage Estimation, a TD(λ)-style exponentially-weighted multi-step return that continuously interpolates the bias-variance trade-off via λ; the standard advantage estimator underlying PPO and RLHF.</p>
+</li>
 <li><p><strong>2022-03 · InstructGPT</strong> — Ouyang et al., NeurIPS 2022. <a href="https://arxiv.org/abs/2203.02155">arXiv:2203.02155</a> — Establishes the canonical 3-stage RLHF pipeline (SFT → Bradley-Terry reward model → PPO with KL penalty) for aligning GPT-3 into an instruction-following assistant.</p>
 </li>
 <li><p><strong>2022-09 · WiSE-FT</strong> — Wortsman et al., CVPR 2022. <a href="https://arxiv.org/abs/2109.01903">arXiv:2109.01903</a> — Reduces alignment tax by linearly interpolating weights of the fine-tuned and base models in weight space, preserving pre-training robustness while retaining task performance.</p>
