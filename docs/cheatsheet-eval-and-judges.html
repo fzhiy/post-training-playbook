@@ -140,12 +140,19 @@
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-eval-and-judges-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">评测与 LLM-as-judge / Evaluation &amp; Judges</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. 三类评测 / Three families</a></li><li class="lv2"><a href="#sec-1">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv2"><a href="#sec-2">3. 数据污染 / Contamination</a></li><li class="lv3"><a href="#sec-3">3.1 污染类型</a></li><li class="lv3"><a href="#sec-4">3.2 检测方法</a></li><li class="lv3"><a href="#sec-5">3.3 n-gram 去重 (Deduplication)</a></li><li class="lv3"><a href="#sec-6">3.4 抗污染 benchmark 设计</a></li><li class="lv2"><a href="#sec-7">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-8">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-9">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-10">L1 基础</a></li><li class="lv3"><a href="#sec-11">L2 进阶</a></li><li class="lv3"><a href="#sec-12">L3 深挖</a></li><li class="lv2"><a href="#sec-13">更多 L3 深挖 / Extended L3</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. 三类评测 / Three families</a></li><li class="lv2"><a href="#sec-2">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv3"><a href="#sec-3">2.1 位置去偏 judge harness(代码）</a></li><li class="lv2"><a href="#sec-4">3. 数据污染 / Contamination</a></li><li class="lv3"><a href="#sec-5">3.1 污染类型</a></li><li class="lv3"><a href="#sec-6">3.2 检测方法</a></li><li class="lv3"><a href="#sec-7">3.3 n-gram 去重 (Deduplication)</a></li><li class="lv3"><a href="#sec-8">3.4 抗污染 benchmark 设计</a></li><li class="lv2"><a href="#sec-9">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-10">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-11">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-12">L1 基础</a></li><li class="lv3"><a href="#sec-13">L2 进阶</a></li><li class="lv3"><a href="#sec-14">L3 深挖</a></li><li class="lv2"><a href="#sec-15">更多 L3 深挖 / Extended L3</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>后训练里「<strong>评测</strong>」往往是真正的瓶颈:训练能跑、但&quot;到底变好没有 / 哪里变差&quot;全靠评测说话。本页讲怎么评一个对齐后的模型 + 各种评测的坑。
 ⚠️ 不放具体分数(易过时/易记错);具体数字以各 benchmark/leaderboard 官方为准。</p>
 </blockquote>
-<h2 id="sec-0">1. 三类评测 / Three families</h2>
+<h2 id="sec-0">0. TL;DR</h2>
+<ul>
+<li>后训练里评测是瓶颈:<strong>能力 benchmark</strong>(有标答、自动)、<strong>偏好/对话评测</strong>(judge 打分)、<strong>RM 评测</strong>三条线各测一面。</li>
+<li><strong>LLM-as-judge</strong> 省钱但有系统偏置(位置 / 冗长 / 自我偏好 / 格式)——<strong>交换顺序各评一次</strong>是最便宜有效的去偏。</li>
+<li><strong>数据污染</strong>让分数虚高:用 n-gram 重叠 / Min-k% / canary / 改写掉分来查;用动态私有题 + 时间隔离来防。</li>
+<li>报告纪律:固定 prompt、多 seed 报方差、查回归(alignment tax)、记住 judge ≠ 真值。</li>
+</ul>
+<h2 id="sec-1">1. 三类评测 / Three families</h2>
 <table>
 <thead>
 <tr>
@@ -170,7 +177,7 @@
 <td>RewardBench(chat/safety/reasoning 等类)、与人工标注的一致率</td>
 </tr>
 </tbody></table>
-<h2 id="sec-1">2. LLM-as-judge:怎么用 + 偏置</h2>
+<h2 id="sec-2">2. LLM-as-judge:怎么用 + 偏置</h2>
 <blockquote>
 <p>📎 <strong>交叉引用</strong>：本节侧重 LLM-as-Judge 作为<strong>评测实践</strong>的视角（如何选 judge、具体操作、benchmark 应用）。关于 LLM-as-Judge 作为 <strong>RLHF 训练信号</strong>时偏差如何影响 RM 训练和 reward hacking，见 <code>reward-modeling-eval.md §5.2</code>。</p>
 </blockquote>
@@ -182,9 +189,38 @@
 <li><strong>格式/风格偏置</strong>:markdown、自信语气更讨喜。
 缓解通用招:<strong>reference-guided</strong>(给参考答案)、<strong>rubric/打分量表</strong>、<strong>多裁判投票</strong>、与<strong>人类标注校准</strong>。</li>
 </ul>
-<h2 id="sec-2">3. 数据污染 / Contamination</h2>
+<p><strong>位置去偏的形式化</strong>:记 judge 对有序对的偏好 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo><mo>∈</mo><mo stretchy="false">{</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">J(a,b)\in\{A,B\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">}</span></span></span></span>。无位置偏置时 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(a,b)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span></span></span></span> 与 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>b</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(b,a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">b</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> 应选<strong>同一</strong>答案(一致 consistent)。去偏判定:仅当两个顺序都选同一答案才判其胜,否则判 <strong>tie</strong>——把位置偏置显式记成平局,而非让它泄漏进 win-rate。注意:AlpacaEval 默认用<strong>单一顺序</strong>(model 排第一);MT-Bench pairwise 模式用<strong>交换增强</strong>(两序取平均)——并非所有工具都做顺序平均。</p>
+<h3 id="sec-3">2.1 位置去偏 judge harness(代码）</h3>
+<pre><code class="hljs language-python"><span class="hljs-comment"># LLM-as-judge：成对比较 + 位置去偏（order-swap）harness。</span>
+<span class="hljs-comment"># 真实里 judge() 调一个强模型并解析其裁决；这里用桩函数演示协议与去偏逻辑。</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">judge_debiased</span>(<span class="hljs-params">question, ans1, ans2, judge</span>):
+    <span class="hljs-string">&quot;&quot;&quot;两个顺序各评一次，消除位置偏置。
+    judge(q, A, B) 返回 &#x27;A&#x27; 或 &#x27;B&#x27;（它认为哪个位置的答案更好）。
+    返回 &#x27;ans1&#x27; / &#x27;ans2&#x27; / &#x27;tie&#x27;（两序不一致 → 判平）。&quot;&quot;&quot;</span>
+    v1 = judge(question, ans1, ans2)            <span class="hljs-comment"># 顺序 (A=ans1, B=ans2)</span>
+    v2 = judge(question, ans2, ans1)            <span class="hljs-comment"># 交换 (A=ans2, B=ans1)</span>
+    pick1 = <span class="hljs-string">&#x27;ans1&#x27;</span> <span class="hljs-keyword">if</span> v1 == <span class="hljs-string">&#x27;A&#x27;</span> <span class="hljs-keyword">else</span> <span class="hljs-string">&#x27;ans2&#x27;</span>     <span class="hljs-comment"># 第一次真正选中的答案</span>
+    pick2 = <span class="hljs-string">&#x27;ans2&#x27;</span> <span class="hljs-keyword">if</span> v2 == <span class="hljs-string">&#x27;A&#x27;</span> <span class="hljs-keyword">else</span> <span class="hljs-string">&#x27;ans1&#x27;</span>     <span class="hljs-comment"># 交换后 A 位是 ans2，故 v2==&#x27;A&#x27; 表示选了 ans2</span>
+    <span class="hljs-keyword">return</span> pick1 <span class="hljs-keyword">if</span> pick1 == pick2 <span class="hljs-keyword">else</span> <span class="hljs-string">&#x27;tie&#x27;</span>   <span class="hljs-comment"># 一致才算数，否则判平</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">win_rate</span>(<span class="hljs-params">questions, model_answers, ref_answers, judge</span>):
+    <span class="hljs-string">&quot;&quot;&quot;model 相对 ref 的去偏 win-rate；tie 记 0.5。&quot;&quot;&quot;</span>
+    s = <span class="hljs-number">0.0</span>
+    <span class="hljs-keyword">for</span> q, m, r <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(questions, model_answers, ref_answers):
+        out = judge_debiased(q, m, r, judge)    <span class="hljs-comment"># ans1=model, ans2=ref</span>
+        s += <span class="hljs-number">1.0</span> <span class="hljs-keyword">if</span> out == <span class="hljs-string">&#x27;ans1&#x27;</span> <span class="hljs-keyword">else</span> (<span class="hljs-number">0.5</span> <span class="hljs-keyword">if</span> out == <span class="hljs-string">&#x27;tie&#x27;</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0.0</span>)
+    <span class="hljs-keyword">return</span> s / <span class="hljs-built_in">len</span>(questions)
+
+<span class="hljs-comment"># --- 演示：一个“永远选第一个”的极端位置偏置 judge，被去偏识破为 tie ---</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">biased_judge</span>(<span class="hljs-params">q, a, b</span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-string">&#x27;A&#x27;</span>                                  <span class="hljs-comment"># 极端位置偏置</span>
+<span class="hljs-built_in">print</span>(judge_debiased(<span class="hljs-string">&quot;q&quot;</span>, <span class="hljs-string">&quot;model&quot;</span>, <span class="hljs-string">&quot;ref&quot;</span>, biased_judge))   <span class="hljs-comment"># -&gt; &#x27;tie&#x27;</span>
+<span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;win_rate:&quot;</span>, win_rate([<span class="hljs-string">&quot;q&quot;</span>], [<span class="hljs-string">&quot;model&quot;</span>], [<span class="hljs-string">&quot;ref&quot;</span>], biased_judge))  <span class="hljs-comment"># -&gt; 0.5</span>
+</code></pre>
+<h2 id="sec-4">3. 数据污染 / Contamination</h2>
 <p>训练集混入了评测集 → 分数虚高、不反映泛化。</p>
-<h3 id="sec-3">3.1 污染类型</h3>
+<h3 id="sec-5">3.1 污染类型</h3>
 <table>
 <thead>
 <tr>
@@ -209,7 +245,7 @@
 <td>训练集不含原题，但含有高度相关的分布内样本，导致分数虚高</td>
 </tr>
 </tbody></table>
-<h3 id="sec-4">3.2 检测方法</h3>
+<h3 id="sec-6">3.2 检测方法</h3>
 <ul>
 <li><strong>n-gram / 子串重叠</strong>：计算训练集与评测集之间的 n-gram Jaccard 相似度，设阈值过滤</li>
 <li><strong>Min-k% Prob (MIA)</strong>：成员推断攻击 (Membership Inference Attack)——计算测试样本在模型下的最低 k% token 概率；成员样本的最低 token 概率通常高于非成员（据 Shi et al. 2024 等工作，具体效果随设置而异）</li>
@@ -217,27 +253,27 @@
 <li><strong>异常低 perplexity</strong>：对测试样本计算 perplexity；若显著低于同类新样本，提示可能见过</li>
 <li><strong>改写后掉分</strong>：对测试题做语义等价改写，若模型在原题上分数高而改写版上分数低，提示记忆而非泛化</li>
 </ul>
-<h3 id="sec-5">3.3 n-gram 去重 (Deduplication)</h3>
+<h3 id="sec-7">3.3 n-gram 去重 (Deduplication)</h3>
 <ul>
 <li>训练数据内部去重（exact + near-dedup）可降低记忆风险，也减少 benchmark 污染传播</li>
 <li>常用工具：MinHash LSH、suffix array 去重（据 Lee et al. 2022 等工作）</li>
 <li>⚠️ 去重不等于去污染：去重针对训练集内重复，去污染 (decontamination) 专门针对训练集与评测集的交叉</li>
 </ul>
-<h3 id="sec-6">3.4 抗污染 benchmark 设计</h3>
+<h3 id="sec-8">3.4 抗污染 benchmark 设计</h3>
 <ul>
 <li><strong>动态/私有评测集</strong>：每轮评测使用新题（如 Chatbot Arena 的持续收集、LiveBench 的月度更新）</li>
 <li><strong>程序化生成题</strong>：自动生成可验证答案的题（数学、代码），题目新颖性由生成程序保证</li>
 <li><strong>时间隔离</strong>：明确报告训练数据截止日期 (data cutoff) 与评测集创建日期，供读者判断时间污染风险</li>
 <li><strong>污染审计报告</strong>：在论文/报告中公开 decontamination 流程和过滤比例，增加可信度</li>
 </ul>
-<h2 id="sec-7">4. 偏好评测的陷阱</h2>
+<h2 id="sec-9">4. 偏好评测的陷阱</h2>
 <ul>
 <li><strong>Goodhart</strong>:一旦某 benchmark 成了优化目标,它就不再是好的衡量(刷榜 ≠ 真变强)。</li>
 <li><strong>prompt 敏感</strong>:同一模型换 prompt 模板分数能差很多 → 固定评测 prompt、报告方差。</li>
 <li><strong>judge ≠ 真值</strong>:LLM-judge 的 win-rate 只是&quot;另一个模型觉得好&quot;,不等于人类偏好或真实效用。</li>
 <li><strong>单点准确率 vs 算力预算</strong>:推理模型要看&quot;给定 test-time 算力下的准确率&quot;,而非单次。</li>
 </ul>
-<h2 id="sec-8">5. 一套实用评测口径(post-training)</h2>
+<h2 id="sec-10">5. 一套实用评测口径(post-training)</h2>
 <ol>
 <li><strong>能力</strong>:GSM8K/MATH(数学)、HumanEval(代码)、MMLU(知识)、IFEval(指令遵循)。</li>
 <li><strong>对齐质量</strong>:AlpacaEval / MT-Bench(judge,带位置去偏)、必要时 Arena。</li>
@@ -246,27 +282,27 @@
 <li><strong>污染审计</strong> + <strong>多 seed/prompt</strong> 报方差。</li>
 </ol>
 <hr>
-<h2 id="sec-9">分层面试题 / Stratified follow-ups</h2>
-<h3 id="sec-10">L1 基础</h3>
+<h2 id="sec-11">分层面试题 / Stratified follow-ups</h2>
+<h3 id="sec-12">L1 基础</h3>
 <ol>
 <li>为什么说评测是 post-training 的瓶颈?能力 benchmark 和偏好评测各测什么?</li>
 <li>LLM-as-judge 是什么?它有哪些已知偏置?</li>
 <li>什么是数据污染?为什么它让分数不可信?</li>
 </ol>
-<h3 id="sec-11">L2 进阶</h3>
+<h3 id="sec-13">L2 进阶</h3>
 <ol start="4">
 <li>位置偏置怎么缓解?为什么&quot;交换顺序各评一次&quot;有效?</li>
 <li>AlpacaEval / MT-Bench / Arena 三者的评测信号有何不同(自动 judge vs 真人 Elo)?</li>
 <li>怎么检测训练数据是否污染了某个评测集?</li>
 </ol>
-<h3 id="sec-12">L3 深挖</h3>
+<h3 id="sec-14">L3 深挖</h3>
 <ol start="7">
 <li>Goodhart 定律在刷榜上怎么体现?如何设计&quot;抗刷&quot;的评测?</li>
 <li>reward model 怎么评(RewardBench 的思路)?RM 评测和最终 policy 效果的关系?</li>
 <li>对推理模型,为什么评测要从&quot;单次准确率&quot;转向&quot;算力预算下的准确率&quot;?这对评测协议提出什么要求?</li>
 <li>如果线上指标(用户留存)和离线评测(judge win-rate)打架,你信哪个、怎么排查?</li>
 </ol>
-<h2 id="sec-13">更多 L3 深挖 / Extended L3</h2>
+<h2 id="sec-15">更多 L3 深挖 / Extended L3</h2>
 <details>
 <summary>Q11. 当用 LLM-as-judge 评估多轮、长上下文对话时，常见的困难是什么？有哪些评估方法上的改进？</summary><pre><code class="hljs">评估多轮对话的核心挑战是评判模型容易出现<span class="hljs-strong">**上下文遗忘 (context forgetting)**</span> 或<span class="hljs-strong">**局部偏好 (local bias)**</span>，即只关注最近一两轮的回答质量而忽略整体对话连贯性和任务完成度。一个关键改进是设计<span class="hljs-strong">**过程导向的评分量表 (process-oriented rubric)**</span>，明确要求评估每一轮对最终目标的贡献，并引入<span class="hljs-strong">**分段总结 (segment summarization)**</span> 机制，迫使judge模型先归纳再打分，从而在一定程度上缓解其短视问题。
 <span class="hljs-strong">**追问**</span>: 除了改进评分量表，是否可以通过改变评测协议来降低评判难度？例如，将其拆解为一系列更简单的子任务评估？

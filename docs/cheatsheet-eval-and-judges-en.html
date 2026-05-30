@@ -140,12 +140,19 @@
 <nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-eval-and-judges.html">中文 ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Evaluation &amp; LLM-as-Judge</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. Three Families of Evaluation</a></li><li class="lv2"><a href="#sec-1">2. LLM-as-Judge: How to Use It + Biases</a></li><li class="lv2"><a href="#sec-2">3. Data Contamination</a></li><li class="lv3"><a href="#sec-3">3.1 Types of Contamination</a></li><li class="lv3"><a href="#sec-4">3.2 Detection Methods</a></li><li class="lv3"><a href="#sec-5">3.3 n-gram Deduplication</a></li><li class="lv3"><a href="#sec-6">3.4 Contamination-Resistant Benchmark Design</a></li><li class="lv2"><a href="#sec-7">4. Pitfalls in Preference Evaluation</a></li><li class="lv2"><a href="#sec-8">5. A Practical Evaluation Protocol (Post-Training)</a></li><li class="lv2"><a href="#sec-9">Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-10">L1 Basics</a></li><li class="lv3"><a href="#sec-11">L2 Intermediate</a></li><li class="lv3"><a href="#sec-12">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-13">Extended L3</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. Three Families of Evaluation</a></li><li class="lv2"><a href="#sec-2">2. LLM-as-Judge: How to Use It + Biases</a></li><li class="lv3"><a href="#sec-3">2.1 Position-debiased judge harness (code)</a></li><li class="lv2"><a href="#sec-4">3. Data Contamination</a></li><li class="lv3"><a href="#sec-5">3.1 Types of Contamination</a></li><li class="lv3"><a href="#sec-6">3.2 Detection Methods</a></li><li class="lv3"><a href="#sec-7">3.3 n-gram Deduplication</a></li><li class="lv3"><a href="#sec-8">3.4 Contamination-Resistant Benchmark Design</a></li><li class="lv2"><a href="#sec-9">4. Pitfalls in Preference Evaluation</a></li><li class="lv2"><a href="#sec-10">5. A Practical Evaluation Protocol (Post-Training)</a></li><li class="lv2"><a href="#sec-11">Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-12">L1 Basics</a></li><li class="lv3"><a href="#sec-13">L2 Intermediate</a></li><li class="lv3"><a href="#sec-14">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-15">Extended L3</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>In post-training, <strong>evaluation</strong> is often the real bottleneck: training can run, but whether the model actually improved — or where it regressed — is entirely determined by evaluation. This page covers how to evaluate an aligned model and the pitfalls of various evaluation approaches.
 ⚠️ No concrete scores are listed here (they go stale quickly and are easy to misremember); for specific numbers, refer to official benchmark/leaderboard sources.</p>
 </blockquote>
-<h2 id="sec-0">1. Three Families of Evaluation</h2>
+<h2 id="sec-0">0. TL;DR</h2>
+<ul>
+<li>In post-training, evaluation is the bottleneck: <strong>capability benchmarks</strong> (ground-truth, automatic), <strong>preference/chat evals</strong> (judge-scored), and <strong>RM evals</strong> each cover one facet.</li>
+<li><strong>LLM-as-judge</strong> is cheap but has systematic biases (position / verbosity / self-preference / format) — <strong>swapping order and judging twice</strong> is the cheapest effective debias.</li>
+<li><strong>Data contamination</strong> inflates scores: detect via n-gram overlap / Min-k% / canaries / paraphrase-drop; defend via dynamic private sets + temporal isolation.</li>
+<li>Reporting discipline: fix the prompt, report variance over seeds, check regressions (alignment tax), and remember a judge ≠ ground truth.</li>
+</ul>
+<h2 id="sec-1">1. Three Families of Evaluation</h2>
 <table>
 <thead>
 <tr>
@@ -170,7 +177,7 @@
 <td>RewardBench (chat / safety / reasoning categories, etc.), agreement rate with human annotations</td>
 </tr>
 </tbody></table>
-<h2 id="sec-1">2. LLM-as-Judge: How to Use It + Biases</h2>
+<h2 id="sec-2">2. LLM-as-Judge: How to Use It + Biases</h2>
 <blockquote>
 <p>📎 <strong>Cross-reference</strong>: This section focuses on LLM-as-Judge from the perspective of <strong>evaluation practice</strong> (how to select a judge, operational details, benchmark applications). For how LLM-as-Judge biases affect RM training and reward hacking when used as a <strong>RLHF training signal</strong>, see <code>cheatsheet-reward-modeling-eval-en.html §5.2</code>.</p>
 </blockquote>
@@ -182,9 +189,38 @@
 <li><strong>Format / style bias</strong>: markdown formatting and confident tone are rated more favorably.
 General mitigations: <strong>reference-guided</strong> judging (provide a reference answer), <strong>rubrics / scoring scales</strong>, <strong>multi-judge voting</strong>, and <strong>calibration against human annotations</strong>.</li>
 </ul>
-<h2 id="sec-2">3. Data Contamination</h2>
+<p><strong>Formalizing position debiasing:</strong> let the judge&#39;s preference on an ordered pair be <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo><mo>∈</mo><mo stretchy="false">{</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">J(a,b)\in\{A,B\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">}</span></span></span></span>. With no position bias, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(a,b)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>b</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(b,a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">b</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> should pick the <strong>same</strong> answer (consistent). Debiased rule: count a win only if both orders pick the same answer, else call it a <strong>tie</strong> — making position bias an explicit tie rather than letting it leak into the win-rate. Note: AlpacaEval uses a single fixed ordering by default (model response first); MT-Bench pairwise mode uses swap augmentation (average the two orderings) — not all tools apply order averaging.</p>
+<h3 id="sec-3">2.1 Position-debiased judge harness (code)</h3>
+<pre><code class="hljs language-python"><span class="hljs-comment"># LLM-as-judge: pairwise comparison + position debiasing (order-swap) harness.</span>
+<span class="hljs-comment"># In practice judge() calls a strong model and parses its verdict; here a stub shows the protocol.</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">judge_debiased</span>(<span class="hljs-params">question, ans1, ans2, judge</span>):
+    <span class="hljs-string">&quot;&quot;&quot;Judge each ordering once to cancel position bias.
+    judge(q, A, B) returns &#x27;A&#x27; or &#x27;B&#x27; (which position&#x27;s answer is better).
+    Returns &#x27;ans1&#x27; / &#x27;ans2&#x27; / &#x27;tie&#x27; (orders disagree -&gt; tie).&quot;&quot;&quot;</span>
+    v1 = judge(question, ans1, ans2)            <span class="hljs-comment"># order (A=ans1, B=ans2)</span>
+    v2 = judge(question, ans2, ans1)            <span class="hljs-comment"># swapped (A=ans2, B=ans1)</span>
+    pick1 = <span class="hljs-string">&#x27;ans1&#x27;</span> <span class="hljs-keyword">if</span> v1 == <span class="hljs-string">&#x27;A&#x27;</span> <span class="hljs-keyword">else</span> <span class="hljs-string">&#x27;ans2&#x27;</span>     <span class="hljs-comment"># answer actually chosen, call 1</span>
+    pick2 = <span class="hljs-string">&#x27;ans2&#x27;</span> <span class="hljs-keyword">if</span> v2 == <span class="hljs-string">&#x27;A&#x27;</span> <span class="hljs-keyword">else</span> <span class="hljs-string">&#x27;ans1&#x27;</span>     <span class="hljs-comment"># in the swapped call A=ans2, so v2==&#x27;A&#x27; means ans2 was picked</span>
+    <span class="hljs-keyword">return</span> pick1 <span class="hljs-keyword">if</span> pick1 == pick2 <span class="hljs-keyword">else</span> <span class="hljs-string">&#x27;tie&#x27;</span>   <span class="hljs-comment"># count only if consistent</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">win_rate</span>(<span class="hljs-params">questions, model_answers, ref_answers, judge</span>):
+    <span class="hljs-string">&quot;&quot;&quot;Debiased win-rate of model vs ref; tie counts 0.5.&quot;&quot;&quot;</span>
+    s = <span class="hljs-number">0.0</span>
+    <span class="hljs-keyword">for</span> q, m, r <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(questions, model_answers, ref_answers):
+        out = judge_debiased(q, m, r, judge)    <span class="hljs-comment"># ans1=model, ans2=ref</span>
+        s += <span class="hljs-number">1.0</span> <span class="hljs-keyword">if</span> out == <span class="hljs-string">&#x27;ans1&#x27;</span> <span class="hljs-keyword">else</span> (<span class="hljs-number">0.5</span> <span class="hljs-keyword">if</span> out == <span class="hljs-string">&#x27;tie&#x27;</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0.0</span>)
+    <span class="hljs-keyword">return</span> s / <span class="hljs-built_in">len</span>(questions)
+
+<span class="hljs-comment"># --- Demo: an extreme &quot;always pick the first&quot; position-biased judge is exposed as a tie ---</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">biased_judge</span>(<span class="hljs-params">q, a, b</span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-string">&#x27;A&#x27;</span>                                  <span class="hljs-comment"># extreme position bias</span>
+<span class="hljs-built_in">print</span>(judge_debiased(<span class="hljs-string">&quot;q&quot;</span>, <span class="hljs-string">&quot;model&quot;</span>, <span class="hljs-string">&quot;ref&quot;</span>, biased_judge))   <span class="hljs-comment"># -&gt; &#x27;tie&#x27;</span>
+<span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;win_rate:&quot;</span>, win_rate([<span class="hljs-string">&quot;q&quot;</span>], [<span class="hljs-string">&quot;model&quot;</span>], [<span class="hljs-string">&quot;ref&quot;</span>], biased_judge))  <span class="hljs-comment"># -&gt; 0.5</span>
+</code></pre>
+<h2 id="sec-4">3. Data Contamination</h2>
 <p>The training set contains test-set examples → inflated scores that do not reflect generalization.</p>
-<h3 id="sec-3">3.1 Types of Contamination</h3>
+<h3 id="sec-5">3.1 Types of Contamination</h3>
 <table>
 <thead>
 <tr>
@@ -209,7 +245,7 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <td>Training set does not contain the exact questions, but contains highly related in-distribution samples, causing score inflation</td>
 </tr>
 </tbody></table>
-<h3 id="sec-4">3.2 Detection Methods</h3>
+<h3 id="sec-6">3.2 Detection Methods</h3>
 <ul>
 <li><strong>n-gram / substring overlap</strong>: compute n-gram Jaccard similarity between the training set and the evaluation set; filter above a threshold</li>
 <li><strong>Min-k% Prob (MIA)</strong>: Membership Inference Attack — compute the minimum k% token probability of a test sample under the model; member samples typically have higher minimum token probabilities than non-members (per Shi et al. 2024 and related work; exact effectiveness varies by setting)</li>
@@ -217,27 +253,27 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li><strong>Anomalously low perplexity</strong>: compute perplexity on test samples; if significantly lower than comparable new samples, this suggests the model may have seen them</li>
 <li><strong>Score drop after paraphrase</strong>: semantically rephrase test questions; if the model scores higher on originals than on rephrased versions, this suggests memorization rather than generalization</li>
 </ul>
-<h3 id="sec-5">3.3 n-gram Deduplication</h3>
+<h3 id="sec-7">3.3 n-gram Deduplication</h3>
 <ul>
 <li>Deduplicating within training data (exact + near-dedup) reduces memorization risk and limits contamination propagation to benchmarks</li>
 <li>Common tools: MinHash LSH, suffix array deduplication (per Lee et al. 2022 and related work)</li>
 <li>⚠️ Deduplication is not the same as decontamination: deduplication targets repeated entries within the training set; decontamination (去污染) specifically targets overlap between the training set and the evaluation set</li>
 </ul>
-<h3 id="sec-6">3.4 Contamination-Resistant Benchmark Design</h3>
+<h3 id="sec-8">3.4 Contamination-Resistant Benchmark Design</h3>
 <ul>
 <li><strong>Dynamic / private evaluation sets</strong>: use new questions each evaluation round (e.g., Chatbot Arena&#39;s continuous collection, LiveBench&#39;s monthly updates)</li>
 <li><strong>Programmatically generated questions</strong>: automatically generate questions with verifiable answers (math, code); novelty is guaranteed by the generation procedure</li>
 <li><strong>Temporal isolation</strong>: explicitly report the training data cutoff date and the evaluation set creation date, so readers can assess temporal leakage risk</li>
 <li><strong>Contamination audit reports</strong>: publicly disclose the decontamination pipeline and filtering rates in papers/reports to increase credibility</li>
 </ul>
-<h2 id="sec-7">4. Pitfalls in Preference Evaluation</h2>
+<h2 id="sec-9">4. Pitfalls in Preference Evaluation</h2>
 <ul>
 <li><strong>Goodhart&#39;s Law</strong>: once a benchmark becomes an optimization target, it ceases to be a good measure (leaderboard gaming ≠ genuine improvement).</li>
 <li><strong>Prompt sensitivity</strong>: the same model can score very differently with different prompt templates → fix evaluation prompts, report variance.</li>
 <li><strong>Judge ≠ ground truth</strong>: LLM-judge win-rate only reflects &quot;what another model thinks is good,&quot; not human preference or real-world utility.</li>
 <li><strong>Single-pass accuracy vs. compute budget</strong>: for reasoning models, report accuracy under a given test-time compute budget, not just single-pass accuracy.</li>
 </ul>
-<h2 id="sec-8">5. A Practical Evaluation Protocol (Post-Training)</h2>
+<h2 id="sec-10">5. A Practical Evaluation Protocol (Post-Training)</h2>
 <ol>
 <li><strong>Capability</strong>: GSM8K/MATH (math), HumanEval (code), MMLU (knowledge), IFEval (instruction following).</li>
 <li><strong>Alignment quality</strong>: AlpacaEval / MT-Bench (judge, with position debiasing); Chatbot Arena when necessary.</li>
@@ -246,27 +282,27 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li><strong>Contamination audit</strong> + <strong>multiple seeds/prompts</strong> to report variance.</li>
 </ol>
 <hr>
-<h2 id="sec-9">Stratified Follow-ups</h2>
-<h3 id="sec-10">L1 Basics</h3>
+<h2 id="sec-11">Stratified Follow-ups</h2>
+<h3 id="sec-12">L1 Basics</h3>
 <ol>
 <li>Why is evaluation considered the bottleneck of post-training? What does each of capability benchmarks and preference evaluation measure?</li>
 <li>What is LLM-as-judge? What known biases does it have?</li>
 <li>What is data contamination? Why does it make scores unreliable?</li>
 </ol>
-<h3 id="sec-11">L2 Intermediate</h3>
+<h3 id="sec-13">L2 Intermediate</h3>
 <ol start="4">
 <li>How is position bias mitigated? Why does &quot;evaluate both orderings and average&quot; work?</li>
 <li>How do AlpacaEval / MT-Bench / Chatbot Arena differ in their evaluation signals (automatic judge vs. human Elo)?</li>
 <li>How do you detect whether training data has contaminated a given evaluation set?</li>
 </ol>
-<h3 id="sec-12">L3 Deep Dive</h3>
+<h3 id="sec-14">L3 Deep Dive</h3>
 <ol start="7">
 <li>How does Goodhart&#39;s Law manifest in leaderboard gaming? How do you design &quot;gaming-resistant&quot; evaluations?</li>
 <li>How is a reward model evaluated (the RewardBench approach)? What is the relationship between RM evaluation and final policy performance?</li>
 <li>For reasoning models, why should evaluation shift from &quot;single-pass accuracy&quot; to &quot;accuracy under a compute budget&quot;? What does this demand of the evaluation protocol?</li>
 <li>If online metrics (user retention) conflict with offline evaluation (judge win-rate), which do you trust, and how do you investigate the discrepancy?</li>
 </ol>
-<h2 id="sec-13">Extended L3</h2>
+<h2 id="sec-15">Extended L3</h2>
 <details>
 <summary>Q11. When using LLM-as-judge to evaluate multi-turn, long-context conversations, what are the common difficulties? What methodological improvements exist?</summary><pre><code class="hljs">The core challenge <span class="hljs-keyword">in</span> evaluating multi-turn conversations <span class="hljs-keyword">is</span> <span class="hljs-keyword">that</span> <span class="hljs-keyword">the</span> judge model tends <span class="hljs-keyword">to</span> exhibit **context forgetting** <span class="hljs-keyword">or</span> **<span class="hljs-keyword">local</span> bias** — focusing only <span class="hljs-keyword">on</span> <span class="hljs-keyword">the</span> quality <span class="hljs-keyword">of</span> <span class="hljs-keyword">the</span> most recent one <span class="hljs-keyword">or</span> two turns <span class="hljs-keyword">while</span> <span class="hljs-keyword">ignoring</span> overall conversational coherence <span class="hljs-keyword">and</span> task completion. A key improvement <span class="hljs-keyword">is</span> designing **process-oriented rubrics** <span class="hljs-keyword">that</span> explicitly require evaluating each turn&#x27;s contribution <span class="hljs-keyword">to</span> <span class="hljs-keyword">the</span> final goal, <span class="hljs-keyword">and</span> introducing a **segment summarization** mechanism <span class="hljs-keyword">that</span> forces <span class="hljs-keyword">the</span> judge <span class="hljs-keyword">to</span> <span class="hljs-built_in">summarize</span> <span class="hljs-keyword">before</span> scoring, thereby partially mitigating <span class="hljs-keyword">its</span> short-sightedness.
 **Follow-up**: Beyond improving <span class="hljs-keyword">the</span> rubric, can <span class="hljs-keyword">the</span> evaluation protocol itself be changed <span class="hljs-keyword">to</span> reduce judging difficulty — <span class="hljs-keyword">for</span> example, decomposing <span class="hljs-keyword">it</span> <span class="hljs-keyword">into</span> a series <span class="hljs-keyword">of</span> simpler subtask evaluations?

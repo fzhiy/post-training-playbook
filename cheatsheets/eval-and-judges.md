@@ -3,6 +3,13 @@
 > 后训练里「**评测**」往往是真正的瓶颈:训练能跑、但"到底变好没有 / 哪里变差"全靠评测说话。本页讲怎么评一个对齐后的模型 + 各种评测的坑。
 > ⚠️ 不放具体分数(易过时/易记错);具体数字以各 benchmark/leaderboard 官方为准。
 
+## 0. TL;DR
+
+- 后训练里评测是瓶颈:**能力 benchmark**(有标答、自动)、**偏好/对话评测**(judge 打分)、**RM 评测**三条线各测一面。
+- **LLM-as-judge** 省钱但有系统偏置(位置 / 冗长 / 自我偏好 / 格式)——**交换顺序各评一次**是最便宜有效的去偏。
+- **数据污染**让分数虚高:用 n-gram 重叠 / Min-k% / canary / 改写掉分来查;用动态私有题 + 时间隔离来防。
+- 报告纪律:固定 prompt、多 seed 报方差、查回归(alignment tax)、记住 judge ≠ 真值。
+
 ## 1. 三类评测 / Three families
 
 | 类型 | 衡量什么 | 代表 |
@@ -21,6 +28,39 @@
 - **自我偏好 (self-preference)**:裁判偏好和自己风格像的输出。
 - **格式/风格偏置**:markdown、自信语气更讨喜。
 缓解通用招:**reference-guided**(给参考答案)、**rubric/打分量表**、**多裁判投票**、与**人类标注校准**。
+
+**位置去偏的形式化**:记 judge 对有序对的偏好 $J(a,b)\in\{A,B\}$。无位置偏置时 $J(a,b)$ 与 $J(b,a)$ 应选**同一**答案(一致 consistent)。去偏判定:仅当两个顺序都选同一答案才判其胜,否则判 **tie**——把位置偏置显式记成平局,而非让它泄漏进 win-rate。注意:AlpacaEval 默认用**单一顺序**(model 排第一);MT-Bench pairwise 模式用**交换增强**(两序取平均)——并非所有工具都做顺序平均。
+
+### 2.1 位置去偏 judge harness(代码）
+
+```python
+# LLM-as-judge：成对比较 + 位置去偏（order-swap）harness。
+# 真实里 judge() 调一个强模型并解析其裁决；这里用桩函数演示协议与去偏逻辑。
+
+def judge_debiased(question, ans1, ans2, judge):
+    """两个顺序各评一次，消除位置偏置。
+    judge(q, A, B) 返回 'A' 或 'B'（它认为哪个位置的答案更好）。
+    返回 'ans1' / 'ans2' / 'tie'（两序不一致 → 判平）。"""
+    v1 = judge(question, ans1, ans2)            # 顺序 (A=ans1, B=ans2)
+    v2 = judge(question, ans2, ans1)            # 交换 (A=ans2, B=ans1)
+    pick1 = 'ans1' if v1 == 'A' else 'ans2'     # 第一次真正选中的答案
+    pick2 = 'ans2' if v2 == 'A' else 'ans1'     # 交换后 A 位是 ans2，故 v2=='A' 表示选了 ans2
+    return pick1 if pick1 == pick2 else 'tie'   # 一致才算数，否则判平
+
+def win_rate(questions, model_answers, ref_answers, judge):
+    """model 相对 ref 的去偏 win-rate；tie 记 0.5。"""
+    s = 0.0
+    for q, m, r in zip(questions, model_answers, ref_answers):
+        out = judge_debiased(q, m, r, judge)    # ans1=model, ans2=ref
+        s += 1.0 if out == 'ans1' else (0.5 if out == 'tie' else 0.0)
+    return s / len(questions)
+
+# --- 演示：一个“永远选第一个”的极端位置偏置 judge，被去偏识破为 tie ---
+def biased_judge(q, a, b):
+    return 'A'                                  # 极端位置偏置
+print(judge_debiased("q", "model", "ref", biased_judge))   # -> 'tie'
+print("win_rate:", win_rate(["q"], ["model"], ["ref"], biased_judge))  # -> 0.5
+```
 
 ## 3. 数据污染 / Contamination
 

@@ -3,6 +3,13 @@
 > In post-training, **evaluation** is often the real bottleneck: training can run, but whether the model actually improved — or where it regressed — is entirely determined by evaluation. This page covers how to evaluate an aligned model and the pitfalls of various evaluation approaches.
 > ⚠️ No concrete scores are listed here (they go stale quickly and are easy to misremember); for specific numbers, refer to official benchmark/leaderboard sources.
 
+## 0. TL;DR
+
+- In post-training, evaluation is the bottleneck: **capability benchmarks** (ground-truth, automatic), **preference/chat evals** (judge-scored), and **RM evals** each cover one facet.
+- **LLM-as-judge** is cheap but has systematic biases (position / verbosity / self-preference / format) — **swapping order and judging twice** is the cheapest effective debias.
+- **Data contamination** inflates scores: detect via n-gram overlap / Min-k% / canaries / paraphrase-drop; defend via dynamic private sets + temporal isolation.
+- Reporting discipline: fix the prompt, report variance over seeds, check regressions (alignment tax), and remember a judge ≠ ground truth.
+
 ## 1. Three Families of Evaluation
 
 | Type | Measures | Examples |
@@ -21,6 +28,39 @@ Use a strong model as a judge to score responses or do pairwise comparisons. **C
 - **Self-preference**: the judge favors outputs that stylistically resemble its own.
 - **Format / style bias**: markdown formatting and confident tone are rated more favorably.
 General mitigations: **reference-guided** judging (provide a reference answer), **rubrics / scoring scales**, **multi-judge voting**, and **calibration against human annotations**.
+
+**Formalizing position debiasing:** let the judge's preference on an ordered pair be $J(a,b)\in\{A,B\}$. With no position bias, $J(a,b)$ and $J(b,a)$ should pick the **same** answer (consistent). Debiased rule: count a win only if both orders pick the same answer, else call it a **tie** — making position bias an explicit tie rather than letting it leak into the win-rate. Note: AlpacaEval uses a single fixed ordering by default (model response first); MT-Bench pairwise mode uses swap augmentation (average the two orderings) — not all tools apply order averaging.
+
+### 2.1 Position-debiased judge harness (code)
+
+```python
+# LLM-as-judge: pairwise comparison + position debiasing (order-swap) harness.
+# In practice judge() calls a strong model and parses its verdict; here a stub shows the protocol.
+
+def judge_debiased(question, ans1, ans2, judge):
+    """Judge each ordering once to cancel position bias.
+    judge(q, A, B) returns 'A' or 'B' (which position's answer is better).
+    Returns 'ans1' / 'ans2' / 'tie' (orders disagree -> tie)."""
+    v1 = judge(question, ans1, ans2)            # order (A=ans1, B=ans2)
+    v2 = judge(question, ans2, ans1)            # swapped (A=ans2, B=ans1)
+    pick1 = 'ans1' if v1 == 'A' else 'ans2'     # answer actually chosen, call 1
+    pick2 = 'ans2' if v2 == 'A' else 'ans1'     # in the swapped call A=ans2, so v2=='A' means ans2 was picked
+    return pick1 if pick1 == pick2 else 'tie'   # count only if consistent
+
+def win_rate(questions, model_answers, ref_answers, judge):
+    """Debiased win-rate of model vs ref; tie counts 0.5."""
+    s = 0.0
+    for q, m, r in zip(questions, model_answers, ref_answers):
+        out = judge_debiased(q, m, r, judge)    # ans1=model, ans2=ref
+        s += 1.0 if out == 'ans1' else (0.5 if out == 'tie' else 0.0)
+    return s / len(questions)
+
+# --- Demo: an extreme "always pick the first" position-biased judge is exposed as a tie ---
+def biased_judge(q, a, b):
+    return 'A'                                  # extreme position bias
+print(judge_debiased("q", "model", "ref", biased_judge))   # -> 'tie'
+print("win_rate:", win_rate(["q"], ["model"], ["ref"], biased_judge))  # -> 0.5
+```
 
 ## 3. Data Contamination
 
