@@ -107,3 +107,21 @@ print("replay stream:", [tag for tag, _ in make_replay_stream(range(4), range(10
 - Why are classical CL algorithms (EWC etc.) unpopular in LLM production? What are the assumptions and failure modes of task arithmetic?
 - In a multi-round pipeline of continual SFT → DPO → RL, at which step is forgetting most severe, and how do you mitigate it?
 - How do "continual alignment" and "retraining" trade off in terms of cost / effectiveness? When is true incremental learning worth it over full retraining?
+
+## §A Key Papers Timeline
+
+- **2016-12 · EWC** — Kirkpatrick et al., PNAS 2017. [arXiv:1612.00796](https://arxiv.org/abs/1612.00796) — Elastic Weight Consolidation estimates each parameter's importance to old tasks via Fisher information and adds a quadratic penalty on important weights to reduce forgetting — the canonical regularization approach (rarely used in LLM production).
+
+- **2017-06 · Gradient Episodic Memory** — Lopez-Paz & Ranzato, NeurIPS 2017. [arXiv:1706.08840](https://arxiv.org/abs/1706.08840) — Uses an episodic memory to project new gradients onto directions that don't increase old-task loss, and introduces the BWT/FWT metrics that became the standard for quantifying forgetting.
+
+- **2019-12 · Linear Mode Connectivity** — Frankle et al., ICML 2020. [arXiv:1912.05671](https://arxiv.org/abs/1912.05671) — Shows that solutions fine-tuned from a shared initialization often lie in a low-barrier connected region, supplying the "why it works" premise for weight averaging / model soups.
+
+- **2021-09 · WiSE-FT** — Wortsman et al., CVPR 2022. [arXiv:2109.01903](https://arxiv.org/abs/2109.01903) — Linearly interpolates fine-tuned and zero-shot weights: a one-line weight average that captures both in-distribution gains and out-of-distribution robustness — a clean anti-forgetting fine-tuning recipe.
+
+- **2022-03 · Model Soups** — Wortsman et al., ICML 2022. [arXiv:2203.05482](https://arxiv.org/abs/2203.05482) — Equally averages multiple fine-tuned checkpoints (a "soup") to improve accuracy and robustness at zero extra inference cost, establishing weight averaging as a mainstream merge method.
+
+- **2022-12 · Task Arithmetic** — Ilharco et al., ICLR 2023. [arXiv:2212.04089](https://arxiv.org/abs/2212.04089) — Introduces task vectors τ=θ_ft−θ0 that can empirically be added/subtracted linearly to compose or forget abilities, and characterizes failure via "interference".
+
+- **2023-06 · TIES-Merging** — Yadav et al., NeurIPS 2023. [arXiv:2306.01708](https://arxiv.org/abs/2306.01708) — Trims small-magnitude parameters, elects a consistent sign, and averages the agreeing subset before merging, mitigating task-vector conflict and clearly beating naive averaging.
+
+- **2023-11 · DARE** — Yu et al., ICML 2024. [arXiv:2311.03099](https://arxiv.org/abs/2311.03099) — Drop And REscale randomly drops a large fraction of delta parameters and rescales the rest, sparsifying task vectors near-losslessly as a pre-merge step that stacks with TIES.

@@ -140,7 +140,7 @@
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-continual-post-training-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">持续 / 终身 Post-training / Continual &amp; Lifelong(只收生产验证方法)</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. 生产里「持续」长什么样</a></li><li class="lv2"><a href="#sec-1">1.1 遗忘的机制与度量</a></li><li class="lv2"><a href="#sec-2">2. ✅ 生产验证过的工具箱</a></li><li class="lv3"><a href="#sec-3">2.1 数据回放 / 混合(replay / rehearsal)—— 最主力</a></li><li class="lv3"><a href="#sec-4">2.2 低学习率 + 少 epoch + PEFT</a></li><li class="lv3"><a href="#sec-5">2.3 对 base 的 KL 正则</a></li><li class="lv3"><a href="#sec-6">2.4 模型合并 / 权重平均</a></li><li class="lv3"><a href="#sec-7">2.5 蒸馏 consolidation</a></li><li class="lv3"><a href="#sec-8">2.6 多阶段顺序遗忘(SFT → DPO → RL)</a></li><li class="lv2"><a href="#sec-9">3. ❌ 未经生产验证(学术——别当工业标准)</a></li><li class="lv2"><a href="#sec-10">4. 把你的 CL 背景诚实地用上</a></li><li class="lv2"><a href="#sec-11">5. 代码：replay 混合 + 权重合并</a></li><li class="lv2"><a href="#sec-12">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-13">L1 基础</a></li><li class="lv3"><a href="#sec-14">L2 进阶</a></li><li class="lv3"><a href="#sec-15">L3 深挖</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. 生产里「持续」长什么样</a></li><li class="lv2"><a href="#sec-1">1.1 遗忘的机制与度量</a></li><li class="lv2"><a href="#sec-2">2. ✅ 生产验证过的工具箱</a></li><li class="lv3"><a href="#sec-3">2.1 数据回放 / 混合(replay / rehearsal)—— 最主力</a></li><li class="lv3"><a href="#sec-4">2.2 低学习率 + 少 epoch + PEFT</a></li><li class="lv3"><a href="#sec-5">2.3 对 base 的 KL 正则</a></li><li class="lv3"><a href="#sec-6">2.4 模型合并 / 权重平均</a></li><li class="lv3"><a href="#sec-7">2.5 蒸馏 consolidation</a></li><li class="lv3"><a href="#sec-8">2.6 多阶段顺序遗忘(SFT → DPO → RL)</a></li><li class="lv2"><a href="#sec-9">3. ❌ 未经生产验证(学术——别当工业标准)</a></li><li class="lv2"><a href="#sec-10">4. 把你的 CL 背景诚实地用上</a></li><li class="lv2"><a href="#sec-11">5. 代码：replay 混合 + 权重合并</a></li><li class="lv2"><a href="#sec-12">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-13">L1 基础</a></li><li class="lv3"><a href="#sec-14">L2 进阶</a></li><li class="lv3"><a href="#sec-15">L3 深挖</a></li><li class="lv2"><a href="#sec-16">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>模型是<strong>迭代更新</strong>的(加新数据/新能力/新对齐轮)→ 灾难性遗忘与能力回归是规模化时的真问题。
 ⚠️ 本页<strong>只收在大规模生产中验证过的方法</strong>;经典学术 CL 算法单列、明确标注「未经生产验证」,面试别当工业标准答。</p>
@@ -236,6 +236,25 @@ b  = {<span class="hljs-string">&quot;w&quot;</span>: torch.tensor([<span class=
 <li>为什么经典 CL 算法(EWC 等)在 LLM 生产里不流行?task arithmetic 的假设与失效情形?</li>
 <li>连续 SFT → DPO → RL 多轮里,遗忘最严重在哪一步、怎么缓解?</li>
 <li>「持续对齐(continual alignment)」与「重训」在成本/效果上怎么权衡?什么时候值得真正做增量而非重训?</li>
+</ul>
+<h2 id="sec-16">§A 核心论文时间线 / Key Papers Timeline</h2>
+<ul class="timeline">
+<li><p><strong>2016-12 · EWC</strong> — Kirkpatrick et al., PNAS 2017. <a href="https://arxiv.org/abs/1612.00796">arXiv:1612.00796</a> — 弹性权重巩固:用 Fisher 信息估计各参数对旧任务的重要性,对重要权重加二次惩罚以减遗忘,是正则化系持续学习的代表(LLM 生产少用)。</p>
+</li>
+<li><p><strong>2017-06 · Gradient Episodic Memory</strong> — Lopez-Paz &amp; Ranzato, NeurIPS 2017. <a href="https://arxiv.org/abs/1706.08840">arXiv:1706.08840</a> — 用情景记忆把新梯度投影到不增旧任务损失的方向;并提出 BWT/FWT 度量,成为量化遗忘的标准指标。</p>
+</li>
+<li><p><strong>2019-12 · Linear Mode Connectivity</strong> — Frankle et al., ICML 2020. <a href="https://arxiv.org/abs/1912.05671">arXiv:1912.05671</a> — 揭示同一初始化训出的解常落在低 barrier 的连通区域,为权重平均 / model soup 的&quot;为何 work&quot;提供理论前提。</p>
+</li>
+<li><p><strong>2021-09 · WiSE-FT</strong> — Wortsman et al., CVPR 2022. <a href="https://arxiv.org/abs/2109.01903">arXiv:2109.01903</a> — 微调权重与零样本权重线性插值:一行权重平均同时拿到分布内增益与分布外鲁棒,是抗遗忘式微调的简洁范例。</p>
+</li>
+<li><p><strong>2022-03 · Model Soups</strong> — Wortsman et al., ICML 2022. <a href="https://arxiv.org/abs/2203.05482">arXiv:2203.05482</a> — 把多个微调 checkpoint 直接等权平均(&quot;soup&quot;),零额外推理成本下提升精度与鲁棒,确立权重平均合并的主力地位。</p>
+</li>
+<li><p><strong>2022-12 · Task Arithmetic</strong> — Ilharco et al., ICLR 2023. <a href="https://arxiv.org/abs/2212.04089">arXiv:2212.04089</a> — 提出任务向量 τ=θ_ft−θ0,经验上可线性加减以组合 / 遗忘能力;并用&quot;interference&quot;刻画其失效情形。</p>
+</li>
+<li><p><strong>2023-06 · TIES-Merging</strong> — Yadav et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2306.01708">arXiv:2306.01708</a> — 合并前先裁剪小幅参数、对齐符号、再取一致子集均值,缓解任务向量冲突,显著优于朴素平均。</p>
+</li>
+<li><p><strong>2023-11 · DARE</strong> — Yu et al., ICML 2024. <a href="https://arxiv.org/abs/2311.03099">arXiv:2311.03099</a> — Drop And REscale:随机丢弃大比例 delta 参数再重缩放,几乎无损地稀疏化任务向量,作为合并前处理可叠加 TIES。</p>
+</li>
 </ul>
 </main>
 </div>

@@ -107,3 +107,21 @@ print("replay stream:", [tag for tag, _ in make_replay_stream(range(4), range(10
 - 为什么经典 CL 算法(EWC 等)在 LLM 生产里不流行?task arithmetic 的假设与失效情形?
 - 连续 SFT → DPO → RL 多轮里,遗忘最严重在哪一步、怎么缓解?
 - 「持续对齐(continual alignment)」与「重训」在成本/效果上怎么权衡?什么时候值得真正做增量而非重训?
+
+## §A 核心论文时间线 / Key Papers Timeline
+
+- **2016-12 · EWC** — Kirkpatrick et al., PNAS 2017. [arXiv:1612.00796](https://arxiv.org/abs/1612.00796) — 弹性权重巩固:用 Fisher 信息估计各参数对旧任务的重要性,对重要权重加二次惩罚以减遗忘,是正则化系持续学习的代表(LLM 生产少用)。
+
+- **2017-06 · Gradient Episodic Memory** — Lopez-Paz & Ranzato, NeurIPS 2017. [arXiv:1706.08840](https://arxiv.org/abs/1706.08840) — 用情景记忆把新梯度投影到不增旧任务损失的方向;并提出 BWT/FWT 度量,成为量化遗忘的标准指标。
+
+- **2019-12 · Linear Mode Connectivity** — Frankle et al., ICML 2020. [arXiv:1912.05671](https://arxiv.org/abs/1912.05671) — 揭示同一初始化训出的解常落在低 barrier 的连通区域,为权重平均 / model soup 的"为何 work"提供理论前提。
+
+- **2021-09 · WiSE-FT** — Wortsman et al., CVPR 2022. [arXiv:2109.01903](https://arxiv.org/abs/2109.01903) — 微调权重与零样本权重线性插值:一行权重平均同时拿到分布内增益与分布外鲁棒,是抗遗忘式微调的简洁范例。
+
+- **2022-03 · Model Soups** — Wortsman et al., ICML 2022. [arXiv:2203.05482](https://arxiv.org/abs/2203.05482) — 把多个微调 checkpoint 直接等权平均("soup"),零额外推理成本下提升精度与鲁棒,确立权重平均合并的主力地位。
+
+- **2022-12 · Task Arithmetic** — Ilharco et al., ICLR 2023. [arXiv:2212.04089](https://arxiv.org/abs/2212.04089) — 提出任务向量 τ=θ_ft−θ0,经验上可线性加减以组合 / 遗忘能力;并用"interference"刻画其失效情形。
+
+- **2023-06 · TIES-Merging** — Yadav et al., NeurIPS 2023. [arXiv:2306.01708](https://arxiv.org/abs/2306.01708) — 合并前先裁剪小幅参数、对齐符号、再取一致子集均值,缓解任务向量冲突,显著优于朴素平均。
+
+- **2023-11 · DARE** — Yu et al., ICML 2024. [arXiv:2311.03099](https://arxiv.org/abs/2311.03099) — Drop And REscale:随机丢弃大比例 delta 参数再重缩放,几乎无损地稀疏化任务向量,作为合并前处理可叠加 TIES。
