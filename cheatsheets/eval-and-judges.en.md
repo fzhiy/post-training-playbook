@@ -39,6 +39,25 @@
 | **HumanEval** | Python code generation | Function completion + unit tests | pass@k (unit-test pass rate) | Only 164 problems, high variance, easy to overfit |
 | **IFEval** | Verifiable instruction following | Constrained instructions (length / format) | Programmatic verification (no judge needed) | Covers only machine-checkable constraints |
 
+### 1.1a Unbiased pass@k
+
+**Naive estimator** $1-(1-\hat p)^k$ ($\hat p=c/n$): for $k\ge2$ it **systematically underestimates** the true pass@k at any finite $n$ (Jensen's inequality, convexity); the bias shrinks as $n$ grows but is never zero; for $k=1$, $c/n$ is already unbiased.
+
+**Unbiased estimator** (Chen et al., [arXiv:2107.03374](https://arxiv.org/abs/2107.03374) §3): sample $n\ge k$ candidates per problem, $c$ pass the unit tests, then
+
+$$\widehat{\text{pass@}k}=1-\frac{\binom{n-c}{k}}{\binom{n}{k}}$$
+
+Intuition: $\binom{n-c}{k}/\binom{n}{k}$ is the probability that $k$ randomly drawn candidates are **all wrong**; $1$ minus it is "at least one correct". Numerically stable implementation (avoids large-binomial overflow):
+
+```python
+import numpy as np
+def pass_at_k(n, c, k):
+    if n - c < k: return 1.0
+    return 1.0 - np.prod(1.0 - k / np.arange(n - c + 1, n + 1))
+```
+
+> 📝 Standard protocol (Chen et al.): $n=200$ per problem, report $k\in\{1,10,100\}$.
+
 ## 2. LLM-as-Judge: How to Use It + Biases
 
 > 📎 **Cross-reference**: This section focuses on LLM-as-Judge from the perspective of **evaluation practice** (how to select a judge, operational details, benchmark applications). For how LLM-as-Judge biases affect RM training and reward hacking when used as a **RLHF training signal**, see `cheatsheet-reward-modeling-eval-en.html §5.2`.

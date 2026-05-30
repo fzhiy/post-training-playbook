@@ -39,6 +39,25 @@
 | **HumanEval** | Python 代码生成 | 函数补全 + 单测 | pass@k(单测通过率) | 仅 164 题、方差大、易过拟合 |
 | **IFEval** | 可验证指令遵循 | 带约束指令(字数 / 格式) | 程序化验证(无需 judge) | 只覆盖可机检约束 |
 
+### 1.1a pass@k 无偏估计 / Unbiased pass@k
+
+**朴素估计** $1-(1-\hat p)^k$($\hat p=c/n$):对 $k\ge2$ 在任意有限 $n$ 都**系统性低估**真实 pass@k(Jensen 不等式,凸性),$n$ 越大偏差越小但不为 0;$k=1$ 时 $c/n$ 已无偏。
+
+**无偏估计**(Chen et al., [arXiv:2107.03374](https://arxiv.org/abs/2107.03374) §3):每题采 $n\ge k$ 个候选、$c$ 个过单测,则
+
+$$\widehat{\text{pass@}k}=1-\frac{\binom{n-c}{k}}{\binom{n}{k}}$$
+
+直觉:$\binom{n-c}{k}/\binom{n}{k}$ 是随机取 $k$ 个候选**全是错的**的概率,$1$ 减去即「至少一个对」。数值稳定实现(避免大组合数溢出):
+
+```python
+import numpy as np
+def pass_at_k(n, c, k):
+    if n - c < k: return 1.0
+    return 1.0 - np.prod(1.0 - k / np.arange(n - c + 1, n + 1))
+```
+
+> 📝 标准口径(Chen et al.):每题 $n=200$,报告 $k\in\{1,10,100\}$。
+
 ## 2. LLM-as-judge:怎么用 + 偏置
 
 > 📎 **交叉引用**：本节侧重 LLM-as-Judge 作为**评测实践**的视角（如何选 judge、具体操作、benchmark 应用）。关于 LLM-as-Judge 作为 **RLHF 训练信号**时偏差如何影响 RM 训练和 reward hacking，见 `reward-modeling-eval.md §5.2`。
