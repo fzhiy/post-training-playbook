@@ -76,6 +76,31 @@ To **uptrain** from an MHA checkpoint to GQA: average the K/V weights within eac
 
 ---
 
+### 1.4b MLA — Multi-head Latent Attention (DeepSeek-V2/V3)
+
+GQA saves cache by reducing the number of KV heads, at the cost of expressivity. **MLA** (DeepSeek-V2, arXiv:2405.04434) takes a different route: it **jointly compresses K/V into a low-rank latent** $c^{KV}_t = W^{DKV} h_t$ ($d_c \ll d_{\text{model}}$), **caches only $c^{KV}_t$**, and up-projects at attention time:
+
+$$k^{C}_t = W^{UK} c^{KV}_t,\qquad v^{C}_t = W^{UV} c^{KV}_t$$
+
+**Absorption trick (key to inference):** the content term of the score can be rewritten as
+
+$$(q^{C}_t)^\top k^{C}_s = (q^{C}_t)^\top W^{UK} c^{KV}_s = \big((W^{UK})^\top q^{C}_t\big)^\top c^{KV}_s$$
+
+so $W^{UK}$ can be **absorbed into the Query projection** — at inference there is no need to reconstruct $k^C$ for every cached token; score directly against $c^{KV}$. Likewise $W^{UV}$ is absorbed into the output projection $W^O$. Thus **only $c^{KV}$** is cached (plus the RoPE key below) and all up-projections fold away.
+
+**Decoupled RoPE:** RoPE is a position-dependent rotation; applying it to $k^C = W^{UK}c^{KV}$ wedges the rotation matrix between $W^{UQ}$ and $W^{UK}$, breaking the absorption above. MLA therefore splits the key into two parts:
+
+- a **content part** $k^C$ (no RoPE, from $c^{KV}$, absorbable);
+- a **RoPE part** $k^R_t = \mathrm{RoPE}(W^{KR} h_t)$ (position-carrying, **shared across all heads**, cached separately, small dim e.g. $d_R=64$).
+
+The query is likewise split into $q^C$ (absorbed) and $q^R$ (RoPE-carrying). The final score is
+
+$$S_{ts} = (q^{C}_t)^\top k^{C}_s + (q^{R}_t)^\top k^{R}_s$$
+
+**Payoff:** only $d_c + d_R$ cached per token per layer (DeepSeek-V2: $512+64=576$), far below MHA's $2\,n_h d_h$ — cache on par with GQA (~2.25 groups) while retaining ≈MHA quality.
+
+---
+
 ### 1.5 Positional Encoding
 
 #### 1.5.1 Absolute Positional Encoding
@@ -128,6 +153,12 @@ At training time the maximum length is $L_{\text{train}}$; at inference on longe
 | **NTK-aware Scaling** | Modify the base: $10000 \to \alpha \cdot 10000$, high-frequency components scale less, low-frequency scale more | Better than PI |
 | **YaRN** | NTK + mixed interpolation + attention temperature adjustment | One of the current mainstream approaches |
 | **Dynamic NTK** | Dynamically adjusts the base at inference time based on actual sequence length | No retraining required |
+
+**Derivation intuition (why change the base, not scale positions):** RoPE's $i$-th dimension pair has frequency $\theta_i = \text{base}^{-2i/d}$ and wavelength $\lambda_i = 2\pi/\theta_i = 2\pi\,\text{base}^{2i/d}$ — low dims are high-frequency (short wavelength, local), high dims low-frequency (long wavelength, global).
+
+- **PI** scales every position by $s = L_{\text{train}}/L_{\text{test}}$, equivalent to compressing **all** frequencies uniformly; but high-freq dims already have short wavelengths, so over-compressing them loses local resolution.
+- **NTK-aware** instead enlarges the base (≈ $\text{base}\to\text{base}\cdot s^{d/(d-2)}$) so the **lowest-frequency dim** (longest wavelength, where extrapolation hurts most) is interpolated by exactly $s$ while the **highest-frequency dim is barely changed** — spreading interpolation pressure non-uniformly across dims and preserving local resolution.
+- **YaRN** adds a per-wavelength ramp: dims whose wavelength $>$ context window are interpolated (NTK), dims $<$ keep extrapolating, with a linear ramp in between; plus an attention temperature factor $1/\sqrt{t}$ (YaRN sets $\sqrt{1/t}=0.1\ln s + 1$, so the factor grows $>1$ with $s$, sharpening the logits) to compensate for the logit softening / entropy increase from interpolation.
 
 ---
 
@@ -229,6 +260,16 @@ $f_i$ = fraction of tokens assigned to expert $i$, $p_i$ = mean router assignmen
 | **Min-$p$** | Filter tokens with probability $< p \cdot p_{\max}$ | More adaptive than top-$k$/top-$p$ |
 
 **Speculative Decoding**: a small **draft model** generates $k$ candidate tokens in parallel; a large **verifier** then validates all of them in a single forward pass. Acceptance probability $\min(1,\; p_{\text{verifier}} / p_{\text{draft}})$; on rejection, resample from a corrected distribution. **The output distribution is equivalent to using the verifier directly** (lossless speedup).
+
+**Equivalence proof (why speculative sampling is lossless):** let the draft distribution be $q$ and the target $p$. Propose $x\sim q$, accept with probability $\min(1,\,p(x)/q(x))$; on rejection, resample from $p_{\text{res}}(x)=\dfrac{(p(x)-q(x))_+}{\sum_y (p(y)-q(y))_+}$ (with $(\cdot)_+=\max(0,\cdot)$). The probability of emitting $x$ is:
+
+$$\Pr[\text{out}=x] = \underbrace{q(x)\min\!\big(1,\tfrac{p(x)}{q(x)}\big)}_{\text{propose and accept}} + \underbrace{\Big(1-\textstyle\sum_y \min(q,p)\Big)}_{\Pr[\text{reject}]}\cdot p_{\text{res}}(x)$$
+
+Since $q(x)\min(1,p/q)=\min(q(x),p(x))$ and $\sum_y(p-q)_+ = 1-\sum_y\min(p,q)=\Pr[\text{reject}]$, the second term equals $(p(x)-q(x))_+$. Adding:
+
+$$\min(p,q)+(p-q)_+ = \min(p(x),q(x))+\max(0,\,p(x)-q(x)) = p(x).\quad\blacksquare$$
+
+So the output follows the target $p$ exactly. With $k$ tokens proposed in parallel, apply this per position independently (accept up to the first rejection, then add one corrected sample — so each round emits at least 1 token).
 
 ---
 
@@ -473,6 +514,8 @@ def make_causal_mask(seq_len, device):
 # mask = make_causal_mask(N, device)
 # scores = scores.masked_fill(~mask, float('-inf'))
 ```
+
+> ⚠️ **All-masked row → softmax NaN:** if an entire row is filled with $-\infty$ (e.g. a pure-padding query row, or a row in sliding-window / block attention that currently has no valid key), the softmax denominator $\sum e^{-\infty}=0$ gives $0/0=\text{NaN}$, which then poisons the whole batch via backprop. A standard causal mask never triggers this (the diagonal $i=i$ is always valid, so every row has ≥1 valid key); padding / sliding-window / block-sparse attention can. Fixes: guarantee at least one valid position per row, use a large finite negative (e.g. `-1e9`) instead of `-inf` for fully-masked rows, or zero out the row after softmax.
 
 ---
 
