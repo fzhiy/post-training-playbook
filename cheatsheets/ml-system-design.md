@@ -321,6 +321,25 @@ $$
 
 **代价 / Overhead：** ZeRO-3 需要前向时 All-Gather 参数，通信量增加。
 
+**$16\Phi$ 显存分解（混合精度 Adam，$\Phi$ = 参数量）/ The $16\Phi$ memory breakdown:**
+
+| 组成 Component | 精度 | 字节/参数 | 显存 |
+|---|---|---|---|
+| 模型参数 (fp16) | fp16 | 2 | $2\Phi$ |
+| 梯度 (fp16) | fp16 | 2 | $2\Phi$ |
+| Adam 优化器状态 | fp32 | 12 | $12\Phi$ |
+
+其中优化器状态 $12\Phi$ = fp32 主权重副本 $4\Phi$ + 一阶动量 $m$（$4\Phi$）+ 二阶动量 $v$（$4\Phi$），合计 **$16\Phi$**（如 7.5B 模型 → 120 GB，单卡放不下）。各 ZeRO 阶段在 $P$ 卡上的单卡显存：
+
+| 阶段 | 分片内容 | 单卡显存 | $P\to\infty$ |
+|---|---|---|---|
+| baseline (DP) | 无 | $16\Phi$ | $16\Phi$ |
+| ZeRO-1 | 优化器状态 | $2\Phi + 2\Phi + \tfrac{12\Phi}{P}$ | $4\Phi$ |
+| ZeRO-2 | + 梯度 | $2\Phi + \tfrac{14\Phi}{P}$ | $2\Phi$ |
+| ZeRO-3 | + 参数 | $\tfrac{16\Phi}{P}$ | $\to 0$ |
+
+> ZeRO-3 三者全分片，通信量约为纯 DP 的 1.5×（前向 all-gather 参数、反向 all-gather 参数 + reduce-scatter 梯度）——用通信换显存。来源：Rajbhandari et al. 2020, arXiv:1910.02054。
+
 #### Tensor Parallelism (TP) / 张量并行
 
 将每一层的权重矩阵按列或行切分到多张卡。
@@ -380,9 +399,22 @@ $$
 x_q = \text{round}\!\left(\frac{x - z}{s}\right), \quad s = \frac{x_{\max} - x_{\min}}{2^b - 1}, \quad z = x_{\min}
 $$
 
-**GPTQ / AWQ 概要 / Overview：**
-- **GPTQ：** 基于 OBQ（Optimal Brain Quantization）逐层量化，利用 Hessian 逆矩阵最小化重建误差
-- **AWQ（Activation-Aware Weight Quantization）：** 根据激活的幅度识别"重要通道"（salient channels），对这些通道保护或用更高精度量化，而非均匀量化所有权重
+**GPTQ — 基于 OBS 的逐层后训练量化（Frantar et al., ICLR 2023, arXiv:2210.17323）：**
+- 逐层最小化重建误差 $\|WX - \hat{W}X\|_2^2$；沿用 OBS/OBQ，用 Hessian $H = 2XX^\top$ 的逆来补偿。
+- 量化第 $q$ 个权重后，把误差按 $\delta = -\dfrac{w_q - \mathrm{quant}(w_q)}{[H^{-1}]_{qq}}\,(H^{-1})_{:,q}$ 分摊到**尚未量化**的权重上，抵消量化造成的输出偏移。
+- GPTQ 的工程化：固定列顺序（免去 OBQ 的逐权重贪心选择）+ Cholesky 分解保数值稳定 + 分块更新，可在数小时内把 175B 量化到 3–4 bit。
+
+**AWQ — 激活感知权重量化（Lin et al. 2023, arXiv:2306.00978）：**
+- 观察：权重并非同等重要，约 0.1–1% 的"显著权重"由**激活幅度**（而非权重幅度）识别。
+- 做法：对显著通道做 per-channel 缩放——权重乘 $s>1$、对应激活除以 $s$（$\hat{W}=W\,\mathrm{diag}(s),\ \hat{X}=X\,\mathrm{diag}(s)^{-1}$，乘积 $\hat{X}\hat{W}^\top=XW^\top$ 不变），使显著权重的相对量化误差变小；逐层网格搜索最优 $s$。纯前向、无需反传。
+
+**SmoothQuant — 把量化难度从激活迁移到权重（Xiao et al., ICML 2023, arXiv:2211.10438）：**
+- 问题：激活存在 per-channel 离群值（outlier）极难量化，而权重平滑好量化。
+- 做法：per-channel 平滑 $\hat{X}=X\,\mathrm{diag}(s)^{-1},\ \hat{W}=\mathrm{diag}(s)\,W$，缩放因子 $s_j=\dfrac{\max(|X_j|)^\alpha}{\max(|W_j|)^{1-\alpha}}$（$\alpha\approx0.5$），把激活的动态范围"匀"一部分给权重，实现 W8A8。
+
+**FP8（Hopper/H100）：** E4M3（4 指数 3 尾数，范围 ±448）用于前向的权重/激活；E5M2（5 指数 2 尾数，动态范围更大 ±57344）用于梯度。相比 INT8 免去 scale 校准、对离群值更鲁棒。
+
+**KV-cache 量化：** 长上下文下 KV cache 主导显存。K 沿 channel 维有离群值 → 宜 per-channel 量化；V 较平滑 → per-token 量化（如 KIVI, arXiv:2402.02750）。常用 int8/int4/fp8，可把 KV 显存降 2–4×；int8/fp8 多数任务精度损失可忽略，int4 则依任务而定（长上下文检索更敏感）。
 
 
 ---
@@ -646,6 +678,46 @@ def symmetric_dequantize_int8(w_q: torch.Tensor, scale: float) -> torch.Tensor:
     """Dequantize INT8 back to float."""
     return w_q.float() * scale
 ```
+
+---
+
+### 2.9 Tensor-Parallel Linear (Column / Row)
+
+```python
+import torch
+import torch.nn as nn
+
+# Megatron 张量并行 Linear 的核心是一对共轭通信算子 f / g：
+#   f：前向 identity，反向 all-reduce；  g：前向 all-reduce，反向 identity。
+# 下面用单进程模拟 2-way 切分（all-reduce 退化为对分片求和 / all-gather 退化为 cat），
+# 并验证 TP 结果与未切分 Linear 完全一致。Single-process simulation of 2-way TP.
+
+def column_parallel(X, W, b, n_shards=2):
+    """列并行：按 out_features 切 W=[W_1..W_n]，各卡本地算 X·W_iᵀ，输出沿特征维分片。
+    Column-parallel: split W along output dim; no comm needed to get sharded output."""
+    Ws, bs = torch.chunk(W, n_shards, dim=0), torch.chunk(b, n_shards, dim=0)
+    outs = [X @ Wi.T + bi for Wi, bi in zip(Ws, bs)]   # 每张卡独立计算 / local matmul
+    return torch.cat(outs, dim=-1)                      # g：gather（此处 cat 模拟）
+
+def row_parallel(X, W, b, n_shards=2):
+    """行并行：输入 X 已沿特征维分片，按 in_features 切 W，各卡算部分积后 all-reduce 求和。
+    Row-parallel: input is feature-sharded; partial products summed via all-reduce."""
+    Xs, Ws = torch.chunk(X, n_shards, dim=-1), torch.chunk(W, n_shards, dim=1)
+    partial = [Xi @ Wi.T for Xi, Wi in zip(Xs, Ws)]
+    return sum(partial) + b                             # f 的共轭：all-reduce（此处 sum 模拟），bias 只加一次
+
+# --- 验证：TP 等价于普通 Linear / TP equals a plain Linear ---
+torch.manual_seed(0)
+B, d_in, d_out = 4, 8, 6
+X = torch.randn(B, d_in)
+ref = nn.Linear(d_in, d_out)
+W, b = ref.weight.data, ref.bias.data                  # W: (d_out, d_in), b: (d_out,)
+Y_ref = ref(X)
+print("column-parallel max err:", (column_parallel(X, W, b) - Y_ref).abs().max().item())  # ~0
+print("row-parallel    max err:", (row_parallel(X, W, b) - Y_ref).abs().max().item())     # ~0
+```
+
+> Megatron MLP 把 **column-parallel → GeLU（本地）→ row-parallel** 串联，整个块前向只需 **一次** all-reduce（反向一次），把通信摊薄到最少。
 
 ---
 

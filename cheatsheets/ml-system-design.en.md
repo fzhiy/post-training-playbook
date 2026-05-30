@@ -312,6 +312,25 @@ Each GPU holds a complete model replica; gradients are synchronized via All-Redu
 
 **Overhead:** ZeRO-3 requires All-Gather of parameters during the forward pass, increasing communication volume.
 
+**The $16\Phi$ memory breakdown (mixed-precision Adam, $\Phi$ = #params):**
+
+| Component | Precision | Bytes/param | Memory |
+|---|---|---|---|
+| Model params (fp16) | fp16 | 2 | $2\Phi$ |
+| Gradients (fp16) | fp16 | 2 | $2\Phi$ |
+| Adam optimizer states | fp32 | 12 | $12\Phi$ |
+
+The $12\Phi$ optimizer states = fp32 master-weight copy ($4\Phi$) + first moment $m$ ($4\Phi$) + second moment $v$ ($4\Phi$), totaling **$16\Phi$** (a 7.5B model → 120 GB, too big for one GPU). Per-GPU memory across ZeRO stages on $P$ GPUs:
+
+| Stage | Sharded | Per-GPU memory | $P\to\infty$ |
+|---|---|---|---|
+| baseline (DP) | none | $16\Phi$ | $16\Phi$ |
+| ZeRO-1 | optimizer states | $2\Phi + 2\Phi + \tfrac{12\Phi}{P}$ | $4\Phi$ |
+| ZeRO-2 | + gradients | $2\Phi + \tfrac{14\Phi}{P}$ | $2\Phi$ |
+| ZeRO-3 | + parameters | $\tfrac{16\Phi}{P}$ | $\to 0$ |
+
+> ZeRO-3 shards all three; communication is ~1.5× of plain DP (forward all-gather params, backward all-gather params + reduce-scatter grads) — trading communication for memory. Source: Rajbhandari et al. 2020, arXiv:1910.02054.
+
 #### Tensor Parallelism (TP)
 
 Each layer's weight matrix is split column-wise or row-wise across multiple GPUs.
@@ -371,9 +390,22 @@ $$
 x_q = \text{round}\!\left(\frac{x - z}{s}\right), \quad s = \frac{x_{\max} - x_{\min}}{2^b - 1}, \quad z = x_{\min}
 $$
 
-**GPTQ / AWQ Overview:**
-- **GPTQ:** Quantizes layer by layer based on OBQ (Optimal Brain Quantization); uses the inverse Hessian to minimize reconstruction error after quantization
-- **AWQ (Activation-Aware Weight Quantization):** Identifies "salient channels" (channels with large activations) that are crucial to output quality; protects those channels or quantizes them at higher precision, rather than quantizing all weights uniformly
+**GPTQ — layer-wise post-training quantization via OBS (Frantar et al., ICLR 2023, arXiv:2210.17323):**
+- Minimizes per-layer reconstruction error $\|WX - \hat{W}X\|_2^2$; follows OBS/OBQ using the inverse Hessian $H = 2XX^\top$ to compensate.
+- After quantizing weight $q$, the error is redistributed to the **not-yet-quantized** weights via $\delta = -\dfrac{w_q - \mathrm{quant}(w_q)}{[H^{-1}]_{qq}}\,(H^{-1})_{:,q}$, canceling the output shift from quantization.
+- Engineering: fixed column order (drops OBQ's greedy per-weight selection) + Cholesky factorization for stability + block updates — quantizes 175B to 3–4 bit in hours.
+
+**AWQ — activation-aware weight quantization (Lin et al. 2023, arXiv:2306.00978):**
+- Observation: weights are not equally important; the ~0.1–1% "salient weights" are identified by **activation** magnitude (not weight magnitude).
+- Method: per-channel scaling of salient channels — multiply weights by $s>1$ and divide the corresponding activations by $s$ ($\hat{W}=W\,\mathrm{diag}(s),\ \hat{X}=X\,\mathrm{diag}(s)^{-1}$, with $\hat{X}\hat{W}^\top=XW^\top$ unchanged), shrinking the relative quant error on salient weights; grid-search $s$ per layer. Forward-only, no backprop.
+
+**SmoothQuant — migrate quantization difficulty from activations to weights (Xiao et al., ICML 2023, arXiv:2211.10438):**
+- Problem: activations have per-channel outliers that are very hard to quantize, while weights are smooth and easy.
+- Method: per-channel smoothing $\hat{X}=X\,\mathrm{diag}(s)^{-1},\ \hat{W}=\mathrm{diag}(s)\,W$, with scale $s_j=\dfrac{\max(|X_j|)^\alpha}{\max(|W_j|)^{1-\alpha}}$ ($\alpha\approx0.5$), moving part of the activation dynamic range into the weights to enable W8A8.
+
+**FP8 (Hopper/H100):** E4M3 (4 exponent, 3 mantissa, range ±448) for forward weights/activations; E5M2 (5 exponent, 2 mantissa, larger range ±57344) for gradients. Vs INT8: no scale calibration, more robust to outliers.
+
+**KV-cache quantization:** at long context the KV cache dominates memory. K has per-channel outliers → quantize per-channel; V is smoother → per-token (e.g., KIVI, arXiv:2402.02750). int8/int4/fp8 cut KV memory 2–4×; int8/fp8 with negligible loss on most tasks, while int4 is task-sensitive (long-context retrieval especially).
 
 
 ---
@@ -637,6 +669,46 @@ def symmetric_dequantize_int8(w_q: torch.Tensor, scale: float) -> torch.Tensor:
     """Dequantize INT8 back to float."""
     return w_q.float() * scale
 ```
+
+---
+
+### 2.9 Tensor-Parallel Linear (Column / Row)
+
+```python
+import torch
+import torch.nn as nn
+
+# Megatron tensor-parallel Linear hinges on a pair of conjugate comm operators f / g:
+#   f: forward identity, backward all-reduce;  g: forward all-reduce, backward identity.
+# Below we simulate 2-way sharding in a single process (all-reduce -> sum over shards,
+# all-gather -> cat) and verify TP equals an unsharded Linear exactly.
+
+def column_parallel(X, W, b, n_shards=2):
+    """Column-parallel: split W along output dim; each rank computes X·W_iᵀ locally;
+    output is feature-sharded (no comm needed to obtain the partial output)."""
+    Ws, bs = torch.chunk(W, n_shards, dim=0), torch.chunk(b, n_shards, dim=0)
+    outs = [X @ Wi.T + bi for Wi, bi in zip(Ws, bs)]   # local matmul per rank
+    return torch.cat(outs, dim=-1)                      # g: gather (cat here)
+
+def row_parallel(X, W, b, n_shards=2):
+    """Row-parallel: input X is feature-sharded; split W along input dim;
+    each rank computes a partial product, summed via all-reduce."""
+    Xs, Ws = torch.chunk(X, n_shards, dim=-1), torch.chunk(W, n_shards, dim=1)
+    partial = [Xi @ Wi.T for Xi, Wi in zip(Xs, Ws)]
+    return sum(partial) + b                             # conjugate of f: all-reduce (sum); bias added once
+
+# --- Verify: TP equals a plain Linear ---
+torch.manual_seed(0)
+B, d_in, d_out = 4, 8, 6
+X = torch.randn(B, d_in)
+ref = nn.Linear(d_in, d_out)
+W, b = ref.weight.data, ref.bias.data                  # W: (d_out, d_in), b: (d_out,)
+Y_ref = ref(X)
+print("column-parallel max err:", (column_parallel(X, W, b) - Y_ref).abs().max().item())  # ~0
+print("row-parallel    max err:", (row_parallel(X, W, b) - Y_ref).abs().max().item())     # ~0
+```
+
+> A Megatron MLP chains **column-parallel → GeLU (local) → row-parallel**, so the whole block needs only **one** all-reduce in the forward pass (one in backward) — minimizing communication.
 
 ---
 
