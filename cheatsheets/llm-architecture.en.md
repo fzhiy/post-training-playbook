@@ -1059,3 +1059,25 @@ The Chinchilla Scaling Law optimizes **training loss given a FLOPs budget**. But
 > **Follow-up**: If inference cost is also in the optimization objective, how would you define an "inference-optimal" model size choice from the perspective of training token count, model parameter count, and inference hardware constraints?
 
 </details>
+
+## §A Key Papers Timeline
+
+- **2017-06 · Attention Is All You Need** — Vaswani et al., NeurIPS 2017. [arXiv:1706.03762](https://arxiv.org/abs/1706.03762) — Introduces the pure-attention Transformer: scaled dot-product + multi-head self-attention replace recurrence/convolution, enabling parallelism and direct long-range dependencies — the foundation of every later LLM.
+
+- **2019-11 · Multi-Query Attention** — Shazeer, arXiv preprint. [arXiv:1911.02150](https://arxiv.org/abs/1911.02150) — Shares a single K/V head across all query heads (One Write-Head), shrinking the decode-time KV cache and memory bandwidth at slight quality cost — the ancestor of GQA/MLA.
+
+- **2021-01 · Switch Transformers** — Fedus et al., JMLR 2022. [arXiv:2101.03961](https://arxiv.org/abs/2101.03961) — Simplifies MoE to top-1 routing + a load-balancing loss, scaling parameters to the trillions at constant FLOPs and establishing the sparse-expert engineering recipe.
+
+- **2021-04 · RoFormer / RoPE** — Su et al., Neurocomputing 2024. [arXiv:2104.09864](https://arxiv.org/abs/2104.09864) — Rotary position embedding: rotates Q/K in the complex plane by position so attention depends only on relative offset, naturally supporting extrapolation and long context — now the default scheme.
+
+- **2021-08 · ALiBi** — Press et al., ICLR 2022. [arXiv:2108.12409](https://arxiv.org/abs/2108.12409) — Replaces position embeddings with a linear-distance attention bias, extrapolating from short training to long inference and inspiring later length-generalization work.
+
+- **2022-03 · Chinchilla** — Hoffmann et al., NeurIPS 2022. [arXiv:2203.15556](https://arxiv.org/abs/2203.15556) — Compute-optimal scaling law: under fixed compute, parameters and training tokens should grow ~1:1, correcting the "just add parameters" bias and redefining pretraining budgets.
+
+- **2022-11 · Speculative Decoding** — Leviathan et al., ICML 2023. [arXiv:2211.17192](https://arxiv.org/abs/2211.17192) — A small draft model guesses several steps in parallel and the large model verifies in one pass; accept-reject sampling keeps the output distribution lossless while cutting decode latency.
+
+- **2023-05 · Grouped-Query Attention** — Ainslie et al., EMNLP 2023. [arXiv:2305.13245](https://arxiv.org/abs/2305.13245) — Interpolates between MHA and MQA: each group of heads shares one K/V, trading off KV-cache size against quality at a tunable knob — the default in Llama-2/3.
+
+- **2023-09 · YaRN** — Peng et al., ICLR 2024. [arXiv:2309.00071](https://arxiv.org/abs/2309.00071) — Applies band-wise NTK interpolation to RoPE plus attention-temperature scaling, efficiently extending the context window several-fold with minimal continued training.
+
+- **2024-05 · DeepSeek-V2 (MLA)** — DeepSeek-AI, arXiv preprint. [arXiv:2405.04434](https://arxiv.org/abs/2405.04434) — Multi-head Latent Attention compresses K/V into a low-rank latent cache with an absorption trick and decoupled RoPE, slashing KV cache while preserving multi-head expressivity.
