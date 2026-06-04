@@ -326,7 +326,7 @@ def top_p_sample(
 **答：** 接收 **logits**（未归一化分数）。内部先做 `LogSoftmax` 再做 `NLLLoss`，数学上等价于先 softmax 再取 log 再算交叉熵，但数值更稳定（避免 `log(0)` 的情况）。
 
 > **追问：** 如果你手动先做了 softmax 再传入 `CrossEntropyLoss`，会发生什么？
-> 答：效果变差，因为等价于做了两次 softmax（double softmax），概率分布被过度"锐化"。
+> 答：效果变差，因为 CrossEntropyLoss 会把 softmax 输出（已在 (0,1) 内）当作 logits 再做一次 log_softmax，此时值域被压缩（e^{p_i}≈1–2.7），导致损失语义错误、梯度偏差，而非真正意义上的"锐化"。
 
 </details>
 

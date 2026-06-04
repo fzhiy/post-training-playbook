@@ -325,7 +325,7 @@ def top_p_sample(
 **A:** It accepts **logits** (unnormalized scores). Internally it applies `LogSoftmax` followed by `NLLLoss`, which is mathematically equivalent to softmax → log → cross-entropy, but numerically more stable (avoids `log(0)`).
 
 > **Follow-up:** If you manually apply softmax first and then pass the result into `CrossEntropyLoss`, what happens?
-> A: Performance degrades because it is equivalent to applying softmax twice (double softmax), over-sharpening the probability distribution.
+> A: Performance degrades because `CrossEntropyLoss` treats the softmax output (already in (0,1)) as logits and applies `log_softmax` again; the compressed range ($e^{p_i}\approx 1$–$2.7$) produces semantically wrong loss values and biased gradients — it is not strictly a "sharpening" effect.
 
 </details>
 
