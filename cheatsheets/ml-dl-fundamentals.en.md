@@ -46,7 +46,7 @@ In standard Adam, if the L2 regularization term $\frac{\lambda}{2}\|\theta\|^2$ 
 
 AdamW **decouples** weight decay from the adaptive update:
 
-$$\theta_{t+1} = (1 - \lambda)\,\theta_t - \eta \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}$$
+$$\theta_{t+1} = (1 - \eta\lambda)\,\theta_t - \eta \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}$$
 
 - Uniform decay strength, consistent with weight decay under SGD.
 
@@ -57,7 +57,7 @@ $$\theta_{t+1} = (1 - \lambda)\,\theta_t - \eta \frac{\hat{m}_t}{\sqrt{\hat{v}_t
 | SGD | $\theta \leftarrow \theta - \eta \nabla L$ |
 | SGD + Momentum | $\theta \leftarrow \theta - \eta\,v_t,\; v_t = \mu v_{t-1} + \nabla L$ |
 | Adam | $\theta \leftarrow \theta - \eta \,\hat{m}_t / (\sqrt{\hat{v}_t} + \epsilon)$ |
-| AdamW | $\theta \leftarrow (1-\lambda)\theta - \eta\,\hat{m}_t / (\sqrt{\hat{v}_t} + \epsilon)$ |
+| AdamW | $\theta \leftarrow (1-\eta\lambda)\theta - \eta\,\hat{m}_t / (\sqrt{\hat{v}_t} + \epsilon)$ |
 
 ---
 
@@ -90,7 +90,7 @@ During training, each neuron output is set to zero with probability $p$. **Inver
 #### Weight Decay vs L2 Regularization
 
 - **Equivalent under SGD**: The L2 regularization term $\frac{\lambda}{2}\|\theta\|^2$ contributes gradient $\lambda\theta$ to the total gradient, resulting in $\theta \leftarrow \theta(1 - \eta\lambda) - \eta\nabla L$ — i.e., weight decay.
-- **Not equivalent under Adam**: The gradient $\lambda\theta$ is divided by $\sqrt{\hat{v}_t}$, so the decay magnitude is coupled to gradient scale. AdamW directly applies $\theta \leftarrow (1-\lambda)\theta$, achieving true decoupled weight decay.
+- **Not equivalent under Adam**: The gradient $\lambda\theta$ is divided by $\sqrt{\hat{v}_t}$, so the decay magnitude is coupled to gradient scale. AdamW directly applies $\theta \leftarrow (1-\eta\lambda)\theta$, achieving true decoupled weight decay.
 
 #### Label Smoothing
 
@@ -605,7 +605,7 @@ for i, (inputs, targets) in enumerate(dataloader):
 **Answer:**
 - **SGD**: Fixed learning rate, no adaptive mechanism; converges slowly but can generalize better.
 - **Adam**: Maintains first moment $m_t$ (gradient mean) and second moment $v_t$ (mean squared gradient); after bias correction, adaptively adjusts the learning rate per parameter. However, its weight decay implementation mixes the regularization gradient into the second-moment denominator, so the effective decay magnitude varies with gradient scale.
-- **AdamW**: Decouples weight decay from the adaptive update, applying it directly to parameters: $\theta \leftarrow (1-\lambda)\theta - \eta\,\hat{m}_t / (\sqrt{\hat{v}_t} + \epsilon)$, giving decay behavior consistent with SGD.
+- **AdamW**: Decouples weight decay from the adaptive update, applying it directly to parameters: $\theta \leftarrow (1-\eta\lambda)\theta - \eta\,\hat{m}_t / (\sqrt{\hat{v}_t} + \epsilon)$, giving decay behavior consistent with SGD.
 
 **Follow-up:** Why is Adam's L2 regularization implementation considered "incorrect"? What does AdamW's decoupling fundamentally change?
 > The L2 regularization gradient $\lambda\theta$ is divided by $\sqrt{\hat{v}_t}$, so parameters with large gradients receive weak decay and those with small gradients receive strong decay — contrary to the design intent. AdamW applies uniform decay to all parameters.
@@ -786,7 +786,7 @@ LLM training almost always uses clip by norm (typical threshold 1.0) because it 
 
 **Answer:**
 - **Equivalent under SGD**: adding $\frac{\lambda}{2}\|\theta\|^2$ to the loss contributes gradient $\lambda\theta$ to the total gradient, resulting in $\theta \leftarrow \theta(1-\eta\lambda) - \eta\nabla L$ — i.e., weight decay.
-- **Not equivalent under Adam**: $\lambda\theta$ is divided by $\sqrt{\hat{v}_t}$; parameters with large gradients receive weak decay and those with small gradients receive strong decay. AdamW decouples decay as $\theta \leftarrow (1-\lambda)\theta$, achieving uniform decay.
+- **Not equivalent under Adam**: $\lambda\theta$ is divided by $\sqrt{\hat{v}_t}$; parameters with large gradients receive weak decay and those with small gradients receive strong decay. AdamW decouples decay as $\theta \leftarrow (1-\eta\lambda)\theta$, achieving uniform decay.
 
 **Follow-up:** What is a typical weight decay value for AdamW? Which parameters are typically excluded?
 > Common values: 0.01–0.1. LayerNorm's $\gamma, \beta$ and biases are typically excluded from weight decay (they have other regularization mechanisms or are low-dimensional); decay is applied only to weight matrices.
