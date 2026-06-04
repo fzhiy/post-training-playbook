@@ -201,9 +201,6 @@ const BASELINE_DELTA = {
   // CN renders each "第一部分 / Part N" divider as two consecutive H2s (中文行 + English 行);
   // the EN page uses one heading per Part. ×3 Parts = +3. Benign formatting, no missing content.
   'ml-dl-fundamentals': 3,
-  // TODO(drift): one EN heading silently fails to render — source is 66/66 but rendered is 66/65,
-  // likely a malformed heading or a non-``` fence. Investigate + fix, then drop this entry to 0.
-  'llm-post-training': 1,
 };
 const drift = [];
 for (const r of driftRows) {

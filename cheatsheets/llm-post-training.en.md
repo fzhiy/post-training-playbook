@@ -1875,6 +1875,7 @@ Post-training scaling laws differ from those in pre-training. For **data volume*
 If we treat both model scale and data volume as resources, in the post-training phase, do you think it is more likely to yield a superior assistant model in real-world applications to invest in aligning a 70B model, or to invest in aligning a 7B model with a larger volume of higher-quality data? Please explain your reasoning.
 
 </details>
+
 ## More L3 Deep Dives / Extended L3
 
 <details>
