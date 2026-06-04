@@ -148,7 +148,7 @@ $$\hat{W}_r = U_r \Sigma_r V_r^\top = \arg\min_{\text{rank}(M) = r} \|W - M\|_F$
 |--|-----------|-----|
 | 适用范围 | 方阵（需可对角化） | 任意 $m \times n$ 矩阵 |
 | 分解形式 | $A = Q \Lambda Q^{-1}$ | $W = U \Sigma V^\top$ |
-| 对称矩阵 | $A = Q \Lambda Q^\top$，$Q$ 正交 | 同形式，特征值 = 奇异值 |
+| 对称矩阵 | $A = Q \Lambda Q^\top$，$Q$ 正交 | 同形式，奇异值 = \|特征值\|（PSD 时特征值 = 奇异值） |
 | 值域 | 特征值可为负 | 奇异值 $\geq 0$ |
 
 当 $A$ 对称正定 (SPD) 时，特征值分解与 SVD 等价。
@@ -174,9 +174,9 @@ $A \in \mathbb{R}^{m \times k}$，$B \in \mathbb{R}^{k \times n}$：$AB$ 需 $O(
 
 **LLM FLOPs 估算**：对于参数量为 $N$ 的 Transformer 模型，训练 $D$ 个 token 的总计算量约为：
 
-$$\text{FLOPs} \approx 2ND$$
+$$\text{FLOPs} \approx 6ND$$
 
-（每个 token 每个参数约 2 FLOPs：一次乘法 + 一次加法。）此公式即 scaling law 文献中的经典估算来源。
+（前向约 2ND，反向约 4ND；推理/仅前向时为 2ND。）此公式即 scaling law 文献中的经典估算来源。
 
 ---
 
@@ -654,7 +654,7 @@ $$\hat{\theta}_{\text{MLE}} = \arg\max_\theta \sum_{i=1}^N \log P(x_i \mid \thet
 <details>
 <summary>Q17. 矩阵乘法的计算复杂度是多少？LLM 训练的 FLOPs 如何估算？</summary>
 
-**A**：$A \in \mathbb{R}^{m \times k}$，$B \in \mathbb{R}^{k \times n}$：$AB$ 需 $O(mkn)$ FLOPs。LLM 训练估算：参数量 $N$，训练 token 数 $D$，总 FLOPs $\approx 2ND$。
+**A**：$A \in \mathbb{R}^{m \times k}$，$B \in \mathbb{R}^{k \times n}$：$AB$ 需 $O(mkn)$ FLOPs。LLM 训练估算：参数量 $N$，训练 token 数 $D$，总 FLOPs $\approx 6ND$（前向约 2ND，反向约 4ND；推理/仅前向时为 2ND）。
 
 **追问**：为什么 LLM 推理的 decode 阶段通常是 memory-bound 而非 compute-bound？
 > **答**：自回归 decode 每步只生成 1 个 token，batch 维度退化，矩阵乘法变成矩阵-向量乘，FLOPs 很小但需加载全部模型权重（IO 密集），GPU 算力未被充分利用。

@@ -148,7 +148,7 @@ where $U_r \in \mathbb{R}^{m \times r}$, $\Sigma_r \in \mathbb{R}^{r \times r}$,
 |--|-----------|-----|
 | Applicability | Square matrices (must be diagonalizable) | Any $m \times n$ matrix |
 | Factored form | $A = Q \Lambda Q^{-1}$ | $W = U \Sigma V^\top$ |
-| Symmetric matrices | $A = Q \Lambda Q^\top$, $Q$ orthogonal | Same form; eigenvalues = singular values |
+| Symmetric matrices | $A = Q \Lambda Q^\top$, $Q$ orthogonal | Same form; singular values = \|eigenvalues\| (eigenvalues = singular values when PSD) |
 | Value range | Eigenvalues can be negative | Singular values $\geq 0$ |
 
 When $A$ is symmetric positive definite (SPD), eigendecomposition and SVD are equivalent.
@@ -174,9 +174,9 @@ $A \in \mathbb{R}^{m \times k}$, $B \in \mathbb{R}^{k \times n}$: computing $AB$
 
 **LLM FLOPs estimate**: For a Transformer model with $N$ parameters trained on $D$ tokens, the total compute is approximately:
 
-$$\text{FLOPs} \approx 2ND$$
+$$\text{FLOPs} \approx 6ND$$
 
-(approximately 2 FLOPs per token per parameter: one multiply + one add.) This is the canonical estimate used in the scaling law literature.
+(forward pass ≈ 2ND, backward pass ≈ 4ND; inference / forward-only ≈ 2ND.) This is the canonical estimate used in the scaling law literature.
 
 ---
 
@@ -654,7 +654,7 @@ Select the parameters that maximize the probability of the observed data. Equiva
 <details>
 <summary>Q17. What is the computational complexity of matrix multiplication? How are LLM training FLOPs estimated?</summary>
 
-**A**: $A \in \mathbb{R}^{m \times k}$, $B \in \mathbb{R}^{k \times n}$: $AB$ requires $O(mkn)$ FLOPs. LLM training estimate: with $N$ parameters and $D$ training tokens, total FLOPs $\approx 2ND$.
+**A**: $A \in \mathbb{R}^{m \times k}$, $B \in \mathbb{R}^{k \times n}$: $AB$ requires $O(mkn)$ FLOPs. LLM training estimate: with $N$ parameters and $D$ training tokens, total FLOPs $\approx 6ND$ (forward ≈ 2ND, backward ≈ 4ND; inference / forward-only ≈ 2ND).
 
 **Follow-up**: Why is the decode phase of LLM inference typically memory-bound rather than compute-bound?
 > **A**: Autoregressive decoding generates only 1 token per step, collapsing the batch dimension. Matrix multiplication degenerates to matrix-vector multiplication, which has very few FLOPs but requires loading the entire model weights (IO-intensive), leaving GPU compute underutilized.
