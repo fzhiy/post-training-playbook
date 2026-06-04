@@ -295,6 +295,12 @@ $$\min(p,q)+(p-q)_+ = \min(p(x),q(x))+\max(0,\,p(x)-q(x)) = p(x).\quad\blacksqua
 
 即输出严格服从 target 分布 $p$。并行提议 $k$ 个 token 时，对各位置独立套用此式（接受到第一个被拒处，再补一个修正样本，故每轮至少产出 1 个 token）。
 
+**接受率 $\alpha$ 与期望加速（每轮产出多少 token）**：设单个 draft token 被接受的期望概率为 $\alpha$（Leviathan 等证明 $\alpha = 1-\mathbb{E}\,[D_{TV}(p,q)]$，draft 越接近 target 则 $\alpha$ 越高）。一轮提议 $k$ 个 token，**沿用 Leviathan 等的简化假设：各位置接受概率独立同为 $\alpha$**（真实场景下接受与否随位置相关），则「产出 $\ge m{+}1$ 个 token」当且仅当前 $m$ 个 draft 连续被接受（概率 $\alpha^m$），对 $m=0,\dots,k$ 求和（等比级数）得每轮期望产出：
+
+$$\mathbb{E}[\#\text{tokens}] = \sum_{m=0}^{k}\alpha^m = \frac{1-\alpha^{\,k+1}}{1-\alpha}$$
+
+$\alpha\to 1$ 时趋于 $k{+}1$（全接受再加 1 个 verifier「免费」token），$\alpha\to 0$ 时趋于 1（每轮至少 1 个）。计入成本比 $c=$ draft 单次前向 $/$ verifier 单次前向，墙钟加速比 $\approx \dfrac{1-\alpha^{\,k+1}}{(1-\alpha)(kc+1)}$——故 $k$ 并非越大越好：$\alpha$ 偏低时增大 $k$ 反被 $kc$ 拖累。
+
 ---
 
 ### 1.13 Tokenization — BPE

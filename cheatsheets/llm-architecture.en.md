@@ -295,6 +295,12 @@ $$\min(p,q)+(p-q)_+ = \min(p(x),q(x))+\max(0,\,p(x)-q(x)) = p(x).\quad\blacksqua
 
 So the output follows the target $p$ exactly. With $k$ tokens proposed in parallel, apply this per position independently (accept up to the first rejection, then add one corrected sample — so each round emits at least 1 token).
 
+**Acceptance rate $\alpha$ and expected speedup (tokens emitted per round)**: let $\alpha$ be the expected probability that a single draft token is accepted (Leviathan et al. prove $\alpha = 1-\mathbb{E}\,[D_{TV}(p,q)]$ — the closer the draft is to the target, the higher $\alpha$). With $k$ tokens proposed per round, **under Leviathan et al.'s simplifying assumption that each position is accepted i.i.d. with probability $\alpha$** (real acceptance is position-correlated), "emitting $\ge m{+}1$ tokens" holds iff the first $m$ drafts are accepted in a row (probability $\alpha^m$); summing over $m=0,\dots,k$ (a geometric series) gives the expected tokens per round:
+
+$$\mathbb{E}[\#\text{tokens}] = \sum_{m=0}^{k}\alpha^m = \frac{1-\alpha^{\,k+1}}{1-\alpha}$$
+
+This tends to $k{+}1$ as $\alpha\to 1$ (all accepted plus one "free" verifier token) and to 1 as $\alpha\to 0$ (at least one token per round). Accounting for the cost ratio $c=$ (draft forward) $/$ (verifier forward), the wall-clock speedup $\approx \dfrac{1-\alpha^{\,k+1}}{(1-\alpha)(kc+1)}$ — so larger $k$ is not always better: when $\alpha$ is low, increasing $k$ is dragged down by the $kc$ term.
+
 ---
 
 ### 1.13 Tokenization — BPE
