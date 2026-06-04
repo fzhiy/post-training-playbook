@@ -134,6 +134,35 @@ $\lambda$ controls the bias-variance trade-off: $\lambda=1$ gives high variance,
 | **Reference** ($\pi_{ref}$) | KL penalty baseline, i.e., the SFT model | No (frozen) |
 | **Reward Model** (RM) | Scores (x,y) pairs | No (frozen) |
 
+**From-scratch implementation** (clipped policy loss + clipped value loss + entropy bonus + approx_kl monitoring):
+
+```python
+import torch
+
+def ppo_loss(logp, logp_old, values, values_old, returns, advantages, entropy,
+             clip_eps=0.2, vf_clip=0.2, vf_coef=0.5, ent_coef=0.0):
+    # logp/logp_old: (B,) logprob of the taken action under current/behavior policy
+    # advantages: normalized GAE advantage (for policy loss); returns: un-normalized GAE target (raw_adv + values_old, for value loss); both from upstream
+    ratio = torch.exp(logp - logp_old)                      # importance ratio ρ_t
+    surr1 = ratio * advantages
+    surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * advantages
+    pg_loss = -torch.min(surr1, surr2).mean()               # clipped policy loss
+
+    v_clip = values_old + torch.clamp(values - values_old, -vf_clip, vf_clip)
+    vf_loss = 0.5 * torch.max((values - returns) ** 2,
+                              (v_clip - returns) ** 2).mean()  # clipped value loss
+
+    loss = pg_loss + vf_coef * vf_loss - ent_coef * entropy.mean()  # entropy bonus
+
+    with torch.no_grad():                                   # diagnostics only
+        logr = logp - logp_old                              # log(π_new/π_old)
+        approx_kl = (torch.exp(logr) - 1 - logr).mean()     # K3: KL(π_old‖π_new) probe
+        clip_frac = ((ratio - 1).abs() > clip_eps).float().mean()
+    return loss, {"pg": pg_loss, "vf": vf_loss, "approx_kl": approx_kl, "clip_frac": clip_frac}
+```
+
+- Key points: ① **three loss terms** — clipped policy loss (the $L^{CLIP}$ above), clipped value loss (constrain the critic's single step around `values_old` to prevent value oscillation), and an entropy bonus (encourages exploration; `ent_coef` is often 0 or tiny); ② `approx_kl` uses the K3 estimator for **KL(π_old‖π_new)**, a **trust-region monitor** (early-stop the epoch if it exceeds a threshold) — a *different* KL from the $\beta\cdot\mathrm{KL}(\pi_\theta\|\pi_{ref})$ in the reward above: the former bounds the update step, the latter anchors to the reference policy; ③ both come from upstream: `advantages` is the **normalized** GAE advantage (fed to the policy loss), while `returns` is the **un-normalized** GAE target ($=$ raw advantage $+$ `values_old`, fed to the value loss) — the two are not interchangeable; this function only computes the minibatch loss; ④ `vf_coef` defaults to 0.5 as a **common heuristic weight** (not a principled gradient balance), most relevant when actor and critic share a backbone; `clip_frac` reports the **fraction of ratios outside the clip range**, which is not the same as the fraction whose objective term was actually clipped (that also depends on the advantage sign).
+
 ---
 
 ## 5. Bradley-Terry Reward Model

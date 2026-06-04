@@ -134,6 +134,35 @@ $\lambda$ 控制 bias-variance 权衡：$\lambda=1$ 方差大 bias 小；$\lambd
 | **Reference** ($\pi_{ref}$) | KL penalty 的基准，即 SFT 模型 | 否（冻结） |
 | **Reward Model** (RM) | 对 (x,y) 打分 | 否（冻结） |
 
+**from-scratch 实现**（clipped 策略损失 + clipped value 损失 + entropy bonus + approx_kl 监控）：
+
+```python
+import torch
+
+def ppo_loss(logp, logp_old, values, values_old, returns, advantages, entropy,
+             clip_eps=0.2, vf_clip=0.2, vf_coef=0.5, ent_coef=0.0):
+    # logp/logp_old: (B,) 当前/采样策略对所取动作的 logprob
+    # advantages: 标准化后的 GAE 优势（策略损失用）; returns: 未标准化的 GAE 目标（原始优势 + values_old，value 损失用); 均由上游算好
+    ratio = torch.exp(logp - logp_old)                      # 重要性比率 ρ_t
+    surr1 = ratio * advantages
+    surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * advantages
+    pg_loss = -torch.min(surr1, surr2).mean()               # clipped 策略损失
+
+    v_clip = values_old + torch.clamp(values - values_old, -vf_clip, vf_clip)
+    vf_loss = 0.5 * torch.max((values - returns) ** 2,
+                              (v_clip - returns) ** 2).mean()  # clipped value 损失
+
+    loss = pg_loss + vf_coef * vf_loss - ent_coef * entropy.mean()  # entropy bonus
+
+    with torch.no_grad():                                   # 仅监控，不回传
+        logr = logp - logp_old                              # log(π_new/π_old)
+        approx_kl = (torch.exp(logr) - 1 - logr).mean()     # K3：KL(π_old‖π_new) 诊断
+        clip_frac = ((ratio - 1).abs() > clip_eps).float().mean()
+    return loss, {"pg": pg_loss, "vf": vf_loss, "approx_kl": approx_kl, "clip_frac": clip_frac}
+```
+
+- 关键点：① **三项损失**——clipped 策略损失（即上式 $L^{CLIP}$）、clipped value 损失（把 critic 单步更新限制在 `values_old` 附近，防 value 震荡）、entropy bonus（鼓励探索，`ent_coef` 常取 0 或很小）；② `approx_kl` 用 K3 估计器算 **KL(π_old‖π_new)**，是**信任域监控量**（超阈值则早停本轮 epoch），与上式奖励里的 $\beta\cdot\mathrm{KL}(\pi_\theta\|\pi_{ref})$ 是**两个不同的 KL**——前者控更新步长、后者拉住参考策略；③ 上游算好两个量：`advantages` 是**标准化后**的 GAE 优势（喂策略损失），`returns` 是**未标准化**的 GAE 目标（$=$ 原始优势 $+$ `values_old`，喂 value 损失）——二者不可互相套用，本函数只算 minibatch 损失；④ `vf_coef` 默认 0.5 是**常用经验权重**（并非严格的梯度平衡保证），在 actor/critic 共享 backbone 时尤其相关；`clip_frac` 报告的是**比率落在裁剪区间外的占比**，并不等于「目标项真正被裁剪」的比例（后者还取决于优势符号）。
+
 ---
 
 ## 5. Bradley-Terry Reward Model（奖励模型）
