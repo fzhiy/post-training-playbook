@@ -58,6 +58,37 @@ def pass_at_k(n, c, k):
 
 > 📝 标准口径(Chen et al.):每题 $n=200$,报告 $k\in\{1,10,100\}$。
 
+### 1.2 Bradley-Terry / Elo:成对胜负 → 排名 / Pairwise wins → ranking
+
+Arena 把海量「A vs B 谁更好」的成对投票转成全序排名,靠的就是 **Bradley-Terry (BT)** 模型(Elo 是它的在线近似)。
+
+**BT 模型**:给每个对象 $i$ 一个隐分数 $s_i$,则
+
+$$P(i \succ j) = \sigma(s_i - s_j) = \frac{1}{1+e^{-(s_i-s_j)}}$$
+
+只有**分差**可辨识(整体平移不改变概率),故需固定一个锚点(如 $s_0=0$)。拟合 = 对成对结果做**逻辑回归 MLE**:对数似然 $\sum_{i,j} w_{ij}\log\sigma(s_i-s_j)$($w_{ij}$ 为 $i$ 胜 $j$ 的次数)是**凹**的(等价地负对数似然是凸损失),凸优化、有全局最优;胜负图连通时解有限且唯一。
+
+**核心假设**(也是其脆弱处):
+1. **单维强度**:质量可用一个标量 $s_i$ 概括 → 对象可被全序排列;
+2. **(随机)传递性**:若 A 倾向胜 B、B 倾向胜 C,则 A 倾向胜 C——**不允许石头剪刀布式的循环偏好**($A\succ B\succ C\succ A$);
+3. **比较独立**:各场对战相互独立,无顺序/学习效应;
+4. 基础 BT 不建模平局(Rao-Kupper 等扩展才处理 tie)。
+
+→ 当模型间偏好真的呈**非传递的循环**时(不同维度上各有胜负),单一标量 Elo 会把这种循环压扁成一个序,排名的"客观性"被高估。
+
+**Elo = BT 的在线近似**:每场对战按预测误差做一次定步长更新,可视作在 BT 逻辑损失上做在线梯度更新:
+
+```python
+# Elo:Bradley-Terry 的在线/流式版,每场对战做一次定步长的梯度更新
+def elo_update(r_a, r_b, score_a, K=32, scale=400):
+    e_a = 1.0 / (1.0 + 10 ** ((r_b - r_a) / scale))  # BT/logistic 预测的 P(A 胜)
+    r_a = r_a + K * (score_a - e_a)                  # score_a ∈ {1, 0.5, 0}
+    r_b = r_b + K * ((1 - score_a) - (1 - e_a))
+    return r_a, r_b
+```
+
+> 📝 批量场景直接对全部成对结果做 BT 的 MLE(逻辑回归)比逐场 Elo 更稳,且能给**置信区间**(Arena 用 BT + bootstrap 报区间)。
+
 ## 2. LLM-as-judge:怎么用 + 偏置
 
 > 📎 **交叉引用**：本节侧重 LLM-as-Judge 作为**评测实践**的视角（如何选 judge、具体操作、benchmark 应用）。关于 LLM-as-Judge 作为 **RLHF 训练信号**时偏差如何影响 RM 训练和 reward hacking，见 `reward-modeling-eval.md §5.2`。
@@ -101,6 +132,43 @@ def biased_judge(q, a, b):
 print(judge_debiased("q", "model", "ref", biased_judge))   # -> 'tie'
 print("win_rate:", win_rate(["q"], ["model"], ["ref"], biased_judge))  # -> 0.5
 ```
+
+### 2.2 judge 与人类一致性怎么量 / Judge–human agreement
+
+"与人类校准 / 一致率"反复出现(§1 RM 行、上面的缓解招、Q31),但**只看原始一致率 (raw agreement) 会高估"扣掉偶然后真正的一致程度"**:当某一类标签占多数时,两个标注者光靠瞎猜也能高概率"撞对"。**Cohen's κ** 扣掉这部分偶然一致:
+
+$$\kappa = \frac{p_o - p_e}{1 - p_e}$$
+
+- $p_o$:观测一致率(两者判断相同的比例);
+- $p_e$:**偶然**一致率 $=\sum_c p^{(1)}_c\,p^{(2)}_c$(各类别上两标注者边缘比例之积求和)。
+
+$\kappa=1$ 完美,$\kappa=0$ 表示一致程度仅与"按各自边缘分布独立瞎猜"持平,$\kappa<0$ 比瞎猜还差。直觉:若两标注者都按 90/10 边缘**独立**打标,原始一致率约 $0.9^2+0.1^2=0.82$ 看着很高,但 $\kappa\approx0$——**所以报 judge 与人类一致时要报 κ,别只报一致率**。
+
+```python
+import numpy as np
+def cohens_kappa(labels_a, labels_b):
+    cats = sorted(set(labels_a) | set(labels_b))
+    idx = {c: i for i, c in enumerate(cats)}
+    n, K = len(labels_a), len(cats)
+    conf = np.zeros((K, K))
+    for a, b in zip(labels_a, labels_b):
+        conf[idx[a], idx[b]] += 1
+    p_o = np.trace(conf) / n                            # 观测一致率
+    p_e = (conf.sum(0) * conf.sum(1)).sum() / n ** 2    # 偶然一致率
+    return (p_o - p_e) / (1 - p_e)
+```
+
+> 多于两个标注者(名义类别):用 **Fleiss' κ**;有序评分:用 **weighted κ** 或 **Krippendorff's α**(可设有序距离、容缺失值)。
+
+### 2.3 冗长去偏的回归形式 / Length-controlled win-rate
+
+§1 表里 AlpacaEval 2.0 的去偏写作"回归扣除长度"——具体做法(Dubois et al., [arXiv:2404.04475](https://arxiv.org/abs/2404.04475))是拟合一个**广义线性模型**预测 judge 的偏好,把**长度差**作为显式一项放进去(简化形式):
+
+$$\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\text{len}} + \dots$$
+
+其中 $\Delta_{\text{len}}$ 为两答案长度差。报告时令长度项 $\Delta_{\text{len}}=0$、对指令分布取期望,得到 **length-controlled win-rate**——直觉是"两答案等长时模型本该有的胜率",把 GLM 所建模的"长度关联"那部分扣掉。
+
+⚠️ 注意:它扣的是**模型所拟合的长度关联**,与长度相关的真实质量信号可能被一并扣除,未建模的风格效应也扣不掉;实测能显著提升与 Chatbot Arena(真人 Elo)排名的 Spearman 相关性。
 
 ## 3. 数据污染 / Contamination
 

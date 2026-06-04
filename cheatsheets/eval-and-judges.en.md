@@ -58,6 +58,37 @@ def pass_at_k(n, c, k):
 
 > 📝 Standard protocol (Chen et al.): $n=200$ per problem, report $k\in\{1,10,100\}$.
 
+### 1.2 Bradley-Terry / Elo: pairwise wins → ranking
+
+Arena turns a massive pile of "A vs B, which is better?" pairwise votes into a total-order ranking via the **Bradley-Terry (BT)** model (Elo is its online approximation).
+
+**BT model**: give each item $i$ a latent score $s_i$; then
+
+$$P(i \succ j) = \sigma(s_i - s_j) = \frac{1}{1+e^{-(s_i-s_j)}}$$
+
+Only score **differences** are identifiable (a global shift leaves probabilities unchanged), so fix an anchor (e.g. $s_0=0$). Fitting = **logistic-regression MLE**: the log-likelihood $\sum_{i,j} w_{ij}\log\sigma(s_i-s_j)$ ($w_{ij}$ = times $i$ beats $j$) is **concave** (equivalently the negative log-likelihood is a convex loss), a convex optimization with a global optimum; the solution is finite and unique when the win graph is connected.
+
+**Core assumptions** (and where they break):
+1. **Unidimensional strength**: quality is summarized by a single scalar $s_i$ → items are totally orderable;
+2. **(Stochastic) transitivity**: if A tends to beat B and B tends to beat C, then A tends to beat C — **no rock-paper-scissors cyclic preferences** ($A\succ B\succ C\succ A$);
+3. **Independent comparisons**: matches are mutually independent, no order/learning effects;
+4. Basic BT does not model ties (Rao-Kupper and other extensions handle ties).
+
+→ When preferences are genuinely **non-transitive cycles** (each wins on a different dimension), a single scalar Elo flattens the cycle into one order, and the ranking's "objectivity" is overstated.
+
+**Elo = online approximation of BT**: each match does one fixed-step update on the prediction error, viewable as an online gradient update on the BT logistic loss:
+
+```python
+# Elo: the online/streaming version of Bradley-Terry, one fixed-step gradient update per match
+def elo_update(r_a, r_b, score_a, K=32, scale=400):
+    e_a = 1.0 / (1.0 + 10 ** ((r_b - r_a) / scale))  # BT/logistic predicted P(A wins)
+    r_a = r_a + K * (score_a - e_a)                  # score_a in {1, 0.5, 0}
+    r_b = r_b + K * ((1 - score_a) - (1 - e_a))
+    return r_a, r_b
+```
+
+> 📝 In the batch setting, fitting BT by MLE (logistic regression) over all pairwise results is more stable than per-match Elo and yields **confidence intervals** (Arena uses BT + bootstrap for intervals).
+
 ## 2. LLM-as-Judge: How to Use It + Biases
 
 > 📎 **Cross-reference**: This section focuses on LLM-as-Judge from the perspective of **evaluation practice** (how to select a judge, operational details, benchmark applications). For how LLM-as-Judge biases affect RM training and reward hacking when used as a **RLHF training signal**, see `cheatsheet-reward-modeling-eval-en.html §5.2`.
@@ -101,6 +132,43 @@ def biased_judge(q, a, b):
 print(judge_debiased("q", "model", "ref", biased_judge))   # -> 'tie'
 print("win_rate:", win_rate(["q"], ["model"], ["ref"], biased_judge))  # -> 0.5
 ```
+
+### 2.2 Measuring judge–human agreement
+
+"Calibration / agreement with humans" recurs throughout (the §1 RM row, the mitigations above, Q31), but **raw agreement alone overstates "the real agreement after removing chance"**: when one label dominates, two annotators agree by pure guessing with high probability. **Cohen's κ** removes this chance agreement:
+
+$$\kappa = \frac{p_o - p_e}{1 - p_e}$$
+
+- $p_o$: observed agreement (the fraction on which the two agree);
+- $p_e$: **chance** agreement $=\sum_c p^{(1)}_c\,p^{(2)}_c$ (sum over categories of the product of the two annotators' marginal proportions).
+
+$\kappa=1$ is perfect, $\kappa=0$ means agreement is only at the level of "guessing independently from each annotator's own marginals", $\kappa<0$ is worse than guessing. Intuition: if both annotators label **independently** with 90/10 marginals, raw agreement is about $0.9^2+0.1^2=0.82$ — looks high, yet $\kappa\approx0$. **So report κ, not just raw agreement, for judge–human consistency.**
+
+```python
+import numpy as np
+def cohens_kappa(labels_a, labels_b):
+    cats = sorted(set(labels_a) | set(labels_b))
+    idx = {c: i for i, c in enumerate(cats)}
+    n, K = len(labels_a), len(cats)
+    conf = np.zeros((K, K))
+    for a, b in zip(labels_a, labels_b):
+        conf[idx[a], idx[b]] += 1
+    p_o = np.trace(conf) / n                            # observed agreement
+    p_e = (conf.sum(0) * conf.sum(1)).sum() / n ** 2    # chance agreement
+    return (p_o - p_e) / (1 - p_e)
+```
+
+> More than two annotators (nominal categories): use **Fleiss' κ**; ordinal scores: use **weighted κ** or **Krippendorff's α** (supports ordinal distances and missing data).
+
+### 2.3 Length-controlled win-rate: the regression form
+
+The §1 table lists AlpacaEval 2.0's debiasing as "regress out length" — concretely (Dubois et al., [arXiv:2404.04475](https://arxiv.org/abs/2404.04475)) you fit a **generalized linear model** predicting the judge's preference, with the **length difference** as an explicit term (simplified form):
+
+$$\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\text{len}} + \dots$$
+
+where $\Delta_{\text{len}}$ is the two answers' length difference. To report, set the length term $\Delta_{\text{len}}=0$ and take the expectation over the instruction distribution, giving the **length-controlled win-rate** — intuitively "the win-rate the model should have if both answers were the same length", removing the "length association" the GLM models.
+
+⚠️ Note: it removes the **length association the model fits**, so genuine quality signal correlated with length may be removed along with it, and unmodeled style effects are not removed; empirically it markedly improves the Spearman correlation with Chatbot Arena (human Elo) rankings.
 
 ## 3. Data Contamination
 
