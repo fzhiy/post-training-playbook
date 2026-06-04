@@ -44,7 +44,7 @@ $$\mathcal{L}_{\text{BT}} = -\mathbb{E}_{(x, y_w, y_l)} \left[ \log \sigma(r_\th
 **局限 (Limitations)：**
 - 只利用了二元偏好信号，信息利用不够充分
 - 假设偏好具有传递性 (transitivity)，现实中未必成立
-- 不直接输出标量值，在某些下游任务中需额外处理
+- 绝对值不可识别：损失只约束差值 $r_\theta(x,y_w)-r_\theta(x,y_l)$，任意常数平移不影响 loss；跨 prompt 的绝对分值比较需额外校准
 
 **from-scratch 实现：** RM = backbone + 标量头，取**最后一个非 pad token** 的隐状态打分；损失就是 BT 的负 log-sigmoid。
 
@@ -153,7 +153,7 @@ $$\mathcal{L}_{\text{DPO}} = -\mathbb{E}\left[\log\sigma\!\left(\beta\log\frac{\
 **特点：**
 - ✅ 信号更密集 (dense reward)，信用分配更精确
 - ✅ 能定位具体推理错误步骤，可用于 early stopping 或树搜索
-- ✅ 在数学推理等任务上通常显著优于 ORM（根据多项研究的定性结论）
+- ✅ 在数学推理等任务的 BoN/搜索场景下，使用高质量步骤标注的 PRM 通常显著优于 ORM（如 PRM800K 等；ORM 在大搜索预算或 RLVR 设置下可具竞争力）
 - ❌ **标注成本极高**：需要专家逐步判断
 - ❌ 步骤边界定义 (step delineation) 本身有歧义
 

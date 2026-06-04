@@ -33,7 +33,7 @@ $$\mathcal{L}_{\text{BT}} = -\mathbb{E}_{(x, y_w, y_l)} \left[ \log \sigma(r_\th
 **Limitations:**
 - Only uses binary preference signals, making limited use of available information
 - Assumes transitivity of preferences, which may not hold in practice
-- Does not directly output a scalar value; additional processing may be needed in some downstream tasks
+- Absolute values are unidentifiable: the loss only constrains the difference $r_\theta(x,y_w)-r_\theta(x,y_l)$; any constant shift leaves the loss unchanged. Cross-prompt comparisons of absolute scores require additional calibration
 
 **From-scratch implementation:** an RM = backbone + scalar head, scoring the **last non-pad token's** hidden state; the loss is just BT's negative log-sigmoid.
 
@@ -142,7 +142,7 @@ Output: per-step reward r_step(i)
 **Characteristics:**
 - ✅ Denser reward signal; more precise credit assignment
 - ✅ Can pinpoint specific erroneous reasoning steps; enables early stopping or tree search
-- ✅ Generally outperforms ORM significantly on tasks such as mathematical reasoning (qualitative conclusion from multiple studies)
+- ✅ In BoN/search settings on tasks such as mathematical reasoning, a PRM trained on high-quality step annotations generally outperforms ORM significantly (e.g., PRM800K; ORM can be competitive under large search budgets or RLVR settings)
 - ❌ **Very high annotation cost**: requires expert-level step-by-step judgments
 - ❌ Step boundary definition (step delineation) is inherently ambiguous
 
