@@ -41,7 +41,7 @@
 
 ### 1.1a pass@k 无偏估计 / Unbiased pass@k
 
-**朴素估计** $1-(1-\hat p)^k$($\hat p=c/n$):对 $k\ge2$ 在任意有限 $n$ 都**系统性低估**真实 pass@k(Jensen 不等式,凸性),$n$ 越大偏差越小但不为 0;$k=1$ 时 $c/n$ 已无偏。
+**朴素估计** $1-(1-\hat p)^k$($\hat p=c/n$):对 $k\ge2$ 在任意有限 $n$ 都**系统性低估**真实 pass@k(Jensen 不等式:$(1-\hat p)^k$ 对 $\hat p$ 凸,故 $\mathbb{E}[(1-\hat p)^k]\ge(1-p)^k$),$n$ 越大偏差越小但不为 0;$k=1$ 时 $c/n$ 已无偏。
 
 **无偏估计**(Chen et al., [arXiv:2107.03374](https://arxiv.org/abs/2107.03374) §3):每题采 $n\ge k$ 个候选、$c$ 个过单测,则
 

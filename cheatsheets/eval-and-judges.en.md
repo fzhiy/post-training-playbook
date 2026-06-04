@@ -41,7 +41,7 @@
 
 ### 1.1a Unbiased pass@k
 
-**Naive estimator** $1-(1-\hat p)^k$ ($\hat p=c/n$): for $k\ge2$ it **systematically underestimates** the true pass@k at any finite $n$ (Jensen's inequality, convexity); the bias shrinks as $n$ grows but is never zero; for $k=1$, $c/n$ is already unbiased.
+**Naive estimator** $1-(1-\hat p)^k$ ($\hat p=c/n$): for $k\ge2$ it **systematically underestimates** the true pass@k at any finite $n$ (Jensen's inequality: $(1-\hat p)^k$ is convex in $\hat p$, so $\mathbb{E}[(1-\hat p)^k]\ge(1-p)^k$); the bias shrinks as $n$ grows but is never zero; for $k=1$, $c/n$ is already unbiased.
 
 **Unbiased estimator** (Chen et al., [arXiv:2107.03374](https://arxiv.org/abs/2107.03374) §3): sample $n\ge k$ candidates per problem, $c$ pass the unit tests, then
 
