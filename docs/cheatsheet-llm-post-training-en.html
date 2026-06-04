@@ -649,7 +649,7 @@ c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
 <tbody><tr>
 <td align="left"><strong>Models required</strong></td>
 <td align="left">4: Actor + Critic + Reference + RM</td>
-<td align="left">2: Actor + Reference (reward from external/rules)</td>
+<td align="left">2–3: Actor + Reference (+ optional RM; in RLVR settings reward comes from rules, no separate RM needed)</td>
 </tr>
 <tr>
 <td align="left"><strong>Advantage estimation</strong></td>
@@ -659,12 +659,12 @@ c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
 <tr>
 <td align="left"><strong>Memory overhead</strong></td>
 <td align="left">High (4 copies of model weights)</td>
-<td align="left">Low (2 copies of model weights)</td>
+<td align="left">Low (2–3 copies of model weights)</td>
 </tr>
 <tr>
 <td align="left"><strong>Reward source</strong></td>
 <td align="left">Learned neural RM (learned neural RM)</td>
-<td align="left">Verifiable / rule-based reward (verifiable / rule-based reward)</td>
+<td align="left">Typically verifiable/rule-based reward; neural RM can also be plugged in</td>
 </tr>
 <tr>
 <td align="left"><strong>Suitable scenarios</strong></td>
@@ -689,7 +689,7 @@ c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
 <li><strong>Code</strong>: whether all test cases pass (passes all test cases) → <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mfrac><mtext>passed tests</mtext><mtext>total tests</mtext></mfrac></mrow><annotation encoding="application/x-tex">r = \frac{\text{passed tests}}{\text{total tests}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.2772em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9322em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">total tests</span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.4461em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">passed tests</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></li>
 <li><strong>Format</strong>: whether the required format is followed (follows required format) → <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">r \in \{0, 1\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">}</span></span></span></span></li>
 </ul>
-<p>The core advantage of RLVR: <strong>noise-free reward</strong> (noise-free reward), avoiding the bias and overfitting of the RM itself.</p>
+<p>The core advantage of RLVR: <strong>low-noise reward</strong> (low-noise reward, relative to a learned RM), avoiding the bias and overfitting of the RM itself.</p>
 <h3 id="sec-26">8.4 When to Prefer Which</h3>
 <ul>
 <li><strong>Prefer GRPO</strong>: rewards are automatically verifiable (math, code, logical reasoning); limited resources (cannot maintain 4 models); need stable training</li>

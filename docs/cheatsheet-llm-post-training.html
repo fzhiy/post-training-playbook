@@ -656,7 +656,7 @@ c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
 <tbody><tr>
 <td align="left"><strong>所需模型数量</strong></td>
 <td align="left">4 个：Actor + Critic + Reference + RM</td>
-<td align="left">2 个：Actor + Reference（奖励来自外部/规则）</td>
+<td align="left">2–3 个：Actor + Reference（+ 可选 RM；RLVR 场景下奖励来自规则，无需独立 RM）</td>
 </tr>
 <tr>
 <td align="left"><strong>优势估计</strong></td>
@@ -666,12 +666,12 @@ c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
 <tr>
 <td align="left"><strong>内存开销</strong></td>
 <td align="left">高（4 份模型权重）</td>
-<td align="left">低（2 份模型权重）</td>
+<td align="left">低（2–3 份模型权重）</td>
 </tr>
 <tr>
 <td align="left"><strong>奖励来源</strong></td>
 <td align="left">学习到的神经网络 RM (learned neural RM)</td>
-<td align="left">可验证奖励 / 规则奖励 (verifiable / rule-based reward)</td>
+<td align="left">通常为可验证/规则奖励；亦可接入神经 RM</td>
 </tr>
 <tr>
 <td align="left"><strong>适用场景</strong></td>
@@ -696,7 +696,7 @@ c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14
 <li><strong>代码</strong>：是否通过所有测试用例 (passes all test cases) → <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mfrac><mtext>passed tests</mtext><mtext>total tests</mtext></mfrac></mrow><annotation encoding="application/x-tex">r = \frac{\text{passed tests}}{\text{total tests}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.2772em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9322em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">total tests</span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.4461em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">passed tests</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></li>
 <li><strong>格式</strong>：是否遵循指定格式 (follows required format) → <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">r \in \{0, 1\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">}</span></span></span></span></li>
 </ul>
-<p>RLVR 的核心优势：<strong>奖励无噪声</strong> (noise-free reward)，避免了 RM 本身的偏差与过拟合。</p>
+<p>RLVR 的核心优势：<strong>奖励低噪声</strong> (low-noise reward，相比学习型 RM)，避免了 RM 本身的偏差与过拟合。</p>
 <h3 id="sec-27">8.4 选择指南 (When to Prefer Which)</h3>
 <ul>
 <li><strong>优先 GRPO</strong>：奖励可自动验证（数学、代码、逻辑推理）；资源有限（无法维护 4 个模型）；需要稳定训练</li>

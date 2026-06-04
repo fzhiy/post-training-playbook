@@ -508,10 +508,10 @@ $$
 
 | 特性 | PPO | GRPO |
 |:---|:---|:---|
-| **所需模型数量** | 4 个：Actor + Critic + Reference + RM | 2 个：Actor + Reference（奖励来自外部/规则） |
+| **所需模型数量** | 4 个：Actor + Critic + Reference + RM | 2–3 个：Actor + Reference（+ 可选 RM；RLVR 场景下奖励来自规则，无需独立 RM） |
 | **优势估计** | GAE (Generalized Advantage Estimation)，需要 Critic 网络 | 组内相对排名，无需 Critic |
-| **内存开销** | 高（4 份模型权重） | 低（2 份模型权重） |
-| **奖励来源** | 学习到的神经网络 RM (learned neural RM) | 可验证奖励 / 规则奖励 (verifiable / rule-based reward) |
+| **内存开销** | 高（4 份模型权重） | 低（2–3 份模型权重） |
+| **奖励来源** | 学习到的神经网络 RM (learned neural RM) | 通常为可验证/规则奖励；亦可接入神经 RM |
 | **适用场景** | 开放式对话、创意写作 (open-ended generation) | 数学推理、代码生成 (math, code with verifiable ground truth) |
 | **训练稳定性** | 需仔细调参 Critic，否则不稳定 | 更稳定，因为无 Critic 估计误差 |
 | **梯度方差** | 较低（GAE 提供低方差估计） | 较高（组采样数 $G$ 有限） |
@@ -524,7 +524,7 @@ GRPO 最适配的范式是 **RLVR**：奖励不来自学习的 RM，而是来自
 - **代码**：是否通过所有测试用例 (passes all test cases) → $r = \frac{\text{passed tests}}{\text{total tests}}$
 - **格式**：是否遵循指定格式 (follows required format) → $r \in \{0, 1\}$
 
-RLVR 的核心优势：**奖励无噪声** (noise-free reward)，避免了 RM 本身的偏差与过拟合。
+RLVR 的核心优势：**奖励低噪声** (low-noise reward，相比学习型 RM)，避免了 RM 本身的偏差与过拟合。
 
 ### 8.4 选择指南 (When to Prefer Which)
 

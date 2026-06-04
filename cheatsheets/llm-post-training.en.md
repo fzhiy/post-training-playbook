@@ -499,10 +499,10 @@ $$
 
 | Property | PPO | GRPO |
 |:---|:---|:---|
-| **Models required** | 4: Actor + Critic + Reference + RM | 2: Actor + Reference (reward from external/rules) |
+| **Models required** | 4: Actor + Critic + Reference + RM | 2–3: Actor + Reference (+ optional RM; in RLVR settings reward comes from rules, no separate RM needed) |
 | **Advantage estimation** | GAE (Generalized Advantage Estimation), requires a Critic network | Intra-group relative ranking, no Critic needed |
-| **Memory overhead** | High (4 copies of model weights) | Low (2 copies of model weights) |
-| **Reward source** | Learned neural RM (learned neural RM) | Verifiable / rule-based reward (verifiable / rule-based reward) |
+| **Memory overhead** | High (4 copies of model weights) | Low (2–3 copies of model weights) |
+| **Reward source** | Learned neural RM (learned neural RM) | Typically verifiable/rule-based reward; neural RM can also be plugged in |
 | **Suitable scenarios** | Open-ended dialogue, creative writing (open-ended generation) | Math reasoning, code generation (math, code with verifiable ground truth) |
 | **Training stability** | Requires careful Critic tuning, otherwise unstable | More stable, no Critic estimation error |
 | **Gradient variance** | Lower (GAE provides low-variance estimates) | Higher (limited group sample size $G$) |
@@ -515,7 +515,7 @@ The paradigm that best fits GRPO is **RLVR**: rewards come not from a learned RM
 - **Code**: whether all test cases pass (passes all test cases) → $r = \frac{\text{passed tests}}{\text{total tests}}$
 - **Format**: whether the required format is followed (follows required format) → $r \in \{0, 1\}$
 
-The core advantage of RLVR: **noise-free reward** (noise-free reward), avoiding the bias and overfitting of the RM itself.
+The core advantage of RLVR: **low-noise reward** (low-noise reward, relative to a learned RM), avoiding the bias and overfitting of the RM itself.
 
 ### 8.4 When to Prefer Which
 
