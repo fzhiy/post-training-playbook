@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>后训练数据流水线 (Data Pipeline & Curation) 速查手册</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="vendor/hl/github.min.css">
+<link rel="stylesheet" href="vendor/hl/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<style>
+  :root{
+    color-scheme:light dark;
+    --bg:#fdfcf7; --bg-soft:#f4f1ea; --bg-code:#f8f5ec; --ink:#2b2b2b; --ink-soft:#4a4a4a; --muted:#6b6b6b;
+    --accent:#b8390e;  /* 赭红 — 加粗/强调/inline code */
+    --primary:#1a4a8c; /* navy — 链接/H3/表头/代码边条 */
+    --line:#8884; --border:#d6d0c0; --border-soft:#e8e3d5;
+    --thead-bg:#1a4a8c; --thead-fg:#ffffff;
+    --c-info-bg:#dbeafe; --c-info:#1a4a8c;
+    --c-warn-bg:#fef3c7; --c-warn:#b45309;
+    --c-good-bg:#d1fae5; --c-good:#065f46;
+    --c-bad-bg:#fee2e2;  --c-bad:#991b1b;
+  }
+  body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+       font:16px/1.75 Georgia,"Iowan Old Style","Songti SC","Noto Serif CJK SC","STSong",serif;word-wrap:break-word}
+  h1,h2,h3,h4{line-height:1.3;margin-top:1.6em;color:#1a1a1a;font-weight:700}
+  h1{font-size:1.55rem}
+  h2{font-size:1.32rem;border-bottom:1px solid var(--border);padding-bottom:.25em;margin-top:1.9em}
+  h3{font-size:1.1rem;color:var(--primary)}
+  strong{color:var(--accent)}
+  em{color:var(--ink-soft)}
+  a{color:var(--primary);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;font-size:.88em}
+  :not(pre)>code{background:var(--bg-code);color:var(--accent);padding:.1em .4em;border-radius:3px;border:1px solid var(--border-soft)}
+  pre{margin:1em 0;background:var(--bg-code);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:4px;overflow-x:auto}
+  pre code.hljs{background:transparent!important;border-radius:0}
+  pre.diagram{background:#f9f6ed;border-left-color:var(--accent);font-size:.9em;line-height:1.45}
+  table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem;border:1px solid var(--border)}
+  thead{background:var(--thead-bg);color:var(--thead-fg)}
+  th,td{padding:.5em .7em;text-align:left;vertical-align:top;border-bottom:1px solid var(--border-soft)}
+  th{font-weight:600;font-size:.9rem;letter-spacing:.02em}
+  tbody tr:nth-child(even){background:var(--bg-soft)}
+  tbody tr:last-child td{border-bottom:none}
+  blockquote{border-left:3px solid var(--border);margin:1em 0;padding:.3em 1em;color:var(--muted);background:#0000000a;border-radius:0 6px 6px 0}
+  nav.top{max-width:1080px;margin:1rem auto .4rem;padding:0 1.1rem;font-size:.88rem;font-family:system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .lang-toggle{flex:none;border:1px solid var(--border);border-radius:999px;padding:.12em .7em;color:var(--primary);font-size:.82rem;white-space:nowrap}
+  .lang-toggle:hover{background:var(--bg-soft);text-decoration:none}
+  /* 提示框 (emoji 触发, 构建时包裹) */
+  .callout{border-left:4px solid;border-radius:4px;padding:.6em 1em;margin:1.1em 0;font-size:.97em}
+  .callout>:first-child{margin-top:0}
+  .callout>:last-child{margin-bottom:0}
+  .callout-info{border-left-color:var(--c-info);background:var(--c-info-bg)}
+  .callout-warn{border-left-color:var(--c-warn);background:var(--c-warn-bg)}
+  .callout-good{border-left-color:var(--c-good);background:var(--c-good-bg)}
+  .callout-bad{border-left-color:var(--c-bad);background:var(--c-bad-bg)}
+  .callout-label{font:700 .72rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3em}
+  .callout-info .callout-label{color:var(--c-info)}
+  .callout-warn .callout-label{color:var(--c-warn)}
+  .callout-good .callout-label{color:var(--c-good)}
+  .callout-bad .callout-label{color:var(--c-bad)}
+  /* 折叠 Q&A (问题在 summary, 答案默认折叠) */
+  details:not(.toc):not(.code-fold){border:1px solid var(--line);border-radius:8px;margin:.6em 0;background:var(--bg-soft);padding:0 .9em}
+  details:not(.toc):not(.code-fold)>summary{cursor:pointer;font-weight:600;color:var(--primary);padding:.55em .1em;list-style:none;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+  details:not(.toc):not(.code-fold)>summary::-webkit-details-marker{display:none}
+  details:not(.toc):not(.code-fold)>summary::before{content:"▸ ";color:var(--accent)}
+  details:not(.toc):not(.code-fold)[open]>summary::before{content:"▾ "}
+  details:not(.toc):not(.code-fold)[open]>summary{border-bottom:1px solid var(--line);margin-bottom:.5em}
+  details:not(.toc):not(.code-fold)>:not(summary):last-child{margin-bottom:.7em}
+  /* 折叠长代码 */
+  .code-fold{margin:1em 0}
+  .code-fold>summary{cursor:pointer;color:var(--primary);font-size:.85rem;padding:.25em 0;list-style:none;font-family:system-ui,sans-serif}
+  .code-fold>summary::-webkit-details-marker{display:none}
+  .code-fold>summary::before{content:"▸ 展开代码 · "}
+  .code-fold[open]>summary::before{content:"▾ 收起代码 · "}
+  .code-fold pre{margin:.3em 0}
+  /* 时间线: "时间线/Timeline" 标题后的列表自动套用 (build.js markTimeline) */
+  ul.timeline,ol.timeline{list-style:none;padding-left:1.2em;border-left:2px solid var(--border);margin:1.1em 0}
+  .timeline li{position:relative;margin:.55em 0;padding-left:.7em}
+  .timeline li::before{content:"";position:absolute;left:-1.33em;top:.5em;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+  .timeline li strong{color:var(--primary)}
+  /* ARIS 式 hero 页头: eyebrow 小标签 + 大标题 + 副标题 + 双线 (标题从正文 H1 提升至此) */
+  .hero{max-width:1080px;margin:1.1rem auto .2rem;padding:0 1.1rem}
+  body.no-toc .hero{max-width:820px}
+  .hero .eyebrow{font:400 .82rem/1.4 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:.01em;color:var(--muted);margin-bottom:.4em}
+  .hero-title{font-size:2rem;line-height:1.2;margin:.1rem 0 .25rem;color:#1a1a1a;font-weight:700;letter-spacing:-.01em}
+  .hero-sub{font:italic 400 1.05rem/1.5 Georgia,"Songti SC","Noto Serif CJK SC",serif;color:var(--ink-soft);margin:.1rem 0 .55rem}
+  .hero-rule{border-top:3px double var(--primary);margin:.4rem 0 0}
+  /* 两栏: 左 sticky 侧栏 TOC + 正文; ≤900px 折成单栏、TOC 移到顶部; scrollspy 高亮当前节 */
+  .layout{max-width:820px;margin:0 auto;padding:0 1.1rem 4rem;display:grid;grid-template-columns:1fr}
+  body:not(.no-toc) .layout{max-width:1080px;grid-template-columns:220px minmax(0,1fr);gap:36px;align-items:start}
+  main#out{min-width:0}
+  nav.toc{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow:auto;font-size:.85rem;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif;border-right:1px solid var(--line);padding:.2em 14px 0 0}
+  nav.toc .toc-h{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-bottom:.6em}
+  nav.toc ul{list-style:none;padding:0;margin:0}
+  nav.toc li{margin:.18em 0}
+  nav.toc li.lv3{padding-left:1em;font-size:.95em;opacity:.8}
+  nav.toc a{color:var(--muted);text-decoration:none;border-left:2px solid transparent;padding-left:.55em;display:block;line-height:1.4}
+  nav.toc a:hover{color:var(--primary)}
+  nav.toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
+  @media (max-width:900px){
+    body:not(.no-toc) .layout{grid-template-columns:1fr;gap:0}
+    nav.toc{position:static;max-height:none;overflow:visible;border-right:none;border-bottom:1px solid var(--line);padding:0 0 .7em;margin-bottom:1.2em}
+  }
+  /* 引用 (gwern/Tufte 式, 零 JS): [N] 上标可点跳底部; .cite-note gist 宽屏(≥1180px)浮右页边、窄屏隐藏 */
+  .cite-wrap{display:inline}
+  .cite{color:var(--primary);font-weight:600;font-size:.72em;vertical-align:super;padding:0 .12em;white-space:nowrap;text-decoration:none}
+  .cite::before{content:"["}
+  .cite::after{content:"]"}
+  .cite:hover{text-decoration:underline}
+  .cite-note{display:none}
+  ol.refs{font-size:.95rem;padding-left:1.6em}
+  ol.refs li{margin:.4em 0}
+  ol.refs li:target{background:#b8390e1a;border-radius:4px}
+  .katex-display{overflow-x:auto;overflow-y:hidden;padding:.2em 0}
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#16181c; --bg-soft:#22262c; --bg-code:#1d2025; --ink:#dcdcdc; --ink-soft:#aeb7bf; --muted:#9aa6b0;
+      --accent:#e8845c; --primary:#7fb0e8; --line:#ffffff33; --border:#ffffff26; --border-soft:#ffffff14;
+      --thead-bg:#25406a; --thead-fg:#eaf2fb;
+      --c-info-bg:#7fb0e81e; --c-info:#9cc4f0;
+      --c-warn-bg:#d9a52614; --c-warn:#e0a83a;
+      --c-good-bg:#2a7a4b1e; --c-good:#5fc080;
+      --c-bad-bg:#b8390e1e;  --c-bad:#e8845c;
+    }
+    h1,h2,h4,.hero-title{color:#ededed}  /* h3 keeps var(--primary) (navy) */
+    blockquote{background:#ffffff0a}
+    pre.diagram{background:#23262b}
+  }
+  @media print{
+    nav.toc,nav.top{display:none}
+    body:not(.no-toc) .layout{grid-template-columns:1fr;max-width:none}
+    body{background:#fff;color:#000}
+    .hero-rule{border-top-color:#000}
+    .callout,pre,table,details{break-inside:avoid}
+  }
+  /* (引用 gist 右页边浮动已移除以让位左侧栏 TOC; [N] 仍跳底部 refs, gist 文本在书目里不丢) */
+</style>
+</head>
+<body class="">
+<nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-data-pipeline-en.html">EN ⇄</a></nav>
+<header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">后训练数据流水线 (Data Pipeline &amp; Curation) 速查手册</h1><div class="hero-rule"></div></header>
+<div class="layout">
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">从指令合成、拒绝采样、偏好构造到去污染与数据配比</a></li><li class="lv2"><a href="#sec-2">1. 数据流水线总览 (Pipeline Overview)</a></li><li class="lv3"><a href="#sec-3">1.1 三条主线</a></li><li class="lv3"><a href="#sec-4">1.2 核心原则:质量 &gt; 数量</a></li><li class="lv2"><a href="#sec-5">2. 指令数据合成 (Instruction Data Synthesis)</a></li><li class="lv3"><a href="#sec-6">2.1 Self-Instruct — 种子自举</a></li><li class="lv3"><a href="#sec-7">2.2 Evol-Instruct — 指令进化</a></li><li class="lv3"><a href="#sec-8">2.3 Magpie — 从对齐模型&quot;零提示&quot;抽取</a></li><li class="lv3"><a href="#sec-9">2.4 蒸馏 (Distillation)</a></li><li class="lv3"><a href="#sec-10">2.5 合成数据的风险:同质化与模式坍缩</a></li><li class="lv2"><a href="#sec-11">3. 拒绝采样与自训练 (Rejection Sampling &amp; Self-Training)</a></li><li class="lv3"><a href="#sec-12">3.1 RFT — 拒绝采样微调</a></li><li class="lv3"><a href="#sec-13">3.2 STaR — 用推理自举推理</a></li><li class="lv3"><a href="#sec-14">3.3 ReST — Grow / Improve 双循环</a></li><li class="lv3"><a href="#sec-15">3.4 与 RL 的关系</a></li><li class="lv2"><a href="#sec-16">4. 偏好数据构造 (Preference Data Construction)</a></li><li class="lv3"><a href="#sec-17">4.1 偏好信号从哪来</a></li><li class="lv3"><a href="#sec-18">4.2 UltraFeedback / Zephyr — 规模化 AI 反馈配方</a></li><li class="lv3"><a href="#sec-19">4.3 从打分候选构造偏好对</a></li><li class="lv3"><a href="#sec-20">4.4 on-policy vs off-policy 偏好</a></li><li class="lv2"><a href="#sec-21">5. 去重与去污染 (Dedup &amp; Decontamination)</a></li><li class="lv3"><a href="#sec-22">5.1 为什么去重</a></li><li class="lv3"><a href="#sec-23">5.2 exact vs near-dup</a></li><li class="lv3"><a href="#sec-24">5.3 去污染 (Decontamination)</a></li><li class="lv2"><a href="#sec-25">6. 数据配比与课程 (Data Mixing &amp; Curriculum)</a></li><li class="lv3"><a href="#sec-26">6.1 配比 (Data Mixing)</a></li><li class="lv3"><a href="#sec-27">6.2 DoReMi — 自动学最优混比</a></li><li class="lv3"><a href="#sec-28">6.3 课程 (Curriculum)</a></li><li class="lv3"><a href="#sec-29">6.4 质量过滤</a></li><li class="lv2"><a href="#sec-30">7. 面试题 (Interview Questions)</a></li><li class="lv3"><a href="#sec-31">L1 — 基础 (Fundamentals)</a></li><li class="lv3"><a href="#sec-32">L2 — 中级 (Intermediate)</a></li><li class="lv3"><a href="#sec-33">L3 — 高级 (Advanced)</a></li><li class="lv2"><a href="#sec-34">附录：关键术语速查 (Glossary)</a></li><li class="lv2"><a href="#sec-35">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
+<main id="out"><h2 id="sec-0">从指令合成、拒绝采样、偏好构造到去污染与数据配比</h2>
+<hr>
+<h2 id="sec-1">目录 (Table of Contents)</h2>
+<ol>
+<li><a href="#1-%E6%95%B0%E6%8D%AE%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%80%BB%E8%A7%88-pipeline-overview">数据流水线总览 (Pipeline Overview)</a></li>
+<li><a href="#2-%E6%8C%87%E4%BB%A4%E6%95%B0%E6%8D%AE%E5%90%88%E6%88%90-instruction-data-synthesis">指令数据合成 (Instruction Data Synthesis)</a></li>
+<li><a href="#3-%E6%8B%92%E7%BB%9D%E9%87%87%E6%A0%B7%E4%B8%8E%E8%87%AA%E8%AE%AD%E7%BB%83-rejection-sampling--self-training">拒绝采样与自训练 (Rejection Sampling &amp; Self-Training)</a></li>
+<li><a href="#4-%E5%81%8F%E5%A5%BD%E6%95%B0%E6%8D%AE%E6%9E%84%E9%80%A0-preference-data-construction">偏好数据构造 (Preference Data Construction)</a></li>
+<li><a href="#5-%E5%8E%BB%E9%87%8D%E4%B8%8E%E5%8E%BB%E6%B1%A1%E6%9F%93-dedup--decontamination">去重与去污染 (Dedup &amp; Decontamination)</a></li>
+<li><a href="#6-%E6%95%B0%E6%8D%AE%E9%85%8D%E6%AF%94%E4%B8%8E%E8%AF%BE%E7%A8%8B-data-mixing--curriculum">数据配比与课程 (Data Mixing &amp; Curriculum)</a></li>
+<li><a href="#7-%E9%9D%A2%E8%AF%95%E9%A2%98-interview-questions">面试题 (Interview Questions)</a></li>
+</ol>
+<hr>
+<h2 id="sec-2">1. 数据流水线总览 (Pipeline Overview)</h2>
+<p>后训练（SFT / 偏好对齐 / RLVR）的效果上限,<strong>很大程度由数据流水线决定</strong>——同样的算法,数据质量与配比不同,结果天差地别。一条典型后训练数据流水线:</p>
+<pre class="diagram"><code>来源 (Sources)            合成/采集 (Generate)         清洗 (Clean)              配比/消费 (Mix → Train)
+─────────────            ──────────────────          ─────────────            ────────────────────
+人工标注                  Self-Instruct / Evol         去重 (dedup)             配比 (mixing)
+开源数据集         ─→     拒绝采样 (RFT/STaR)    ─→    去污染 (decontam)  ─→    课程 (curriculum)   ─→  SFT
+蒸馏 (teacher)            偏好对 (人类/AI 反馈)         质量过滤 (filter)        质量/难度排序            DPO / RLHF / RLVR
+线上日志                  Magpie / 合成教科书          格式归一                 阶段配比
+</code></pre>
+<h3 id="sec-3">1.1 三条主线</h3>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>数据形态</th>
+<th>典型来源</th>
+<th>消费算法</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SFT (指令微调)</strong></td>
+<td>(instruction, response)</td>
+<td>人工 / 合成 / 蒸馏 / 拒绝采样</td>
+<td>监督交叉熵</td>
+</tr>
+<tr>
+<td><strong>偏好对齐</strong></td>
+<td>(prompt, chosen, rejected)</td>
+<td>人类偏好 / AI 反馈</td>
+<td>DPO / RLHF (PPO/GRPO)</td>
+</tr>
+<tr>
+<td><strong>RLVR (可验证奖励)</strong></td>
+<td>(prompt, verifier)</td>
+<td>带 ground-truth 的数学/代码</td>
+<td>GRPO + 规则奖励</td>
+</tr>
+</tbody></table>
+<h3 id="sec-4">1.2 核心原则:质量 &gt; 数量</h3>
+<p><strong>LIMA</strong>（Zhou et al., <a href="https://arxiv.org/abs/2305.11206">arXiv:2305.11206</a>）只用 <strong>1000 条</strong>精心策划的 SFT 样本(无 RLHF)微调 65B LLaMA,效果可与用多个数量级更多数据训练的模型相当。其论点:<strong>对齐主要是在预训练已有知识之上学一种&quot;表面行为/格式&quot;,少量高质量样本即可激活</strong>。</p>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>LIMA 的&quot;Less is More&quot;不是说数据越少越好,而是:<strong>在 SFT 阶段,样本的质量、多样性、与目标分布的对齐程度,比绝对数量更关键</strong>。这直接驱动了下游所有&quot;过滤优先&quot;的流水线设计。</p>
+</div>
+<p>实践含义:流水线的价值不在&quot;堆量&quot;,而在<strong>合成多样化高质量候选 → 严格过滤/去重/去污染 → 按目标能力配比</strong>。下面 §2–§6 逐段展开。</p>
+<hr>
+<h2 id="sec-5">2. 指令数据合成 (Instruction Data Synthesis)</h2>
+<p>人工写指令数据昂贵且难规模化。主流做法是<strong>用强 LLM 合成</strong>,核心挑战是<strong>多样性</strong>与<strong>质量</strong>。</p>
+<h3 id="sec-6">2.1 Self-Instruct — 种子自举</h3>
+<p><strong>Self-Instruct</strong>（Wang et al., <a href="https://arxiv.org/abs/2212.10560">arXiv:2212.10560</a>）:从一小批人工种子任务出发,few-shot 提示模型<strong>生成新指令 + 输入 + 输出</strong>,再过滤掉与已有池过相似或低质的样本,迭代扩充,最后用扩充数据微调<strong>同一个模型</strong>。Stanford <strong>Alpaca</strong>(无 arXiv 论文,blog/repo)即用 Self-Instruct 思路从 <code>text-davinci-003</code> 蒸出 52k 指令数据。</p>
+<p><strong>去同质化过滤</strong>是关键:Self-Instruct 用 <strong>ROUGE-L 相似度 &lt; 0.7</strong> 作为门槛,丢弃与现有指令过相似的新指令,防止合成数据塌缩成少数模板。</p>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> random
+<span class="hljs-keyword">from</span> difflib <span class="hljs-keyword">import</span> SequenceMatcher
+
+<span class="hljs-comment"># Self-Instruct 式 bootstrap:few-shot 提示 LLM 生成新【指令】,再用与现有池的</span>
+<span class="hljs-comment"># 相似度过滤去同质化。(原文还会为每条指令生成 input/output 实例;此处只演示</span>
+<span class="hljs-comment"># &quot;指令生成 + 去重&quot;这一步。)</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">sim_ratio</span>(<span class="hljs-params">a: <span class="hljs-built_in">str</span>, b: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">float</span>:
+    <span class="hljs-comment"># 廉价相似度:difflib 序列匹配比率,作为 ROUGE-L 的近似(原文用 ROUGE-L&lt;0.7)</span>
+    <span class="hljs-keyword">return</span> SequenceMatcher(<span class="hljs-literal">None</span>, a, b).ratio()
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">self_instruct_round</span>(<span class="hljs-params">pool, llm_generate, k=<span class="hljs-number">20</span>, sim_thresh=<span class="hljs-number">0.7</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;pool: 已有指令 list;llm_generate(prompt)-&gt;新指令文本。&quot;&quot;&quot;</span>
+    new_items = []
+    <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(k):
+        demos = random.sample(pool, <span class="hljs-built_in">min</span>(<span class="hljs-number">6</span>, <span class="hljs-built_in">len</span>(pool)))           <span class="hljs-comment"># few-shot 种子</span>
+        prompt = <span class="hljs-string">&quot;生成一条与下列示例不同的新任务指令:\n&quot;</span> + <span class="hljs-string">&quot;\n&quot;</span>.join(demos)
+        cand = llm_generate(prompt).strip()
+        <span class="hljs-comment"># 过滤 1:与池中任一指令过相似 → 丢弃</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">any</span>(sim_ratio(cand, p) &gt; sim_thresh <span class="hljs-keyword">for</span> p <span class="hljs-keyword">in</span> pool + new_items):
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># 过滤 2:启发式质量门(按字符长度,兼容中英文)</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> (<span class="hljs-number">5</span> &lt;= <span class="hljs-built_in">len</span>(cand) &lt;= <span class="hljs-number">300</span>):
+            <span class="hljs-keyword">continue</span>
+        new_items.append(cand)
+    pool.extend(new_items)
+    <span class="hljs-keyword">return</span> new_items
+</code></pre>
+<h3 id="sec-7">2.2 Evol-Instruct — 指令进化</h3>
+<p><strong>WizardLM / Evol-Instruct</strong>（Xu et al., <a href="https://arxiv.org/abs/2304.12244">arXiv:2304.12244</a>, ICLR 2024）:不是平铺生成,而是用 LLM <strong>把种子指令&quot;进化&quot;得更复杂</strong>,两个方向:</p>
+<ul>
+<li><strong>深度进化 (In-depth)</strong>:加约束、加推理步骤、复杂化输入、加深难度。</li>
+<li><strong>广度进化 (In-breadth)</strong>:基于已有指令生成全新的、覆盖新领域的指令。</li>
+</ul>
+<p>进化后过滤掉&quot;进化失败&quot;(没变难/变空)的样本,得到难度梯度更陡的指令集。</p>
+<h3 id="sec-8">2.3 Magpie — 从对齐模型&quot;零提示&quot;抽取</h3>
+<p><strong>Magpie</strong>（Xu et al., <a href="https://arxiv.org/abs/2406.08464">arXiv:2406.08464</a>, ICLR 2025）:利用指令模型(如 Llama-3-Instruct)的自回归性质——<strong>只喂&quot;用户轮之前的模板前缀&quot;(不给任何种子指令)</strong>,模型会自己续写出一条用户指令;再让它回答,得到 (instruction, response) 对。无需种子、无需人工,规模化抽取对齐数据。</p>
+<h3 id="sec-9">2.4 蒸馏 (Distillation)</h3>
+<p>用<strong>更强的 teacher 模型</strong>生成数据训练 student,是最常见的合成路线之一。</p>
+<ul>
+<li><strong>Sequence-Level KD (SeqKD)</strong>（Kim &amp; Rush, <a href="https://arxiv.org/abs/1606.07947">arXiv:1606.07947</a>, EMNLP 2016）:经典做法,在 teacher <strong>解码出的序列</strong>上训练 student(用序列级输出替代 word-level 软标签),student 更快且有竞争力。</li>
+<li><strong>合成教科书</strong>:<strong>Textbooks Are All You Need</strong>（Gunasekar et al., <a href="https://arxiv.org/abs/2306.11644">arXiv:2306.11644</a>）用&quot;教科书质量&quot;过滤的网页数据 + GPT-3.5 合成的教科书与习题训练 1.3B 的 phi-1,论文报告 <strong>HumanEval pass@1 = 50.6%</strong>——证明<strong>高质量合成数据可大幅降低规模需求</strong>。</li>
+</ul>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>蒸馏/合成数据的两个红线:① <strong>能力上限继承</strong>——student 很难超过 teacher 在该分布上的水平(可作判别但难外推);② <strong>license/合规</strong>——用闭源模型(如 GPT-4)输出做训练可能违反其服务条款,公开发布前务必核对许可。</p>
+</div>
+<h3 id="sec-10">2.5 合成数据的风险:同质化与模式坍缩</h3>
+<div class="callout callout-bad"><div class="callout-label">陷阱 / Pitfall</div>
+<p><strong>陷阱</strong>:无过滤的合成数据会<strong>同质化</strong>——少数高频模板、句式、话题反复出现,多样性骤降。递归地&quot;用模型生成的数据再训模型&quot;还可能引发 <strong>model collapse</strong>(分布尾部丢失、方差坍缩)。缓解:相似度去重(§2.1)、多 teacher / 多温度采样、混入真实人类数据、对覆盖度(领域/难度/长度)做显式约束。</p>
+</div>
+<hr>
+<h2 id="sec-11">3. 拒绝采样与自训练 (Rejection Sampling &amp; Self-Training)</h2>
+<p>当任务<strong>有可验证的正确性信号</strong>(数学答案、单测、格式)时,可以让模型<strong>自己生成、自己筛选</strong>出高质量数据,再监督训练——这是 SFT 与 RL 之间的一条高性价比中间路线。</p>
+<h3 id="sec-12">3.1 RFT — 拒绝采样微调</h3>
+<p><strong>Rejection sampling Fine-Tuning (RFT)</strong>（Yuan et al., <a href="https://arxiv.org/abs/2308.01825">arXiv:2308.01825</a>）:对每个 prompt 从当前(SFT)模型采样 <strong>N 条带推理的解</strong>,<strong>只保留答案正确的</strong>,并<strong>对推理路径去重</strong>(同一题保留多条&quot;不同&quot;的正确路径增加多样性),把这些自生成的正确样本作为增广数据再做 SFT。</p>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> re
+
+<span class="hljs-comment"># RFT:对每题采样 N 条 CoT,只留&quot;答案正确&quot;且&quot;推理路径互不重复&quot;的,</span>
+<span class="hljs-comment"># 作为增广 SFT 数据(Yuan et al. 2023)。</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">canonical</span>(<span class="hljs-params">y: <span class="hljs-built_in">str</span></span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-comment"># 极粗的 toy 指纹:数字→#、压空白(RFT 原文按 distinct 方程/推理路径去重,远更精细)</span>
+    <span class="hljs-keyword">return</span> re.sub(<span class="hljs-string">r&quot;\s+&quot;</span>, <span class="hljs-string">&quot; &quot;</span>, re.sub(<span class="hljs-string">r&quot;\d+&quot;</span>, <span class="hljs-string">&quot;#&quot;</span>, y)).strip()
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">rejection_sampling_ft_data</span>(<span class="hljs-params">prompts, policy_sample, verify, gold,
+                               N=<span class="hljs-number">64</span>, max_keep=<span class="hljs-number">4</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;policy_sample(x)-&gt;一条解;verify(y, gold)-&gt;bool。&quot;&quot;&quot;</span>
+    sft_data = []
+    <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> prompts:
+        seen, kept = <span class="hljs-built_in">set</span>(), []
+        <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(N):
+            y = policy_sample(x)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> verify(y, gold[x]):          <span class="hljs-comment"># 答案不对 → 拒绝</span>
+                <span class="hljs-keyword">continue</span>
+            key = canonical(y)
+            <span class="hljs-keyword">if</span> key <span class="hljs-keyword">in</span> seen:                      <span class="hljs-comment"># 同一推理路径 → 去重</span>
+                <span class="hljs-keyword">continue</span>
+            seen.add(key); kept.append(y)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(kept) &gt;= max_keep:            <span class="hljs-comment"># 每题最多保留 max_keep 条</span>
+                <span class="hljs-keyword">break</span>
+        sft_data += [(x, y) <span class="hljs-keyword">for</span> y <span class="hljs-keyword">in</span> kept]
+    <span class="hljs-keyword">return</span> sft_data                              <span class="hljs-comment"># 再在其上做标准 SFT</span>
+</code></pre>
+<h3 id="sec-13">3.2 STaR — 用推理自举推理</h3>
+<p><strong>STaR</strong>（Zelikman et al., <a href="https://arxiv.org/abs/2203.14465">arXiv:2203.14465</a>, NeurIPS 2022）:让模型生成 CoT 推理,<strong>保留得到正确答案的推理</strong>做微调;对答错的题,给出正确答案让模型**&quot;反推&quot;(rationalize)**出一条能到达该答案的推理,也加入训练集。迭代后推理能力自举上升。</p>
+<h3 id="sec-14">3.3 ReST — Grow / Improve 双循环</h3>
+<p><strong>ReST</strong>（Gulcehre et al., <a href="https://arxiv.org/abs/2308.08998">arXiv:2308.08998</a>）:把自训练写成两步交替——</p>
+<ul>
+<li><strong>Grow</strong>:用当前策略<strong>离线</strong>生成一批样本(扩充数据集);</li>
+<li><strong>Improve</strong>:在通过<strong>质量阈值</strong>的样本上微调(可逐步提高阈值)。</li>
+</ul>
+<p>比在线 RLHF 更省算力:采样与训练解耦,生成的数据可重复使用多轮。</p>
+<h3 id="sec-15">3.4 与 RL 的关系</h3>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>RFT/STaR/ReST 可理解为 <strong>reward-weighted behavior cloning / 迭代 Best-of-N 蒸馏</strong>:只在&quot;奖励=1(正确)&quot;的自采样样本上做最大似然。在 on-policy、单步、小更新的条件下,它<strong>近似</strong>一次&quot;二值奖励的策略梯度&quot;,但通常<strong>不算完整 RL</strong>——没有在线探索、连续奖励与逐步信用分配。优点是实现简单、稳定、数据可复用。与 RLVR/GRPO 的衔接见 <a href="cheatsheet-reasoning-rl-frontier.html">reasoning-rl-frontier</a> 与 <a href="cheatsheet-llm-post-training.html">llm-post-training</a>。</p>
+</div>
+<hr>
+<h2 id="sec-16">4. 偏好数据构造 (Preference Data Construction)</h2>
+<p>偏好对 (prompt, chosen, rejected) 是 RLHF/DPO 的燃料,其质量决定 RM/策略的上限。</p>
+<h3 id="sec-17">4.1 偏好信号从哪来</h3>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>做法</th>
+<th>代表</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>人类反馈</strong></td>
+<td>标注者对成对回答选更优</td>
+<td>InstructGPT / Llama-2</td>
+</tr>
+<tr>
+<td><strong>AI 反馈 (RLAIF)</strong></td>
+<td>用强 LLM 当裁判生成偏好标签</td>
+<td>Constitutional AI / RLAIF</td>
+</tr>
+<tr>
+<td><strong>混合</strong></td>
+<td>AI 初筛 + 人工校验关键子集</td>
+<td>多数工业流水线</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>Constitutional AI</strong>（Bai et al., <a href="https://arxiv.org/abs/2212.08073">arXiv:2212.08073</a>）:两阶段——先用模型<strong>自我批判+改写</strong>做 SFT,再用一组&quot;宪法原则&quot;驱动 <strong>AI 生成偏好标签</strong>做 RLHF(RLAIF),无害性几乎不靠人工偏好。</li>
+<li><strong>RLAIF vs RLHF</strong>（Lee et al., <a href="https://arxiv.org/abs/2309.00267">arXiv:2309.00267</a>, ICML 2024）:实验证明用现成 LLM 的偏好标签(RLAIF)在摘要/对话上可与 RLHF 相当;并提出 <strong>direct-RLAIF</strong>(RL 时直接向 LLM 取奖励,免独立 RM)。</li>
+</ul>
+<h3 id="sec-18">4.2 UltraFeedback / Zephyr — 规模化 AI 反馈配方</h3>
+<ul>
+<li><strong>UltraFeedback</strong>（Cui et al., <a href="https://arxiv.org/abs/2310.01377">arXiv:2310.01377</a>, ICML 2024）:对约 <strong>6.4 万条指令</strong>用多个模型生成约 <strong>25.6 万个候选回答</strong>,再由 <strong>GPT-4 在多个质量维度上打数值分+写评语</strong>(累计超 100 万条反馈),构造大规模偏好/RM 数据。</li>
+<li><strong>Zephyr</strong>（Tunstall et al., <a href="https://arxiv.org/abs/2310.16944">arXiv:2310.16944</a>）:<strong>dDPO</strong>(distilled DPO)直接在 UltraFeedback 的 AI 反馈上做 DPO,无任何人工标注,蒸出对齐能力。</li>
+</ul>
+<h3 id="sec-19">4.3 从打分候选构造偏好对</h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> itertools, random
+
+<span class="hljs-comment"># 从一组带分数的候选构造偏好对:chosen=高分,rejected=低分,</span>
+<span class="hljs-comment"># 只保留分差(margin)足够大的对,避免&quot;难区分&quot;噪声(UltraFeedback 式)。</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">build_preference_pairs</span>(<span class="hljs-params">prompt, candidates, scores, margin=<span class="hljs-number">1.0</span>, max_pairs=<span class="hljs-number">4</span></span>):
+    <span class="hljs-comment"># candidates: list[str];scores: list[float](GPT-4 / RM 打分)</span>
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(candidates) == <span class="hljs-built_in">len</span>(scores), <span class="hljs-string">&quot;候选与分数须等长(zip 会静默截断)&quot;</span>
+    ranked = <span class="hljs-built_in">sorted</span>(<span class="hljs-built_in">zip</span>(candidates, scores), key=<span class="hljs-keyword">lambda</span> t: t[<span class="hljs-number">1</span>], reverse=<span class="hljs-literal">True</span>)
+    pairs = []
+    <span class="hljs-keyword">for</span> (y_w, s_w), (y_l, s_l) <span class="hljs-keyword">in</span> itertools.combinations(ranked, <span class="hljs-number">2</span>):
+        <span class="hljs-keyword">if</span> s_w - s_l &lt; margin:           <span class="hljs-comment"># 分差太小 → 难区分 → 丢弃</span>
+            <span class="hljs-keyword">continue</span>
+        pairs.append({<span class="hljs-string">&quot;prompt&quot;</span>: prompt, <span class="hljs-string">&quot;chosen&quot;</span>: y_w,
+                      <span class="hljs-string">&quot;rejected&quot;</span>: y_l, <span class="hljs-string">&quot;margin&quot;</span>: s_w - s_l})
+    random.shuffle(pairs)
+    <span class="hljs-keyword">return</span> pairs[:max_pairs]             <span class="hljs-comment"># 限制每 prompt 贡献的对数,防失衡</span>
+</code></pre>
+<h3 id="sec-20">4.4 on-policy vs off-policy 偏好</h3>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>偏好对里的回答<strong>是否来自当前策略</strong>会影响效果:<strong>off-policy</strong>(用别的模型或历史数据的对)是<strong>标准且常用</strong>的做法——DPO 本就为离线偏好设计,Zephyr/UltraFeedback 均为离线;<strong>on-policy/在线</strong>(从待优化模型采样)则更贴近当前分布、覆盖更好。风险不在&quot;目标天然无效&quot;,而在偏好数据<strong>离当前策略过远</strong>时的覆盖不足与分布偏移(及长度/风格偏置);迭代/在线 DPO 即为缓解此问题。</p>
+</div>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>偏好数据的 <strong>margin 置信度过滤、标注者校准、长度去偏</strong>等设计选择,见 <a href="cheatsheet-reward-modeling-eval.html">reward-modeling-eval §3.4</a>;本节侧重&quot;对从哪来&quot;。</p>
+</div>
+<hr>
+<h2 id="sec-21">5. 去重与去污染 (Dedup &amp; Decontamination)</h2>
+<h3 id="sec-22">5.1 为什么去重</h3>
+<p><strong>Deduplicating Training Data Makes Language Models Better</strong>（Lee et al., <a href="https://arxiv.org/abs/2107.06499">arXiv:2107.06499</a>, ACL 2022）:移除训练语料中的近重复片段/文档,可使<strong>逐字记忆(verbatim memorization)下降约一个数量级</strong>,同时以更少训练步达到相当或更好的困惑度。后训练同理:重复样本会过度加权、放大记忆与偏置。</p>
+<h3 id="sec-23">5.2 exact vs near-dup</h3>
+<ul>
+<li><strong>精确去重 (exact)</strong>:哈希整段/文档,丢弃完全相同者。</li>
+<li><strong>近似去重 (near-dup)</strong>:用 <strong>MinHash + LSH</strong> 检测高 Jaccard 相似的文本。</li>
+</ul>
+<p><strong>Jaccard 相似度</strong>:<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">)</mo><mo>=</mo><mstyle scriptlevel="0" displaystyle="true"><mfrac><mrow><mi mathvariant="normal">∣</mi><mi>A</mi><mo>∩</mo><mi>B</mi><mi mathvariant="normal">∣</mi></mrow><mrow><mi mathvariant="normal">∣</mi><mi>A</mi><mo>∪</mo><mi>B</mi><mi mathvariant="normal">∣</mi></mrow></mfrac></mstyle></mrow><annotation encoding="application/x-tex">J(A,B)=\dfrac{|A\cap B|}{|A\cup B|}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.363em;vertical-align:-0.936em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">∣</span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">∪</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord">∣</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">∣</span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">∩</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord">∣</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span>,其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo separator="true">,</mo><mi>B</mi></mrow><annotation encoding="application/x-tex">A,B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span> 为两文档的 <strong>k-shingle</strong>(k 个连续 token 的集合)。</p>
+<p><strong>MinHash 关键性质</strong>:对随机哈希(置换)<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span>,</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>Pr</mi><mo>⁡</mo><mo stretchy="false">[</mo><mtext> </mtext><munder><mrow><mi>min</mi><mo>⁡</mo></mrow><mrow><mi>x</mi><mo>∈</mo><mi>A</mi></mrow></munder><mi>h</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><munder><mrow><mi>min</mi><mo>⁡</mo></mrow><mrow><mi>x</mi><mo>∈</mo><mi>B</mi></mrow></munder><mi>h</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mtext> </mtext><mo stretchy="false">]</mo><mo>=</mo><mi>J</mi><mo stretchy="false">(</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\Pr[\,\min_{x\in A} h(x)=\min_{x\in B} h(x)\,]=J(A,B)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.5217em;vertical-align:-0.7717em;"></span><span class="mop">Pr</span><span class="mopen">[</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-2.3557em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mrel mtight">∈</span><span class="mord mathnormal mtight">A</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">min</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7717em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.5217em;vertical-align:-0.7717em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-2.3557em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="mrel mtight">∈</span><span class="mord mathnormal mtight" style="margin-right:0.0502em;">B</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">min</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7717em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">)</span></span></span></span></span></p>
+<p>即&quot;两文档签名在某一位相同的概率 = 它们的 Jaccard&quot;。用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi></mrow><annotation encoding="application/x-tex">m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">m</span></span></span></span> 个独立哈希组成签名,签名相同位的比例就是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi></mrow><annotation encoding="application/x-tex">J</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span></span></span></span> 的无偏估计,把 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi mathvariant="normal">∣</mi><mi>A</mi><mi mathvariant="normal">∣</mi><mi mathvariant="normal">∣</mi><mi>B</mi><mi mathvariant="normal">∣</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(|A||B|)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord">∣</span><span class="mord mathnormal">A</span><span class="mord">∣∣</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord">∣</span><span class="mclose">)</span></span></span></span> 的两两比较降为常数长度签名比对。</p>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> hashlib
+
+<span class="hljs-comment"># MinHash 近重复检测:k-shingle + 多哈希最小值组成签名,</span>
+<span class="hljs-comment"># 两签名相同位比例 ≈ Jaccard 相似度。</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">shingles</span>(<span class="hljs-params">text, k=<span class="hljs-number">5</span></span>):
+    toks = text.split()
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">&quot; &quot;</span>.join(toks[i:i+k]) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-built_in">max</span>(<span class="hljs-number">1</span>, <span class="hljs-built_in">len</span>(toks) - k + <span class="hljs-number">1</span>))}
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">minhash_sig</span>(<span class="hljs-params">sh_set, num_perm=<span class="hljs-number">128</span></span>):
+    sig = []
+    <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(num_perm):                       <span class="hljs-comment"># 每个 s 模拟一个独立哈希</span>
+        m = <span class="hljs-built_in">min</span>(<span class="hljs-built_in">int</span>(hashlib.md5((<span class="hljs-built_in">str</span>(s) + sh).encode()).hexdigest(), <span class="hljs-number">16</span>)
+                <span class="hljs-keyword">for</span> sh <span class="hljs-keyword">in</span> sh_set)                   <span class="hljs-comment"># 该哈希下的最小值</span>
+        sig.append(m)
+    <span class="hljs-keyword">return</span> sig
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">est_jaccard</span>(<span class="hljs-params">sig_a, sig_b</span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">sum</span>(a == b <span class="hljs-keyword">for</span> a, b <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(sig_a, sig_b)) / <span class="hljs-built_in">len</span>(sig_a)
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">is_near_dup</span>(<span class="hljs-params">text, corpus_sigs, k=<span class="hljs-number">5</span>, num_perm=<span class="hljs-number">128</span>, thresh=<span class="hljs-number">0.8</span></span>):
+    sig = minhash_sig(shingles(text, k), num_perm)
+    <span class="hljs-comment"># 此处对 corpus_sigs 暴力线性扫描;生产中在其上加 LSH 分桶,只比对同桶候选</span>
+    dup = <span class="hljs-built_in">any</span>(est_jaccard(sig, s) &gt;= thresh <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> corpus_sigs)
+    <span class="hljs-keyword">return</span> dup, sig                                 <span class="hljs-comment"># 真重复才丢;否则把 sig 入库</span>
+</code></pre>
+<h3 id="sec-24">5.3 去污染 (Decontamination)</h3>
+<p><strong>定义</strong>:从训练数据中<strong>移除与评测基准(test set)重叠的样本</strong>,否则模型&quot;见过考题&quot;,benchmark 分数虚高、失去意义。</p>
+<ul>
+<li><strong>n-gram 重叠法</strong>:若训练样本与某 benchmark 测试题共享较长 n-gram(如 GPT-3 用 13-gram),判为污染并剔除。简单但对改写/翻译泄漏不敏感。</li>
+<li><strong>成员推断 (membership inference)</strong>:<strong>Min-K% Prob</strong>（Shi et al., <a href="https://arxiv.org/abs/2310.16789">arXiv:2310.16789</a>, ICLR 2024）——免训练地判断一段文本是否在预训练中出现过:取该文本<strong>最低 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mi mathvariant="normal">%</mi></mrow><annotation encoding="application/x-tex">k\%</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8056em;vertical-align:-0.0556em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mord">%</span></span></span></span> token 的平均对数似然</strong>;未见文本往往含若干极低概率的 outlier token 拉低该均值,而成员(见过)文本即使最低 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mi mathvariant="normal">%</mi></mrow><annotation encoding="application/x-tex">k\%</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8056em;vertical-align:-0.0556em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mord">%</span></span></span></span> token 似然也相对更高,故<strong>该均值偏高 → 更可能见过</strong>。可用于<strong>事后审计</strong>模型是否被某 benchmark 污染。</li>
+</ul>
+<div class="callout callout-bad"><div class="callout-label">陷阱 / Pitfall</div>
+<p><strong>陷阱</strong>:去污染必须<strong>在训练前、对照所有目标评测集</strong>做;事后发现污染往往无法补救,只能换评测集。报告分数时应声明去污染口径(n-gram 阶数、是否含改写检测),否则&quot;刷分&quot;不可信。</p>
+</div>
+<hr>
+<h2 id="sec-25">6. 数据配比与课程 (Data Mixing &amp; Curriculum)</h2>
+<h3 id="sec-26">6.1 配比 (Data Mixing)</h3>
+<p>不同来源/领域/任务的数据<strong>按什么比例混合</strong>,显著影响最终能力。<strong>How Far Can Camels Go? (Tülu)</strong>（Wang et al., <a href="https://arxiv.org/abs/2306.04751">arXiv:2306.04751</a>, NeurIPS 2023）系统消融了 12 个指令微调数据集,结论是<strong>没有单一数据集在所有能力上最优——混合互补来源才能全面</strong>。<strong>Tülu 3</strong>（Lambert et al., <a href="https://arxiv.org/abs/2411.15124">arXiv:2411.15124</a>）进一步给出开放的 SFT→DPO→RLVR 端到端配方与全套数据。</p>
+<h3 id="sec-27">6.2 DoReMi — 自动学最优混比</h3>
+<p><strong>DoReMi</strong>（Xie et al., <a href="https://arxiv.org/abs/2305.10429">arXiv:2305.10429</a>, NeurIPS 2023）:先训一个<strong>小 proxy 模型</strong>,用 <strong>Group DRO</strong>(分布鲁棒优化)在各域上学习采样权重,再用这组权重重采样训练大模型,论文报告达到相当性能时<strong>快约 2.6×</strong>。</p>
+<p><strong>Group DRO 目标</strong>:在各域权重 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi></mrow><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span></span></span></span> 的单纯形上做极小极大,</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><munder><mrow><mi>min</mi><mo>⁡</mo></mrow><mi>θ</mi></munder><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mrow><mi>α</mi><mo>∈</mo><mi mathvariant="normal">Δ</mi></mrow></munder><mtext> </mtext><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>D</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><mtext> </mtext><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\min_\theta \max_{\alpha\in\Delta}\ \sum_{i=1}^{D}\alpha_i\, L_i(\theta)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:3.106em;vertical-align:-1.2777em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-2.3479em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">min</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7521em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.4306em;"><span style="top:-2.3557em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0037em;">α</span><span class="mrel mtight">∈</span><span class="mord mtight">Δ</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7717em;"><span></span></span></span></span></span><span class="mspace"> </span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8283em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">D</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span></span></span></span></span></p>
+<p>DoReMi 用<strong>超额损失</strong>(proxy 相对一个参考模型的 loss 差)驱动指数梯度,上调&quot;更难/更有提升空间&quot;的域的权重。</p>
+<pre><code class="hljs language-python"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+
+<span class="hljs-comment"># DoReMi:用小 proxy + Group DRO 学各域采样权重(指数梯度上升)。</span>
+<span class="hljs-comment"># 关键:每域&quot;超额损失&quot;须在 *token 级* 先 clamp 再平均——</span>
+<span class="hljs-comment">#   excess_i = mean_token( max(proxy_token_loss − ref_token_loss, 0) );</span>
+<span class="hljs-comment"># 若在域级&quot;先平均再 clamp&quot;,正负 token 差会被错误抵消,不忠实于原算法。</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">domain_excess</span>(<span class="hljs-params">proxy_tok_loss, ref_tok_loss</span>):
+    <span class="hljs-comment"># proxy_tok_loss[i]/ref_tok_loss[i]:第 i 域的 per-token loss 数组</span>
+    <span class="hljs-keyword">return</span> np.array([np.maximum(np.asarray(p) - np.asarray(r), <span class="hljs-number">0.0</span>).mean()
+                     <span class="hljs-keyword">for</span> p, r <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(proxy_tok_loss, ref_tok_loss)])
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">doremi_update</span>(<span class="hljs-params">weights, excess, lr=<span class="hljs-number">1.0</span>, smooth=<span class="hljs-number">1e-3</span></span>):
+    weights, excess = np.asarray(weights, <span class="hljs-built_in">float</span>), np.asarray(excess, <span class="hljs-built_in">float</span>)
+    log_w = np.log(weights) + lr * excess                <span class="hljs-comment"># 指数梯度上升</span>
+    w = np.exp(log_w - log_w.<span class="hljs-built_in">max</span>())                      <span class="hljs-comment"># 数值稳定 softmax</span>
+    w = w / w.<span class="hljs-built_in">sum</span>()
+    <span class="hljs-keyword">return</span> (<span class="hljs-number">1</span> - smooth) * w + smooth / <span class="hljs-built_in">len</span>(w)            <span class="hljs-comment"># 平滑(论文 c≈1e-3),防域饿死</span>
+
+<span class="hljs-comment"># 训练 proxy 时取各步 weights 的平均作为最终混比,再用它重采样训大模型。</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">sample_domain</span>(<span class="hljs-params">weights, rng</span>):
+    <span class="hljs-keyword">return</span> rng.choice(<span class="hljs-built_in">len</span>(weights), p=weights)
+</code></pre>
+<h3 id="sec-28">6.3 课程 (Curriculum)</h3>
+<p>按<strong>难度/长度/质量</strong>给数据排序,由易到难喂给模型,常能更稳更快收敛。后训练里常见:</p>
+<ul>
+<li><strong>难度课程</strong>:先简单题后难题(数学/代码尤甚)。</li>
+<li><strong>长度课程</strong>:先短序列后长序列(配合上下文窗口扩展)。</li>
+<li><strong>质量课程</strong>:先大规模中等质量、后小规模高质量(quality annealing/退火)。</li>
+</ul>
+<h3 id="sec-29">6.4 质量过滤</h3>
+<p>用<strong>困惑度、奖励模型分、启发式规则、分类器</strong>给样本打分,丢弃低质;但要警惕过滤器自身的偏置(如偏好长文本)被带入数据。</p>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>配比与课程在很大程度上是<strong>经验性的</strong>,需按目标能力做消融。两个常见反模式:① <strong>来源过单一/过度去重</strong> → 能力坍缩、多样性丢失;② <strong>盲目堆某一高分域</strong> → 其他能力退化(灾难性遗忘),见 <a href="cheatsheet-continual-post-training.html">continual-post-training</a>。</p>
+</div>
+<hr>
+<h2 id="sec-30">7. 面试题 (Interview Questions)</h2>
+<h3 id="sec-31">L1 — 基础 (Fundamentals)</h3>
+<hr>
+<details>
+<summary>Q1: 后训练数据流水线包含哪些主要阶段?</summary><p><strong>答：</strong> 大致为:<strong>来源</strong>(人工/开源/蒸馏/日志)→ <strong>合成或采集</strong>(Self-Instruct/Evol-Instruct/拒绝采样/偏好对)→ <strong>清洗</strong>(去重/去污染/质量过滤/格式归一)→ <strong>配比与课程</strong>(领域混比/难度排序)→ <strong>消费</strong>(SFT / DPO·RLHF / RLVR)。核心理念是&quot;合成多样化候选 → 严格过滤 → 按目标能力配比&quot;,而非单纯堆量。</p>
+<blockquote>
+<p><strong>追问：</strong> SFT 数据与偏好数据在形态上有何不同?
+SFT 是 (instruction, response) 单条监督样本;偏好数据是 (prompt, chosen, rejected) 成对比较样本,供 RM/DPO 学习相对优劣。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q2: Self-Instruct 的核心思想是什么?为什么必须过滤?</summary><p><strong>答：</strong> 从少量人工种子任务出发,few-shot 提示模型自己生成新的&quot;指令+输入+输出&quot;,迭代扩充后微调同一模型。必须过滤是因为:不加约束的自生成会<strong>高度同质化</strong>(少数模板反复出现),Self-Instruct 用 ROUGE-L 相似度 &lt; 0.7 丢弃与现有指令过相似者,保住多样性;同时做基本质量门(长度/噪声)。</p>
+<blockquote>
+<p><strong>追问：</strong> Alpaca 与 Self-Instruct 是什么关系?
+Alpaca(无 arXiv 论文)用 Self-Instruct 思路,从 <code>text-davinci-003</code> 蒸出 52k 指令数据微调 LLaMA-7B,是 Self-Instruct 的一个著名工程化实例。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q3: 什么是拒绝采样微调 (RFT)?和普通 SFT 有何不同?</summary><p><strong>答：</strong> RFT 对每个 prompt 从当前模型采样 N 条带推理的解,<strong>只保留答案正确的、并对推理路径去重</strong>,再用这些自生成的正确样本做 SFT。与普通 SFT 区别:数据来自<strong>模型自身采样+正确性筛选</strong>(self-training),不需要额外人工标注,且天然 on-policy(落在模型当前分布上)。</p>
+<blockquote>
+<p><strong>追问：</strong> RFT 需要什么前提条件?
+需要一个<strong>可自动验证正确性</strong>的信号(数学答案 exact-match、代码单测、格式检查),否则无法&quot;拒绝&quot;错误样本。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q4: 为什么要对训练数据去重?去重带来什么收益?</summary><p><strong>答：</strong> 重复样本会被过度加权,放大<strong>逐字记忆</strong>与数据中的偏置,还浪费算力。Lee et al. 2021 发现去除近重复可使逐字记忆下降约一个数量级,并以更少训练步达到相当/更好的困惑度。后训练里重复指令还会让模型过拟合特定模板。</p>
+<blockquote>
+<p><strong>追问：</strong> exact dedup 和 near-dup 有什么区别?
+exact 只去完全相同;near-dup 用 MinHash/LSH 检测高 Jaccard 相似(改写、轻微编辑也能抓),覆盖更全但计算更复杂。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q5: 什么是数据去污染 (decontamination)?不做会怎样?</summary><p><strong>答：</strong> 去污染是从训练数据中移除与<strong>评测基准测试集</strong>重叠的样本。不做的话模型相当于&quot;见过考题&quot;,benchmark 分数虚高、无法反映真实泛化能力,横向比较也失去意义。常见做法:n-gram 重叠剔除(如 13-gram)、成员推断审计(Min-K% Prob)。</p>
+<blockquote>
+<p><strong>追问：</strong> 去污染应该在流水线哪个环节做?
+<strong>训练前、对照所有目标评测集</strong>做。事后发现污染通常无法补救,只能更换评测集。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q6: 蒸馏数据 (distillation) 是什么?SeqKD 的核心做法?</summary><p><strong>答：</strong> 用更强的 teacher 模型生成数据训练 student。<strong>Sequence-Level KD (SeqKD, Kim &amp; Rush 2016)</strong> 的核心:不在 word-level 软标签上蒸馏,而是在 <strong>teacher 解码出的整条序列</strong>上训练 student,得到更快且有竞争力的模型。LLM 时代的指令蒸馏(如 Alpaca/Zephyr)是其精神延续。</p>
+<blockquote>
+<p><strong>追问：</strong> 蒸馏数据有什么根本局限?
+<strong>能力上限继承</strong>——student 很难在该分布上超过 teacher;此外用闭源模型输出训练可能有 license/合规风险。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q7: 偏好数据的 chosen/rejected 对从哪来?人类 vs AI 反馈?</summary><p><strong>答：</strong> 三条路线:① <strong>人类反馈</strong>——标注者对成对回答选更优(InstructGPT/Llama-2);② <strong>AI 反馈 (RLAIF)</strong>——用强 LLM 当裁判生成偏好标签(Constitutional AI、RLAIF);③ <strong>混合</strong>——AI 初筛 + 人工校验关键子集。AI 反馈成本低、可规模化,但继承裁判模型的偏置。</p>
+<blockquote>
+<p><strong>追问：</strong> UltraFeedback 是怎么构造偏好数据的?
+对约 6.4 万条指令用多个模型生成约 25.6 万个候选,再由 GPT-4 多维度打分+写评语,据此构造偏好/RM 数据;Zephyr 用 dDPO 直接在其上做 DPO。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q8: LIMA 的"Less is More"结论说明了什么?</summary><p><strong>答：</strong> LIMA 用 1000 条精心策划的样本(无 RLHF)微调 65B LLaMA,效果可比肩用多得多数据训练的模型。结论:<strong>对齐主要是在预训练知识之上学一种表面行为/格式</strong>,SFT 阶段样本的<strong>质量、多样性、与目标分布对齐度</strong>比绝对数量更关键。它驱动了&quot;过滤优先、质量优先&quot;的流水线设计哲学。</p>
+<blockquote>
+<p><strong>追问：</strong> 这是否意味着数据越少越好?
+不是。是指<strong>高质量少量 &gt; 低质量大量</strong>;数量仍重要,但回报递减,且质量/多样性是前置门槛。</p>
+</blockquote>
+</details><hr>
+<h3 id="sec-32">L2 — 中级 (Intermediate)</h3>
+<hr>
+<details>
+<summary>Q9: Self-Instruct / Alpaca / Evol-Instruct / Magpie 的区别?</summary><p><strong>答：</strong> 都生成指令数据,但机制不同:<strong>Self-Instruct</strong> 种子 bootstrap + 相似度过滤;<strong>Alpaca</strong> 是 Self-Instruct 从 davinci 蒸馏的工程实例;<strong>Evol-Instruct (WizardLM)</strong> 用 LLM 把指令&quot;进化&quot;得更难(深度)或覆盖更广(广度);<strong>Magpie</strong> 利用对齐模型的自回归性,只喂用户轮前缀就让模型自吐指令-回答对,无需种子。复杂度梯度:Magpie/Self-Instruct(广度)→ Evol-Instruct(深度难度)。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么 Evol-Instruct 能提升复杂指令遵循?
+因为它显式制造<strong>难度更高、约束更多</strong>的指令,数据集难度分布上移,模型被迫学习处理多约束/多步骤任务。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q10: RFT、STaR、ReST 三者的异同?</summary><p><strong>答：</strong> 共同点:都是<strong>自训练</strong>——模型生成、按正确性/质量筛选、再监督训练。区别:<strong>RFT</strong> 侧重对每题保留多条去重的正确推理路径做增广 SFT;<strong>STaR</strong> 额外对答错的题用正确答案&quot;反推(rationalize)&quot;出推理再加入;<strong>ReST</strong> 显式写成 Grow(离线生成)/Improve(过阈值微调)双循环,可逐步提阈值、复用数据多轮。</p>
+<blockquote>
+<p><strong>追问：</strong> STaR 的 rationalization 解决了什么问题?
+解决&quot;难题永远采不到正确推理&quot;的覆盖问题——给定答案让模型反推,使难题也能贡献训练信号。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q11: 合成数据的主要风险是什么?如何缓解?</summary><p><strong>答：</strong> ① <strong>同质化</strong>——少数模板/话题/句式反复,多样性骤降;② <strong>model collapse</strong>——递归用模型数据训模型会丢失分布尾部、方差坍缩;③ <strong>错误放大</strong>——teacher 的系统性错误被批量复制;④ <strong>能力上限</strong>——难超 teacher。缓解:相似度去重、多 teacher/多温度采样、混入真实人类数据、对覆盖度(领域/难度/长度)显式约束、保留人工校验子集。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么递归训练会导致 model collapse?
+每代采样都会偏向高概率区域、丢弃低概率尾部,误差逐代累积,分布逐渐收窄,最终多样性与对真实分布的覆盖崩塌。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q12: on-policy 偏好数据为何重要?off-policy 有什么问题?</summary><p><strong>答：</strong> off-policy(用别的模型或历史数据)是 DPO 的<strong>标准用法</strong>(DPO 本就为离线偏好设计,Zephyr/UltraFeedback 皆如此),并非无效;但当偏好数据<strong>离当前策略较远</strong>时,覆盖不足与分布偏移会让更新效率下降、易沾上数据源的长度/风格偏置。<strong>on-policy/在线</strong>(从待优化模型采样)让信号落在模型真实会生成的区域,覆盖更好、迭代后失配更小。迭代/在线 DPO 即用新策略不断重采偏好对来缓解。</p>
+<blockquote>
+<p><strong>追问：</strong> 这和 RM 的&quot;分布偏移&quot;问题是一回事吗?
+同源——都是&quot;训练信号分布 ≠ 策略当前分布&quot;。RM 表现为 OOD 评分失准,DPO 表现为隐式奖励梯度失真,缓解思路都是迭代地用 on-policy 数据刷新。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q13: MinHash 如何近似 Jaccard?为什么能加速近重复检测?</summary><p><strong>答：</strong> 对随机哈希 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi></mrow><annotation encoding="application/x-tex">h</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">h</span></span></span></span>,两集合最小哈希相等的概率恰等于 Jaccard:<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Pr</mi><mo>⁡</mo><mo stretchy="false">[</mo><mi>min</mi><mo>⁡</mo><mi>h</mi><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo><mo>=</mo><mi>min</mi><mo>⁡</mo><mi>h</mi><mo stretchy="false">(</mo><mi>B</mi><mo stretchy="false">)</mo><mo stretchy="false">]</mo><mo>=</mo><mi>J</mi><mo stretchy="false">(</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\Pr[\min h(A)=\min h(B)]=J(A,B)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">Pr</span><span class="mopen">[</span><span class="mop">min</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal">A</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">min</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">h</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">)]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">)</span></span></span></span>。用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi></mrow><annotation encoding="application/x-tex">m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">m</span></span></span></span> 个独立哈希组成长度 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi></mrow><annotation encoding="application/x-tex">m</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">m</span></span></span></span> 的签名,<strong>签名相同位的比例</strong>就是 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi></mrow><annotation encoding="application/x-tex">J</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span></span></span></span> 的无偏估计。于是把 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi mathvariant="normal">∣</mi><mi>A</mi><mi mathvariant="normal">∣</mi><mi mathvariant="normal">∣</mi><mi>B</mi><mi mathvariant="normal">∣</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(|A||B|)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord">∣</span><span class="mord mathnormal">A</span><span class="mord">∣∣</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord">∣</span><span class="mclose">)</span></span></span></span> 的逐 shingle 比较降为<strong>常数长度签名比对</strong>;再配合 LSH 分桶,只比较落同桶的候选,避免全量两两比较。</p>
+<blockquote>
+<p><strong>追问：</strong> k-shingle 的 k 怎么选?
+k 太小 → 短文档误判为相似(噪声高);k 太大 → 对小改写过敏、召回低。文本去重常用 k=5~10 个 token,按语料粒度调。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q14: 去污染具体怎么做?有哪些坑?</summary><p><strong>答：</strong> 两类:① <strong>n-gram 重叠</strong>——训练样本与 benchmark 测试题共享较长 n-gram(如 GPT-3 用 13-gram)即剔除,简单但对<strong>改写/翻译泄漏不敏感</strong>;② <strong>成员推断</strong>——如 Min-K% Prob,免训练判断文本是否被预训练见过,用于事后审计。坑:漏掉改写/多语泄漏、阈值过松/过严、只查部分 benchmark、未声明去污染口径导致分数不可比。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么改写式泄漏特别危险?
+因为它绕过精确/n-gram 匹配(换词、改语序、翻译),却让模型实质见过题目语义,n-gram 去污染抓不到,需要语义级检测或更严格的来源管控。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q15: 数据配比为什么重要?DoReMi 怎么自动学混比?</summary><p><strong>答：</strong> 不同领域/任务数据的混合比例显著影响最终能力分布(Tülu 消融显示无单一数据集全能,需互补混合)。<strong>DoReMi</strong> 先训一个小 proxy 模型,用 <strong>Group DRO</strong> 在各域上学采样权重——对每域算相对参考模型的<strong>超额损失</strong>,用指数梯度上调高超额(更难/更有提升空间)的域;再用学到的权重重采样训练大模型,论文报告快约 2.6×。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么用小 proxy 模型而不是直接在大模型上搜混比?
+在大模型上反复试不同混比成本极高;小 proxy 便宜,学到的域权重可迁移用于大模型的数据重采样,大幅降低搜索成本。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q16: 课程学习 (curriculum) 在后训练里怎么用?</summary><p><strong>答：</strong> 按难度/长度/质量给数据排序、由易到难喂入。常见:<strong>难度课程</strong>(先简单题后难题,数学/代码尤甚)、<strong>长度课程</strong>(先短后长,配合上下文扩展)、<strong>质量退火</strong>(先大规模中等质量,后小规模高质量收尾)。目的是更稳更快收敛、减少早期被难样本带偏。</p>
+<blockquote>
+<p><strong>追问：</strong> 课程学习一定有效吗?
+不一定。效果依任务与难度度量而定;难度度量不准、或模型容量充足时,课程可能与随机打散差别不大,需消融验证。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q17: Constitutional AI / RLAIF 如何用 AI 反馈替代人工?</summary><p><strong>答：</strong> <strong>Constitutional AI</strong> 两阶段:先让模型按一组&quot;宪法原则&quot;<strong>自我批判并改写</strong>自己的有害回答做 SFT,再用模型<strong>按原则生成偏好标签</strong>做 RLHF(即 RLAIF),无害性几乎不依赖人工偏好。<strong>RLAIF vs RLHF</strong> 实验证明现成 LLM 的偏好标签可与人类标签相当,并提出 direct-RLAIF(RL 时直接向 LLM 取奖励、免独立 RM)。</p>
+<blockquote>
+<p><strong>追问：</strong> AI 反馈的主要风险?
+继承裁判模型的偏置(冗长、自我偏好、格式偏好),且可能放大;关键维度仍需人工校准与异构裁判交叉验证(见 reward-modeling-eval)。</p>
+</blockquote>
+</details><hr>
+<h3 id="sec-33">L3 — 高级 (Advanced)</h3>
+<hr>
+<details>
+<summary>Q18: RFT 与 RL (policy gradient) 的数学关系?RFT 算不算 RL?</summary><p><strong>答：</strong> RFT 在&quot;奖励=1(正确)&quot;的自采样样本上做最大似然,可看作 <strong>reward-weighted behavior cloning / 迭代 Best-of-N 蒸馏</strong>。它与策略梯度有联系:REINFORCE 梯度 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="double-struck">E</mi><mrow><mi>y</mi><mo>∼</mo><mi>π</mi></mrow></msub><mo stretchy="false">[</mo><mi>r</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mi mathvariant="normal">∇</mi><mi>log</mi><mo>⁡</mo><mi>π</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">\mathbb{E}_{y\sim\pi}[r(y)\nabla\log\pi(y)]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0361em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="mrel mtight">∼</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mord">∇</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)]</span></span></span></span> 中,当 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">r\in\{0,1\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">}</span></span></span></span> 且只留 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">r=1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> 的样本,正是&quot;在正确样本上提升对数似然&quot;——<strong>但这一近似只在 on-policy、单步、小更新时成立</strong>;RFT 通常把数据采一次就固定下来离线训练,缺在线探索、KL 约束与逐步信用分配,因此<strong>一般不称为完整 RL</strong>,优化天花板也弱于在线 GRPO/PPO。</p>
+<blockquote>
+<p><strong>追问：</strong> 既然 RFT 更简单,为什么还要 RLVR/GRPO?
+RFT 只用&quot;正确/错误&quot;的硬筛,丢弃了错误样本中的梯度信息,也无在线探索;GRPO 用组内相对优势在线更新、能利用负样本与连续奖励,在难任务上的天花板更高。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q19: 为什么合成数据训练可能导致 model collapse?递归训练的理论隐患?</summary><p><strong>答：</strong> 递归地&quot;用上一代模型生成的数据训练下一代&quot;会逐代<strong>丢失分布尾部</strong>:每次采样偏向高概率模式,低概率(罕见但真实)样本被系统性欠采;有限采样的统计误差 + 函数逼近误差逐代累积,分布方差收窄、众数集中,最终多样性坍塌、偏离真实数据分布。缓解:<strong>始终混入足量真实人类数据</strong>作为锚,控制合成数据占比,显式约束覆盖度。</p>
+<blockquote>
+<p><strong>追问：</strong> 这对&quot;用 GPT-4 蒸馏开源模型&quot;这种一次性蒸馏有多大威胁?
+一次性蒸馏(teacher 固定且强)比&quot;自产自销递归训练&quot;安全得多——主要风险是能力上限继承与 teacher 偏置复制,而非典型的递归坍塌;但若把蒸馏模型的输出再喂回训练形成闭环,坍塌风险上升。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q20: 数据质量 vs 数量的权衡:LIMA 与 scaling 的张力如何理解?</summary><p><strong>答：</strong> scaling law 说&quot;更多数据→更低 loss&quot;,LIMA 说&quot;1000 条就够对齐&quot;——二者不矛盾,作用在<strong>不同阶段与目标</strong>:预训练阶段知识获取靠规模(数量主导);SFT 对齐阶段主要是<strong>激活/格式化</strong>预训练已有能力,此时高质量、多样、对齐目标分布的少量样本边际收益最高,数量回报快速递减。所以&quot;质量优先&quot;针对的是后训练对齐,不否定预训练的规模律。</p>
+<blockquote>
+<p><strong>追问：</strong> 那 SFT 数据是否完全不看数量?
+仍看,但有&quot;足够覆盖&quot;的拐点:覆盖目标能力/格式所需的多样性达到后,继续堆同质数据收益很低,甚至因噪声/重复反伤;关键是<strong>多样性覆盖度</strong>而非纯条数。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q21: 设计一个完整的 SFT 数据流水线,关键决策点有哪些?</summary><p><strong>答：</strong></p>
+<pre><code class="hljs"><span class="hljs-selector-attr">[来源]</span> 人工种子 + 开源数据 + teacher 蒸馏 + 拒绝采样自产
+   ↓
+<span class="hljs-selector-attr">[合成]</span> <span class="hljs-built_in">Self-Instruct</span>(广度)+ <span class="hljs-built_in">Evol-Instruct</span>(难度)+ <span class="hljs-built_in">Magpie</span>(规模)
+   ↓
+<span class="hljs-selector-attr">[过滤]</span> 相似度去重(MinHash)+ 质量打分(PPL/RM/分类器)+ 启发式规则
+   ↓
+<span class="hljs-selector-attr">[去污染]</span> 对照所有目标 benchmark 做 n-gram + 语义级检测
+   ↓
+<span class="hljs-selector-attr">[配比/课程]</span> 领域混比(DoReMi/手工消融)+ 难度/长度课程
+   ↓
+<span class="hljs-selector-attr">[训练]</span> SFT → 评测 → 诊断薄弱能力 → 回流补数据
+</code></pre>
+<p>关键决策点:teacher 选型与 license、合成 vs 真实数据比例、去重阈值(召回 vs 误删)、去污染口径、各能力域配比、是否上课程、回流迭代频率。</p>
+<blockquote>
+<p><strong>追问：</strong> 流水线里最容易被忽视但代价最大的环节是哪个?
+<strong>去污染</strong>——一旦污染未清,所有 benchmark 结论都不可信且难追溯;其次是<strong>多样性/覆盖度监控</strong>,同质化常到评测掉点才被发现。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q22: 偏好数据的 margin 过滤与标注校准如何影响 RM/DPO?</summary><p><strong>答：</strong> <strong>margin 过滤</strong>丢弃 chosen/rejected 分差过小(难区分、标注噪声大)的对——好处是降噪、稳化训练;过激则损失边界样本,使 RM/DPO 在&quot;轻微差异&quot;场景判别力不足。<strong>标注校准</strong>(锚点题、标注者效应建模、多数投票)减少系统性标注偏置,否则偏置会被 RM 学到并经 RLHF 放大进策略。二者都属&quot;数据构建阶段的根本性投资&quot;,比事后调 KL/ensemble 更治本。</p>
+<blockquote>
+<p><strong>追问：</strong> margin 用 AI 裁判分数算时要注意什么?
+AI 分数有自身偏置与刻度漂移,绝对分差不可跨 prompt 直接比;宜在同一 prompt 内比较、必要时温度=0 多次取稳,且与人工校准。详见 reward-modeling-eval §3.4。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q23: 去污染做得不彻底,对 benchmark 评测意味着什么?如何系统性防泄漏?</summary><p><strong>答：</strong> 不彻底 = 模型部分见过考题,分数<strong>系统性虚高</strong>且不可比,甚至误导模型选型与科学结论。系统性防泄漏:① 训练前对照<strong>所有</strong>目标评测集做 n-gram + 语义级检测;② 用 Min-K% 等成员推断<strong>事后审计</strong>;③ 来源管控(避免抓取含 benchmark 的网页/题库);④ 报告时<strong>声明去污染口径</strong>(n-gram 阶数、是否查改写/多语);⑤ 关键结论用<strong>新发布的/私有 holdout</strong> 评测集复核。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么&quot;新发布的评测集&quot;能作为污染的对照?
+若模型在训练截止后才发布的评测集上表现骤降,强烈提示此前高分部分来自污染;时间上的&quot;不可能见过&quot;提供了天然对照。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q24: DoReMi 的 Group DRO 目标是什么?为什么用 proxy 模型学混比?</summary><p><strong>答：</strong> Group DRO 优化各域加权损失的<strong>最坏情况</strong>:<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi>min</mi><mo>⁡</mo></mrow><mi>θ</mi></msub><msub><mrow><mi>max</mi><mo>⁡</mo></mrow><mrow><mi>α</mi><mo>∈</mo><mi mathvariant="normal">Δ</mi></mrow></msub><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>α</mi><mi>i</mi></msub><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\min_\theta\max_{\alpha\in\Delta}\sum_i\alpha_i L_i(\theta)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0497em;vertical-align:-0.2997em;"></span><span class="mop"><span class="mop">min</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop"><span class="mop">max</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0037em;">α</span><span class="mrel mtight">∈</span><span class="mord mtight">Δ</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1774em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:0em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.162em;"><span style="top:-2.4003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2997em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span></span></span></span>,<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi></mrow><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span></span></span></span> 在域权重单纯形上。DoReMi 用一个参考模型定义各域<strong>超额损失</strong>,用指数梯度迭代上调高超额域的权重,得到一组对&quot;难域&quot;鲁棒的混比。用 **proxy(小模型)**是因为直接在大模型上反复搜混比成本极高;小模型上学到的域权重可迁移到大模型的数据重采样,论文报告训练提速约 2.6×。</p>
+<blockquote>
+<p><strong>追问：</strong> Group DRO 学到的&quot;上调高损失域&quot;会不会过度偏向噪声域?
+会有此风险——纯按 loss 高低加权可能放大噪声/不可学域。DoReMi 用相对参考模型的<strong>超额</strong>损失(而非绝对 loss)并配合平滑/裁剪缓解,但对参考模型选择与噪声仍敏感。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q25: 蒸馏/合成数据的 license、版权与"能力上限继承"问题?</summary><p><strong>答：</strong> ① <strong>license/合规</strong>:多数闭源模型(GPT-4 等)的服务条款<strong>禁止用其输出训练竞品模型</strong>,用其蒸馏数据公开发布有合规风险,需核对条款或改用许可宽松的 teacher;② <strong>能力上限继承</strong>:student 难在 teacher 覆盖的分布上超过 teacher,蒸馏适合&quot;拉平/普及&quot;能力而非&quot;突破前沿&quot;;③ <strong>偏置/错误复制</strong>:teacher 的系统性错误与风格偏好会被批量复制进 student。实践:多 teacher、混真实数据、保留人工校验、记录数据来源与许可。</p>
+<blockquote>
+<p><strong>追问：</strong> 如果想让 student 超过 teacher,数据上能做什么?
+转向<strong>可验证自产数据</strong>(RFT/RLVR,用环境/单测/答案当 teacher 而非模型)、on-policy 偏好迭代、引入新的真实人类数据或工具反馈——让监督信号来自&quot;客观正确性&quot;而非另一个模型的分布。</p>
+</blockquote>
+</details><hr>
+<h2 id="sec-34">附录：关键术语速查 (Glossary)</h2>
+<table>
+<thead>
+<tr>
+<th>英文术语</th>
+<th>中文</th>
+<th>简要定义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Self-Instruct</td>
+<td>自指令</td>
+<td>从种子任务 bootstrap 合成指令数据 + 相似度过滤</td>
+</tr>
+<tr>
+<td>Evol-Instruct</td>
+<td>指令进化</td>
+<td>用 LLM 把指令进化得更难/更广 (WizardLM)</td>
+</tr>
+<tr>
+<td>Distillation</td>
+<td>蒸馏</td>
+<td>用强 teacher 生成数据训练 student</td>
+</tr>
+<tr>
+<td>SeqKD</td>
+<td>序列级蒸馏</td>
+<td>在 teacher 解码序列上训练 student</td>
+</tr>
+<tr>
+<td>Rejection Sampling FT (RFT)</td>
+<td>拒绝采样微调</td>
+<td>采样 N 条只留正确并去重做 SFT</td>
+</tr>
+<tr>
+<td>STaR</td>
+<td>—</td>
+<td>自举推理:对答错题用答案反推推理</td>
+</tr>
+<tr>
+<td>ReST</td>
+<td>—</td>
+<td>Grow(生成)/Improve(过阈值微调)双循环自训练</td>
+</tr>
+<tr>
+<td>RLAIF</td>
+<td>AI 反馈强化学习</td>
+<td>用 LLM 偏好标签替代人类标签</td>
+</tr>
+<tr>
+<td>Constitutional AI</td>
+<td>宪法式 AI</td>
+<td>用原则驱动自我批判+AI 偏好对齐</td>
+</tr>
+<tr>
+<td>Preference Pair</td>
+<td>偏好对</td>
+<td>(prompt, chosen, rejected) 三元组</td>
+</tr>
+<tr>
+<td>on-policy data</td>
+<td>同策略数据</td>
+<td>来自当前待优化模型的采样</td>
+</tr>
+<tr>
+<td>Dedup</td>
+<td>去重</td>
+<td>移除(近)重复样本</td>
+</tr>
+<tr>
+<td>MinHash / LSH</td>
+<td>—</td>
+<td>用最小哈希签名近似 Jaccard、加速近重复检测</td>
+</tr>
+<tr>
+<td>Jaccard</td>
+<td>杰卡德相似度</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">∣</mi><mi>A</mi><mo>∩</mo><mi>B</mi><mi mathvariant="normal">∣</mi><mi mathvariant="normal">/</mi><mi mathvariant="normal">∣</mi><mi>A</mi><mo>∪</mo><mi>B</mi><mi mathvariant="normal">∣</mi></mrow><annotation encoding="application/x-tex">|A\cap B|/|A\cup B|</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">∩</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord">∣/∣</span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">∪</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mord">∣</span></span></span></span></td>
+</tr>
+<tr>
+<td>Decontamination</td>
+<td>去污染</td>
+<td>移除与评测集重叠的训练样本</td>
+</tr>
+<tr>
+<td>Min-K% Prob</td>
+<td>—</td>
+<td>免训练成员推断,检测预训练是否见过文本</td>
+</tr>
+<tr>
+<td>Data Mixing</td>
+<td>数据配比</td>
+<td>各域/来源的混合比例</td>
+</tr>
+<tr>
+<td>DoReMi</td>
+<td>—</td>
+<td>用 proxy + Group DRO 自动学域混比</td>
+</tr>
+<tr>
+<td>Curriculum</td>
+<td>课程学习</td>
+<td>按难度/长度/质量排序喂数据</td>
+</tr>
+<tr>
+<td>Model Collapse</td>
+<td>模型坍缩</td>
+<td>递归训练致分布尾部丢失、多样性坍塌</td>
+</tr>
+<tr>
+<td>LIMA</td>
+<td>—</td>
+<td>&quot;Less is More&quot;:少量高质量样本即可对齐</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>本手册仅供学习参考。涉及的论文结论与数值以原始论文为准;benchmark 分数仅用于说明,不构成横向比较。</em></p>
+<h2 id="sec-35">§A 核心论文时间线 / Key Papers Timeline</h2>
+<ul class="timeline">
+<li><p><strong>2016-06 · Sequence-Level Knowledge Distillation</strong> — Kim &amp; Rush, EMNLP 2016. <a href="https://arxiv.org/abs/1606.07947">arXiv:1606.07947</a> — 把知识蒸馏提升到序列级:在 teacher 解码出的序列上训练 student,替代 word-level 软标签,得到更快且有竞争力的模型,是 LLM 蒸馏数据的思想源头。</p>
+</li>
+<li><p><strong>2021-07 · Deduplicating Training Data Makes Language Models Better</strong> — Lee et al., ACL 2022. <a href="https://arxiv.org/abs/2107.06499">arXiv:2107.06499</a> — 系统证明去除训练语料近重复可使逐字记忆下降约一个数量级,并以更少训练步达到相当/更优困惑度,奠定&quot;去重是基础动作&quot;的共识。</p>
+</li>
+<li><p><strong>2022-03 · STaR: Bootstrapping Reasoning With Reasoning</strong> — Zelikman et al., NeurIPS 2022. <a href="https://arxiv.org/abs/2203.14465">arXiv:2203.14465</a> — 用模型自生成的正确 CoT 推理迭代自举;对答错题用正确答案&quot;反推&quot;推理也纳入训练,无需大规模人工推理标注。</p>
+</li>
+<li><p><strong>2022-12 · Self-Instruct: Aligning LMs with Self-Generated Instructions</strong> — Wang et al., ACL 2023. <a href="https://arxiv.org/abs/2212.10560">arXiv:2212.10560</a> — 从少量种子任务 bootstrap 合成指令数据 + ROUGE-L 相似度过滤去同质化,开创低成本规模化指令数据合成范式(Alpaca 即其实例)。</p>
+</li>
+<li><p><strong>2022-12 · Constitutional AI: Harmlessness from AI Feedback</strong> — Bai et al., preprint. <a href="https://arxiv.org/abs/2212.08073">arXiv:2212.08073</a> — 用一组&quot;宪法原则&quot;驱动模型自我批判+改写做 SFT,再以 AI 生成偏好标签做 RLHF(RLAIF),无害性几乎不依赖人工偏好标注。</p>
+</li>
+<li><p><strong>2023-04 · WizardLM: Empowering LLMs to Follow Complex Instructions</strong> — Xu et al., ICLR 2024. <a href="https://arxiv.org/abs/2304.12244">arXiv:2304.12244</a> — 提出 Evol-Instruct:用 LLM 把种子指令在深度(加约束/难度)与广度(覆盖新领域)上进化,显著提升复杂指令遵循。</p>
+</li>
+<li><p><strong>2023-05 · LIMA: Less Is More for Alignment</strong> — Zhou et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2305.11206">arXiv:2305.11206</a> — 仅 1000 条精选样本(无 RLHF)微调 65B LLaMA 即可对齐,论证对齐主要是激活预训练已有能力,质量/多样性优先于数量。</p>
+</li>
+<li><p><strong>2023-05 · DoReMi: Optimizing Data Mixtures</strong> — Xie et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2305.10429">arXiv:2305.10429</a> — 用小 proxy 模型 + Group DRO 学习各域采样权重,再重采样训大模型,论文报告达相当性能快约 2.6×,把数据配比从手工调成可优化目标。</p>
+</li>
+<li><p><strong>2023-06 · How Far Can Camels Go? (Tülu)</strong> — Wang et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2306.04751">arXiv:2306.04751</a> — 系统消融 12 个指令微调数据集,结论是无单一数据集全能、需混合互补来源,并发布 Tülu 开放指令模型套件。</p>
+</li>
+<li><p><strong>2023-06 · Textbooks Are All You Need (phi-1)</strong> — Gunasekar et al., preprint. <a href="https://arxiv.org/abs/2306.11644">arXiv:2306.11644</a> — 用&quot;教科书质量&quot;过滤数据 + 合成教科书/习题训练 1.3B 的 phi-1,论文报告 HumanEval pass@1 = 50.6%,论证高质量合成数据可大幅降低规模需求。</p>
+</li>
+<li><p><strong>2023-08 · Scaling Relationship on Math Reasoning (RFT)</strong> — Yuan et al., preprint. <a href="https://arxiv.org/abs/2308.01825">arXiv:2308.01825</a> — 提出拒绝采样微调(RFT):采样多条推理只留正确且去重者做增广 SFT,并研究预训练 loss 与数据量如何共同决定数学推理能力。</p>
+</li>
+<li><p><strong>2023-08 · Reinforced Self-Training (ReST)</strong> — Gulcehre et al., preprint. <a href="https://arxiv.org/abs/2308.08998">arXiv:2308.08998</a> — 把自训练写成 Grow(离线生成样本)/Improve(在过阈值样本上微调)双循环,采样与训练解耦,比在线 RLHF 更省算力且数据可复用。</p>
+</li>
+<li><p><strong>2023-09 · RLAIF vs. RLHF: Scaling RLHF with AI Feedback</strong> — Lee et al., ICML 2024. <a href="https://arxiv.org/abs/2309.00267">arXiv:2309.00267</a> — 实验证明用现成 LLM 的偏好标签(RLAIF)在摘要/对话上可与 RLHF 相当,并提出 direct-RLAIF:RL 时直接向 LLM 取奖励、免独立 RM。</p>
+</li>
+<li><p><strong>2023-10 · UltraFeedback: Boosting LMs with Scaled AI Feedback</strong> — Cui et al., ICML 2024. <a href="https://arxiv.org/abs/2310.01377">arXiv:2310.01377</a> — 对约 6.4 万条指令用多模型生成约 25.6 万个候选、GPT-4 多维度打分+评语,构造大规模 AI 反馈偏好/RM 数据,成为开源对齐的重要燃料。</p>
+</li>
+<li><p><strong>2023-10 · Zephyr: Direct Distillation of LM Alignment</strong> — Tunstall et al., preprint. <a href="https://arxiv.org/abs/2310.16944">arXiv:2310.16944</a> — 用 dDPO(distilled DPO)直接在 UltraFeedback 的 AI 反馈上做 DPO,无任何人工标注即蒸出强对齐的 7B 模型,验证&quot;AI 反馈 + DPO&quot;配方。</p>
+</li>
+<li><p><strong>2023-10 · Detecting Pretraining Data (Min-K% Prob)</strong> — Shi et al., ICLR 2024. <a href="https://arxiv.org/abs/2310.16789">arXiv:2310.16789</a> — 提出免训练成员推断 Min-K% Prob:取文本最低 k% token 的平均对数似然——成员文本该均值偏高、未见文本因含低概率 outlier 而偏低,可用于 benchmark 污染审计。</p>
+</li>
+<li><p><strong>2024-06 · Magpie: Alignment Data Synthesis from Scratch</strong> — Xu et al., ICLR 2025. <a href="https://arxiv.org/abs/2406.08464">arXiv:2406.08464</a> — 利用对齐模型的自回归性,只喂用户轮前模板就让模型自吐指令-回答对,零种子、零人工、规模化合成对齐数据。</p>
+</li>
+<li><p><strong>2024-11 · Tülu 3: Pushing Frontiers in Open Post-Training</strong> — Lambert et al., preprint. <a href="https://arxiv.org/abs/2411.15124">arXiv:2411.15124</a> — 开放端到端后训练配方(SFT→DPO→RLVR)与全套数据/代码,引入 RLVR 作为关键组件,系统呈现数据流水线与配比工程。</p>
+</li>
+</ul>
+</main>
+</div>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav.toc a'));
+  if(!links.length||!('IntersectionObserver' in window))return;
+  var byId={};
+  links.forEach(function(a){byId[a.getAttribute('href').replace(/^#/,'')]=a;});
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting)return;
+      links.forEach(function(l){l.classList.remove('active');});
+      var a=byId[e.target.id];if(a)a.classList.add('active');
+    });
+  },{rootMargin:'-12% 0px -75% 0px'});
+  links.forEach(function(a){var el=document.getElementById(a.getAttribute('href').replace(/^#/,''));if(el)io.observe(el);});
+})();
+(function(){
+  // Print degradation: force every collapsed <details> open while printing, restore after.
+  var stash=[];
+  window.addEventListener('beforeprint',function(){
+    stash=[];
+    document.querySelectorAll('details:not([open])').forEach(function(d){stash.push(d);d.open=true;});
+  });
+  window.addEventListener('afterprint',function(){
+    stash.forEach(function(d){if(d.isConnected)d.open=false;});stash=[];
+  });
+})();
+</script>
+</body>
+</html>
