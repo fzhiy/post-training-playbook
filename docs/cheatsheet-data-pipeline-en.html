@@ -140,21 +140,10 @@
 <nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-data-pipeline.html">中文 ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Post-Training Data Pipeline &amp; Curation Cheatsheet</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">From instruction synthesis, rejection sampling, and preference construction to decontamination and data mixing</a></li><li class="lv2"><a href="#sec-2">1. Pipeline Overview</a></li><li class="lv3"><a href="#sec-3">1.1 Three main tracks</a></li><li class="lv3"><a href="#sec-4">1.2 Core principle: quality &gt; quantity</a></li><li class="lv2"><a href="#sec-5">2. Instruction Data Synthesis</a></li><li class="lv3"><a href="#sec-6">2.1 Self-Instruct — seed bootstrapping</a></li><li class="lv3"><a href="#sec-7">2.2 Evol-Instruct — instruction evolution</a></li><li class="lv3"><a href="#sec-8">2.3 Magpie — &quot;zero-prompt&quot; extraction from aligned models</a></li><li class="lv3"><a href="#sec-9">2.4 Distillation</a></li><li class="lv3"><a href="#sec-10">2.5 Risks of synthetic data: homogenization and mode collapse</a></li><li class="lv2"><a href="#sec-11">3. Rejection Sampling &amp; Self-Training</a></li><li class="lv3"><a href="#sec-12">3.1 RFT — rejection sampling fine-tuning</a></li><li class="lv3"><a href="#sec-13">3.2 STaR — bootstrapping reasoning with reasoning</a></li><li class="lv3"><a href="#sec-14">3.3 ReST — Grow / Improve double loop</a></li><li class="lv3"><a href="#sec-15">3.4 Relationship to RL</a></li><li class="lv2"><a href="#sec-16">4. Preference Data Construction</a></li><li class="lv3"><a href="#sec-17">4.1 Where preference signals come from</a></li><li class="lv3"><a href="#sec-18">4.2 UltraFeedback / Zephyr — scaled AI-feedback recipes</a></li><li class="lv3"><a href="#sec-19">4.3 Building preference pairs from scored candidates</a></li><li class="lv3"><a href="#sec-20">4.4 on-policy vs off-policy preferences</a></li><li class="lv2"><a href="#sec-21">5. Dedup &amp; Decontamination</a></li><li class="lv3"><a href="#sec-22">5.1 Why deduplicate</a></li><li class="lv3"><a href="#sec-23">5.2 exact vs near-dup</a></li><li class="lv3"><a href="#sec-24">5.3 Decontamination</a></li><li class="lv2"><a href="#sec-25">6. Data Mixing &amp; Curriculum</a></li><li class="lv3"><a href="#sec-26">6.1 Data mixing</a></li><li class="lv3"><a href="#sec-27">6.2 DoReMi — learning the optimal mixture automatically</a></li><li class="lv3"><a href="#sec-28">6.3 Curriculum</a></li><li class="lv3"><a href="#sec-29">6.4 Quality filtering</a></li><li class="lv2"><a href="#sec-30">7. Interview Questions</a></li><li class="lv3"><a href="#sec-31">L1 — Fundamentals</a></li><li class="lv3"><a href="#sec-32">L2 — Intermediate</a></li><li class="lv3"><a href="#sec-33">L3 — Advanced</a></li><li class="lv2"><a href="#sec-34">Glossary</a></li><li class="lv2"><a href="#sec-35">§A Key Papers Timeline</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">From instruction synthesis, rejection sampling, and preference construction to decontamination and data mixing</a></li><li class="lv2"><a href="#sec-1">1. Pipeline Overview</a></li><li class="lv3"><a href="#sec-2">1.1 Three main tracks</a></li><li class="lv3"><a href="#sec-3">1.2 Core principle: quality &gt; quantity</a></li><li class="lv2"><a href="#sec-4">2. Instruction Data Synthesis</a></li><li class="lv3"><a href="#sec-5">2.1 Self-Instruct — seed bootstrapping</a></li><li class="lv3"><a href="#sec-6">2.2 Evol-Instruct — instruction evolution</a></li><li class="lv3"><a href="#sec-7">2.3 Magpie — &quot;zero-prompt&quot; extraction from aligned models</a></li><li class="lv3"><a href="#sec-8">2.4 Distillation</a></li><li class="lv3"><a href="#sec-9">2.5 Risks of synthetic data: homogenization and mode collapse</a></li><li class="lv2"><a href="#sec-10">3. Rejection Sampling &amp; Self-Training</a></li><li class="lv3"><a href="#sec-11">3.1 RFT — rejection sampling fine-tuning</a></li><li class="lv3"><a href="#sec-12">3.2 STaR — bootstrapping reasoning with reasoning</a></li><li class="lv3"><a href="#sec-13">3.3 ReST — Grow / Improve double loop</a></li><li class="lv3"><a href="#sec-14">3.4 Relationship to RL</a></li><li class="lv2"><a href="#sec-15">4. Preference Data Construction</a></li><li class="lv3"><a href="#sec-16">4.1 Where preference signals come from</a></li><li class="lv3"><a href="#sec-17">4.2 UltraFeedback / Zephyr — scaled AI-feedback recipes</a></li><li class="lv3"><a href="#sec-18">4.3 Building preference pairs from scored candidates</a></li><li class="lv3"><a href="#sec-19">4.4 on-policy vs off-policy preferences</a></li><li class="lv2"><a href="#sec-20">5. Dedup &amp; Decontamination</a></li><li class="lv3"><a href="#sec-21">5.1 Why deduplicate</a></li><li class="lv3"><a href="#sec-22">5.2 exact vs near-dup</a></li><li class="lv3"><a href="#sec-23">5.3 Decontamination</a></li><li class="lv2"><a href="#sec-24">6. Data Mixing &amp; Curriculum</a></li><li class="lv3"><a href="#sec-25">6.1 Data mixing</a></li><li class="lv3"><a href="#sec-26">6.2 DoReMi — learning the optimal mixture automatically</a></li><li class="lv3"><a href="#sec-27">6.3 Curriculum</a></li><li class="lv3"><a href="#sec-28">6.4 Quality filtering</a></li><li class="lv2"><a href="#sec-29">7. Interview Questions</a></li><li class="lv3"><a href="#sec-30">L1 — Fundamentals</a></li><li class="lv3"><a href="#sec-31">L2 — Intermediate</a></li><li class="lv3"><a href="#sec-32">L3 — Advanced</a></li><li class="lv2"><a href="#sec-33">Glossary</a></li><li class="lv2"><a href="#sec-34">§A Key Papers Timeline</a></li></ul></nav>
 <main id="out"><h2 id="sec-0">From instruction synthesis, rejection sampling, and preference construction to decontamination and data mixing</h2>
 <hr>
-<h2 id="sec-1">Table of Contents</h2>
-<ol>
-<li><a href="#1-pipeline-overview">Pipeline Overview</a></li>
-<li><a href="#2-instruction-data-synthesis">Instruction Data Synthesis</a></li>
-<li><a href="#3-rejection-sampling--self-training">Rejection Sampling &amp; Self-Training</a></li>
-<li><a href="#4-preference-data-construction">Preference Data Construction</a></li>
-<li><a href="#5-dedup--decontamination">Dedup &amp; Decontamination</a></li>
-<li><a href="#6-data-mixing--curriculum">Data Mixing &amp; Curriculum</a></li>
-<li><a href="#7-interview-questions">Interview Questions</a></li>
-</ol>
-<hr>
-<h2 id="sec-2">1. Pipeline Overview</h2>
+<h2 id="sec-1">1. Pipeline Overview</h2>
 <p>The ceiling of post-training (SFT / preference alignment / RLVR) is <strong>largely set by the data pipeline</strong> — with the same algorithm, different data quality and mixtures give wildly different results. A typical post-training data pipeline:</p>
 <pre class="diagram"><code>Sources                  Generate                    Clean                    Mix → Consume
 ─────────────            ──────────────────          ─────────────            ────────────────────
@@ -163,7 +152,7 @@ open datasets      ─→    rejection sampling    ─→    decontamination    
 distillation             preference pairs            quality filter           quality/difficulty       DPO / RLHF / RLVR
 production logs          Magpie / synth textbooks    format normalize         per-stage mixing
 </code></pre>
-<h3 id="sec-3">1.1 Three main tracks</h3>
+<h3 id="sec-2">1.1 Three main tracks</h3>
 <table>
 <thead>
 <tr>
@@ -192,16 +181,16 @@ production logs          Magpie / synth textbooks    format normalize         pe
 <td>GRPO + rule-based reward</td>
 </tr>
 </tbody></table>
-<h3 id="sec-4">1.2 Core principle: quality &gt; quantity</h3>
+<h3 id="sec-3">1.2 Core principle: quality &gt; quantity</h3>
 <p><strong>LIMA</strong> (Zhou et al., <a href="https://arxiv.org/abs/2305.11206">arXiv:2305.11206</a>) fine-tunes a 65B LLaMA on only <strong>1,000</strong> carefully curated SFT samples (no RLHF) and matches models trained on orders of magnitude more data. Its claim: <strong>alignment is mostly a &quot;surface behavior/format&quot; learned atop pretraining knowledge, and a small set of high-quality samples suffices to activate it</strong>.</p>
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
 <p>LIMA&#39;s &quot;Less is More&quot; does not mean less data is always better, but: <strong>in SFT, sample quality, diversity, and alignment with the target distribution matter more than raw count</strong>. This directly drives all the &quot;filter-first&quot; pipeline designs downstream.</p>
 </div>
 <p>Implication: the pipeline&#39;s value is not in &quot;piling up volume&quot; but in <strong>synthesizing diverse high-quality candidates → strictly filtering/dedup/decontaminating → mixing by target capability</strong>. §2–§6 unpack each stage.</p>
 <hr>
-<h2 id="sec-5">2. Instruction Data Synthesis</h2>
+<h2 id="sec-4">2. Instruction Data Synthesis</h2>
 <p>Writing instruction data by hand is expensive and hard to scale. The mainstream approach is to <strong>synthesize with a strong LLM</strong>; the core challenges are <strong>diversity</strong> and <strong>quality</strong>.</p>
-<h3 id="sec-6">2.1 Self-Instruct — seed bootstrapping</h3>
+<h3 id="sec-5">2.1 Self-Instruct — seed bootstrapping</h3>
 <p><strong>Self-Instruct</strong> (Wang et al., <a href="https://arxiv.org/abs/2212.10560">arXiv:2212.10560</a>): starting from a small set of human seed tasks, few-shot prompt the model to <strong>generate new instructions + inputs + outputs</strong>, then filter out samples too similar to the existing pool or low quality, iterate, and finally fine-tune <strong>the same model</strong> on the expanded data. Stanford <strong>Alpaca</strong> (no arXiv paper; blog/repo) used the Self-Instruct idea to distill 52k instructions from <code>text-davinci-003</code>.</p>
 <p><strong>De-duplication filtering</strong> is key: Self-Instruct uses a <strong>ROUGE-L similarity &lt; 0.7</strong> threshold to drop new instructions too similar to existing ones, preventing the synthetic data from collapsing into a few templates.</p>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> random
@@ -232,16 +221,16 @@ production logs          Magpie / synth textbooks    format normalize         pe
     pool.extend(new_items)
     <span class="hljs-keyword">return</span> new_items
 </code></pre>
-<h3 id="sec-7">2.2 Evol-Instruct — instruction evolution</h3>
+<h3 id="sec-6">2.2 Evol-Instruct — instruction evolution</h3>
 <p><strong>WizardLM / Evol-Instruct</strong> (Xu et al., <a href="https://arxiv.org/abs/2304.12244">arXiv:2304.12244</a>, ICLR 2024): instead of flat generation, use an LLM to <strong>&quot;evolve&quot; seed instructions to be more complex</strong>, in two directions:</p>
 <ul>
 <li><strong>In-depth</strong>: add constraints, add reasoning steps, complicate inputs, deepen difficulty.</li>
 <li><strong>In-breadth</strong>: generate brand-new instructions covering new domains from existing ones.</li>
 </ul>
 <p>After evolving, filter out &quot;failed evolutions&quot; (didn&#39;t get harder / became empty), yielding an instruction set with a steeper difficulty gradient.</p>
-<h3 id="sec-8">2.3 Magpie — &quot;zero-prompt&quot; extraction from aligned models</h3>
+<h3 id="sec-7">2.3 Magpie — &quot;zero-prompt&quot; extraction from aligned models</h3>
 <p><strong>Magpie</strong> (Xu et al., <a href="https://arxiv.org/abs/2406.08464">arXiv:2406.08464</a>, ICLR 2025): exploits the autoregressive nature of instruction models (e.g. Llama-3-Instruct) — <strong>feed only the &quot;pre-user-turn template&quot; (no seed instruction)</strong> and the model continues by writing a user instruction itself; then have it answer, yielding an (instruction, response) pair. No seeds, no human curation, scalable extraction of alignment data.</p>
-<h3 id="sec-9">2.4 Distillation</h3>
+<h3 id="sec-8">2.4 Distillation</h3>
 <p>Using a <strong>stronger teacher model</strong> to generate data for training a student is one of the most common synthesis routes.</p>
 <ul>
 <li><strong>Sequence-Level KD (SeqKD)</strong> (Kim &amp; Rush, <a href="https://arxiv.org/abs/1606.07947">arXiv:1606.07947</a>, EMNLP 2016): the classic approach — train the student on <strong>sequences decoded by the teacher</strong> (replacing word-level soft targets with sequence-level outputs); the student is faster and competitive.</li>
@@ -250,14 +239,14 @@ production logs          Magpie / synth textbooks    format normalize         pe
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p>Two red lines for distillation/synthetic data: ① <strong>inherited capability ceiling</strong> — the student can hardly exceed the teacher on that distribution (good for leveling up, hard for pushing frontiers); ② <strong>license/compliance</strong> — using closed-model (e.g. GPT-4) outputs for training may violate its terms of service; check the license before publishing.</p>
 </div>
-<h3 id="sec-10">2.5 Risks of synthetic data: homogenization and mode collapse</h3>
+<h3 id="sec-9">2.5 Risks of synthetic data: homogenization and mode collapse</h3>
 <div class="callout callout-bad"><div class="callout-label">陷阱 / Pitfall</div>
 <p><strong>Pitfall</strong>: unfiltered synthetic data <strong>homogenizes</strong> — a few high-frequency templates, phrasings, and topics recur, and diversity plummets. Recursively &quot;training a model on model-generated data&quot; can further trigger <strong>model collapse</strong> (loss of distribution tails, variance shrinkage). Mitigations: similarity dedup (§2.1), multi-teacher / multi-temperature sampling, mixing in real human data, and explicit constraints on coverage (domain/difficulty/length).</p>
 </div>
 <hr>
-<h2 id="sec-11">3. Rejection Sampling &amp; Self-Training</h2>
+<h2 id="sec-10">3. Rejection Sampling &amp; Self-Training</h2>
 <p>When a task has a <strong>verifiable correctness signal</strong> (math answers, unit tests, format), you can let the model <strong>generate and filter its own data</strong>, then train on it supervised — a cost-effective middle road between SFT and RL.</p>
-<h3 id="sec-12">3.1 RFT — rejection sampling fine-tuning</h3>
+<h3 id="sec-11">3.1 RFT — rejection sampling fine-tuning</h3>
 <p><strong>Rejection sampling Fine-Tuning (RFT)</strong> (Yuan et al., <a href="https://arxiv.org/abs/2308.01825">arXiv:2308.01825</a>): for each prompt, sample <strong>N reasoning solutions</strong> from the current (SFT) model, <strong>keep only those with the correct answer</strong>, and <strong>dedup the reasoning paths</strong> (keep several &quot;distinct&quot; correct paths per question to add diversity); use these self-generated correct samples as augmented SFT data.</p>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> re
 
@@ -287,23 +276,23 @@ production logs          Magpie / synth textbooks    format normalize         pe
         sft_data += [(x, y) <span class="hljs-keyword">for</span> y <span class="hljs-keyword">in</span> kept]
     <span class="hljs-keyword">return</span> sft_data                              <span class="hljs-comment"># then run standard SFT on these</span>
 </code></pre>
-<h3 id="sec-13">3.2 STaR — bootstrapping reasoning with reasoning</h3>
+<h3 id="sec-12">3.2 STaR — bootstrapping reasoning with reasoning</h3>
 <p><strong>STaR</strong> (Zelikman et al., <a href="https://arxiv.org/abs/2203.14465">arXiv:2203.14465</a>, NeurIPS 2022): have the model generate CoT reasoning, <strong>keep the reasoning that reaches the correct answer</strong> for fine-tuning; for wrong questions, give the correct answer and let the model <strong>&quot;rationalize&quot;</strong> a reasoning path that reaches it, also adding it to the training set. Reasoning ability bootstraps upward over iterations.</p>
-<h3 id="sec-14">3.3 ReST — Grow / Improve double loop</h3>
+<h3 id="sec-13">3.3 ReST — Grow / Improve double loop</h3>
 <p><strong>ReST</strong> (Gulcehre et al., <a href="https://arxiv.org/abs/2308.08998">arXiv:2308.08998</a>): writes self-training as two alternating steps —</p>
 <ul>
 <li><strong>Grow</strong>: generate a batch of samples <strong>offline</strong> from the current policy (expand the dataset);</li>
 <li><strong>Improve</strong>: fine-tune on samples that pass a <strong>quality threshold</strong> (which can be raised gradually).</li>
 </ul>
 <p>More compute-efficient than online RLHF: sampling and training are decoupled, and the generated data can be reused across rounds.</p>
-<h3 id="sec-15">3.4 Relationship to RL</h3>
+<h3 id="sec-14">3.4 Relationship to RL</h3>
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
 <p>RFT/STaR/ReST can be understood as <strong>reward-weighted behavior cloning / iterated Best-of-N distillation</strong>: maximum likelihood only on the self-sampled &quot;reward=1 (correct)&quot; samples. Under on-policy, single-step, small-update conditions it <strong>approximates</strong> one step of a &quot;binary-reward policy gradient&quot;, but it is usually <strong>not full RL</strong> — no online exploration, continuous reward, or step-wise credit assignment. Its upside is simplicity, stability, and reusable data. For the link to RLVR/GRPO see <a href="cheatsheet-reasoning-rl-frontier-en.html">reasoning-rl-frontier</a> and <a href="cheatsheet-llm-post-training-en.html">llm-post-training</a>.</p>
 </div>
 <hr>
-<h2 id="sec-16">4. Preference Data Construction</h2>
+<h2 id="sec-15">4. Preference Data Construction</h2>
 <p>Preference triples (prompt, chosen, rejected) are the fuel for RLHF/DPO; their quality caps the RM/policy.</p>
-<h3 id="sec-17">4.1 Where preference signals come from</h3>
+<h3 id="sec-16">4.1 Where preference signals come from</h3>
 <table>
 <thead>
 <tr>
@@ -332,12 +321,12 @@ production logs          Magpie / synth textbooks    format normalize         pe
 <li><strong>Constitutional AI</strong> (Bai et al., <a href="https://arxiv.org/abs/2212.08073">arXiv:2212.08073</a>): two stages — first SFT on the model&#39;s <strong>self-critiques + revisions</strong>, then RLHF with <strong>AI-generated preference labels</strong> driven by a set of &quot;constitutional principles&quot; (RLAIF), with harmlessness barely relying on human preferences.</li>
 <li><strong>RLAIF vs RLHF</strong> (Lee et al., <a href="https://arxiv.org/abs/2309.00267">arXiv:2309.00267</a>, ICML 2024): shows that off-the-shelf LLM preference labels (RLAIF) can match RLHF on summarization/dialogue, and proposes <strong>direct-RLAIF</strong> (obtain the reward directly from the LLM during RL, no separate RM).</li>
 </ul>
-<h3 id="sec-18">4.2 UltraFeedback / Zephyr — scaled AI-feedback recipes</h3>
+<h3 id="sec-17">4.2 UltraFeedback / Zephyr — scaled AI-feedback recipes</h3>
 <ul>
 <li><strong>UltraFeedback</strong> (Cui et al., <a href="https://arxiv.org/abs/2310.01377">arXiv:2310.01377</a>, ICML 2024): for about <strong>64k instructions</strong>, generate about <strong>256k candidate responses</strong> with multiple models, then have <strong>GPT-4 give numerical scores + textual critiques across several quality dimensions</strong> (over 1M feedback entries in total), constructing large-scale preference/RM data.</li>
 <li><strong>Zephyr</strong> (Tunstall et al., <a href="https://arxiv.org/abs/2310.16944">arXiv:2310.16944</a>): <strong>dDPO</strong> (distilled DPO) runs DPO directly on UltraFeedback&#39;s AI feedback, distilling alignment with no human annotation.</li>
 </ul>
-<h3 id="sec-19">4.3 Building preference pairs from scored candidates</h3>
+<h3 id="sec-18">4.3 Building preference pairs from scored candidates</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> itertools, random
 
 <span class="hljs-comment"># Build preference pairs from scored candidates: chosen = higher score, rejected = lower,</span>
@@ -356,7 +345,7 @@ production logs          Magpie / synth textbooks    format normalize         pe
     random.shuffle(pairs)
     <span class="hljs-keyword">return</span> pairs[:max_pairs]             <span class="hljs-comment"># cap pairs per prompt to avoid imbalance</span>
 </code></pre>
-<h3 id="sec-20">4.4 on-policy vs off-policy preferences</h3>
+<h3 id="sec-19">4.4 on-policy vs off-policy preferences</h3>
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p>Whether the responses in a preference pair <strong>come from the current policy</strong> affects the outcome: <strong>off-policy</strong> (pairs from other models or historical data) is a <strong>standard, common</strong> practice — DPO was designed for offline preferences, and Zephyr/UltraFeedback are both offline; <strong>on-policy/online</strong> (sampled from the model being optimized) is closer to the current distribution with better coverage. The risk is not that &quot;the objective is inherently invalid&quot;, but that when preference data is <strong>too far from the current policy</strong>, coverage gaps and distribution shift (plus length/style bias) hurt. Iterative/online DPO mitigates this.</p>
 </div>
@@ -364,10 +353,10 @@ production logs          Magpie / synth textbooks    format normalize         pe
 <p>Design choices for preference data such as <strong>margin confidence filtering, annotator calibration, length debiasing</strong> are covered in <a href="cheatsheet-reward-modeling-eval-en.html">reward-modeling-eval §3.4</a>; this section focuses on &quot;where pairs come from&quot;.</p>
 </div>
 <hr>
-<h2 id="sec-21">5. Dedup &amp; Decontamination</h2>
-<h3 id="sec-22">5.1 Why deduplicate</h3>
+<h2 id="sec-20">5. Dedup &amp; Decontamination</h2>
+<h3 id="sec-21">5.1 Why deduplicate</h3>
 <p><strong>Deduplicating Training Data Makes Language Models Better</strong> (Lee et al., <a href="https://arxiv.org/abs/2107.06499">arXiv:2107.06499</a>, ACL 2022): removing near-duplicate spans/documents from training corpora reduces <strong>verbatim memorization by roughly an order of magnitude</strong>, while reaching comparable or better perplexity with fewer training steps. Same for post-training: duplicate samples are over-weighted, amplifying memorization and bias.</p>
-<h3 id="sec-23">5.2 exact vs near-dup</h3>
+<h3 id="sec-22">5.2 exact vs near-dup</h3>
 <ul>
 <li><strong>Exact dedup</strong>: hash whole spans/documents, drop identical ones.</li>
 <li><strong>Near-dup</strong>: use <strong>MinHash + LSH</strong> to detect text with high Jaccard similarity.</li>
@@ -401,7 +390,7 @@ production logs          Magpie / synth textbooks    format normalize         pe
     dup = <span class="hljs-built_in">any</span>(est_jaccard(sig, s) &gt;= thresh <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> corpus_sigs)
     <span class="hljs-keyword">return</span> dup, sig                                 <span class="hljs-comment"># drop only true dups; otherwise add sig to the index</span>
 </code></pre>
-<h3 id="sec-24">5.3 Decontamination</h3>
+<h3 id="sec-23">5.3 Decontamination</h3>
 <p><strong>Definition</strong>: <strong>remove training samples that overlap with evaluation benchmarks (test sets)</strong>; otherwise the model &quot;has seen the exam questions&quot; and benchmark scores are inflated and meaningless.</p>
 <ul>
 <li><strong>n-gram overlap</strong>: if a training sample shares a long enough n-gram with a benchmark test item (e.g. GPT-3 used 13-grams), flag it as contaminated and remove it. Simple, but insensitive to paraphrase/translation leakage.</li>
@@ -411,10 +400,10 @@ production logs          Magpie / synth textbooks    format normalize         pe
 <p><strong>Pitfall</strong>: decontamination must be done <strong>before training, against all target eval sets</strong>; contamination discovered afterward is often unfixable and forces you to switch eval sets. When reporting scores, state the decontamination protocol (n-gram order, whether paraphrase detection was used), otherwise &quot;high scores&quot; are not trustworthy.</p>
 </div>
 <hr>
-<h2 id="sec-25">6. Data Mixing &amp; Curriculum</h2>
-<h3 id="sec-26">6.1 Data mixing</h3>
+<h2 id="sec-24">6. Data Mixing &amp; Curriculum</h2>
+<h3 id="sec-25">6.1 Data mixing</h3>
 <p><strong>The proportions</strong> in which different sources/domains/tasks are mixed significantly affect final capabilities. <strong>How Far Can Camels Go? (Tülu)</strong> (Wang et al., <a href="https://arxiv.org/abs/2306.04751">arXiv:2306.04751</a>, NeurIPS 2023) systematically ablates 12 instruction-tuning datasets and concludes <strong>no single dataset is best on all capabilities — mixing complementary sources is needed for breadth</strong>. <strong>Tülu 3</strong> (Lambert et al., <a href="https://arxiv.org/abs/2411.15124">arXiv:2411.15124</a>) further provides an open end-to-end SFT→DPO→RLVR recipe with full data.</p>
-<h3 id="sec-27">6.2 DoReMi — learning the optimal mixture automatically</h3>
+<h3 id="sec-26">6.2 DoReMi — learning the optimal mixture automatically</h3>
 <p><strong>DoReMi</strong> (Xie et al., <a href="https://arxiv.org/abs/2305.10429">arXiv:2305.10429</a>, NeurIPS 2023): first train a small <strong>proxy model</strong>, use <strong>Group DRO</strong> (distributionally robust optimization) over domains to learn sampling weights, then resample the full dataset with those weights to train the large model; the paper reports reaching comparable performance about <strong>2.6× faster</strong>.</p>
 <p><strong>Group DRO objective</strong>: a min-max over the simplex of domain weights <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi></mrow><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0037em;">α</span></span></span></span>,</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><munder><mrow><mi>min</mi><mo>⁡</mo></mrow><mi>θ</mi></munder><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mrow><mi>α</mi><mo>∈</mo><mi mathvariant="normal">Δ</mi></mrow></munder><mtext> </mtext><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>D</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><mtext> </mtext><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\min_\theta \max_{\alpha\in\Delta}\ \sum_{i=1}^{D}\alpha_i\, L_i(\theta)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:3.106em;vertical-align:-1.2777em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-2.3479em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">min</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7521em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.4306em;"><span style="top:-2.3557em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0037em;">α</span><span class="mrel mtight">∈</span><span class="mord mtight">Δ</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7717em;"><span></span></span></span></span></span><span class="mspace"> </span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8283em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">D</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mclose">)</span></span></span></span></span></p>
@@ -441,21 +430,21 @@ production logs          Magpie / synth textbooks    format normalize         pe
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">sample_domain</span>(<span class="hljs-params">weights, rng</span>):
     <span class="hljs-keyword">return</span> rng.choice(<span class="hljs-built_in">len</span>(weights), p=weights)
 </code></pre>
-<h3 id="sec-28">6.3 Curriculum</h3>
+<h3 id="sec-27">6.3 Curriculum</h3>
 <p>Order data by <strong>difficulty/length/quality</strong> and feed it easy-to-hard, which often converges more stably and faster. Common in post-training:</p>
 <ul>
 <li><strong>Difficulty curriculum</strong>: easy questions first, then hard (especially math/code).</li>
 <li><strong>Length curriculum</strong>: short sequences first, then long (paired with context-window extension).</li>
 <li><strong>Quality curriculum</strong>: large-scale medium quality first, then small-scale high quality (quality annealing).</li>
 </ul>
-<h3 id="sec-29">6.4 Quality filtering</h3>
+<h3 id="sec-28">6.4 Quality filtering</h3>
 <p>Score samples with <strong>perplexity, reward-model scores, heuristic rules, or classifiers</strong> and drop low-quality ones — but beware the filter&#39;s own bias (e.g. preferring long text) leaking into the data.</p>
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p>Mixing and curriculum are largely <strong>empirical</strong> and require ablation against the target capabilities. Two common anti-patterns: ① <strong>an overly narrow source mix / over-deduplication</strong> → capability collapse, loss of diversity; ② <strong>blindly piling on one high-scoring domain</strong> → other capabilities regress (catastrophic forgetting), see <a href="cheatsheet-continual-post-training-en.html">continual-post-training</a>.</p>
 </div>
 <hr>
-<h2 id="sec-30">7. Interview Questions</h2>
-<h3 id="sec-31">L1 — Fundamentals</h3>
+<h2 id="sec-29">7. Interview Questions</h2>
+<h3 id="sec-30">L1 — Fundamentals</h3>
 <hr>
 <details>
 <summary>Q1: What are the main stages of a post-training data pipeline?</summary><p><strong>A:</strong> Roughly: <strong>sources</strong> (human/open/distilled/logs) → <strong>synthesize or collect</strong> (Self-Instruct/Evol-Instruct/rejection sampling/preference pairs) → <strong>clean</strong> (dedup/decontamination/quality filtering/format normalization) → <strong>mixing and curriculum</strong> (domain ratios/difficulty ordering) → <strong>consume</strong> (SFT / DPO·RLHF / RLVR). The core idea is &quot;synthesize diverse candidates → filter strictly → mix by target capability&quot;, not merely piling up volume.</p>
@@ -513,7 +502,7 @@ For about 64k instructions, generate about 256k candidates with multiple models,
 No. It means <strong>high-quality few &gt; low-quality many</strong>; quantity still matters but with diminishing returns, and quality/diversity are prerequisite gates.</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-32">L2 — Intermediate</h3>
+<h3 id="sec-31">L2 — Intermediate</h3>
 <hr>
 <details>
 <summary>Q9: Differences among Self-Instruct / Alpaca / Evol-Instruct / Magpie?</summary><p><strong>A:</strong> All generate instruction data, but differ in mechanism: <strong>Self-Instruct</strong> seed bootstrap + similarity filtering; <strong>Alpaca</strong> is a Self-Instruct instance distilled from davinci; <strong>Evol-Instruct (WizardLM)</strong> uses an LLM to &quot;evolve&quot; instructions to be harder (depth) or broader (breadth); <strong>Magpie</strong> exploits an aligned model&#39;s autoregressive nature, feeding only the pre-user-turn prefix to make the model emit instruction-response pairs, no seeds needed. Complexity gradient: Magpie/Self-Instruct (breadth) → Evol-Instruct (depth/difficulty).</p>
@@ -578,7 +567,7 @@ Not necessarily. Effectiveness depends on the task and difficulty metric; with a
 It inherits the judge model&#39;s biases (verbosity, self-preference, format preference) and may amplify them; key dimensions still need human calibration and heterogeneous-judge cross-checks (see reward-modeling-eval).</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-33">L3 — Advanced</h3>
+<h3 id="sec-32">L3 — Advanced</h3>
 <hr>
 <details>
 <summary>Q18: What is the mathematical relationship between RFT and RL (policy gradient)? Is RFT RL?</summary><p><strong>A:</strong> RFT does maximum likelihood on self-sampled &quot;reward=1 (correct)&quot; samples and can be seen as <strong>reward-weighted behavior cloning / iterated Best-of-N distillation</strong>. It is linked to policy gradient: in the REINFORCE gradient <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="double-struck">E</mi><mrow><mi>y</mi><mo>∼</mo><mi>π</mi></mrow></msub><mo stretchy="false">[</mo><mi>r</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mi mathvariant="normal">∇</mi><mi>log</mi><mo>⁡</mo><mi>π</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">\mathbb{E}_{y\sim\pi}[r(y)\nabla\log\pi(y)]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0361em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathbb">E</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">y</span><span class="mrel mtight">∼</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)</span><span class="mord">∇</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">lo<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)]</span></span></span></span>, when <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">r\in\{0,1\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">1</span><span class="mclose">}</span></span></span></span> and only <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">r=1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> samples are kept, this is exactly &quot;raising the log-likelihood of correct samples&quot; — <strong>but this approximation only holds under on-policy, single-step, small updates</strong>; RFT usually samples data once and trains offline, lacking online exploration, KL constraint, and step-wise credit assignment, so it is <strong>generally not called full RL</strong> and has a lower optimization ceiling than online GRPO/PPO.</p>
@@ -649,7 +638,7 @@ There is such a risk — weighting purely by raw loss can amplify noisy/unlearna
 Move to <strong>verifiable self-produced data</strong> (RFT/RLVR, using environments/unit-tests/answers as the teacher rather than a model), on-policy preference iteration, and new real human data or tool feedback — so the supervision signal comes from &quot;objective correctness&quot; rather than another model&#39;s distribution.</p>
 </blockquote>
 </details><hr>
-<h2 id="sec-34">Glossary</h2>
+<h2 id="sec-33">Glossary</h2>
 <table>
 <thead>
 <tr>
@@ -744,7 +733,7 @@ Move to <strong>verifiable self-produced data</strong> (RFT/RLVR, using environm
 </tbody></table>
 <hr>
 <p><em>For study reference only. Paper conclusions and figures follow the original papers; benchmark scores are illustrative and not head-to-head comparisons.</em></p>
-<h2 id="sec-35">§A Key Papers Timeline</h2>
+<h2 id="sec-34">§A Key Papers Timeline</h2>
 <ul class="timeline">
 <li><p><strong>2016-06 · Sequence-Level Knowledge Distillation</strong> — Kim &amp; Rush, EMNLP 2016. <a href="https://arxiv.org/abs/1606.07947">arXiv:1606.07947</a> — Lifts knowledge distillation to the sequence level: train the student on teacher-decoded sequences instead of word-level soft labels, yielding a faster, competitive model — the conceptual root of LLM distillation data.</p>
 </li>

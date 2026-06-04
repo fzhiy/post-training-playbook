@@ -6,14 +6,6 @@
 
 ---
 
-## 目录 / Table of Contents
-
-- [Part 1 — 核心概念与公式推导](#part-1--核心概念与公式推导)
-- [Part 2 — PyTorch 代码片段](#part-2--pytorch-代码片段)
-- [Part 3 — 面试题库](#part-3--面试题库)
-
----
-
 # Part 1 — 核心概念与公式推导
 # Core Concepts & Formula Derivations
 

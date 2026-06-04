@@ -6,14 +6,6 @@
 
 ---
 
-## 目录 / Table of Contents
-
-1. [概念与公式推导 / Concepts & Key Formulas](#一概念与公式推导--concepts--key-formulas)
-2. [PyTorch 代码片段 / From-Scratch Snippets](#二pytorch-代码片段--from-scratch-snippets)
-3. [面试题 / Interview Questions](#三面试题--interview-questions)
-
----
-
 ## 一、概念与公式推导 / Concepts & Key Formulas
 
 ### 1.1 因果语言模型 / Causal Language Modeling (CLM)

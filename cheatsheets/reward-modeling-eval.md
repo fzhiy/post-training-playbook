@@ -3,17 +3,6 @@
 
 ---
 
-## 目录 (Table of Contents)
-
-1. [RM 训练方法 (RM Training)](#1-rm-训练方法-rm-training)
-2. [PRM vs ORM](#2-prm-vs-orm-过程奖励模型与结果奖励模型)
-3. [奖励欺骗与过度优化 (Reward Hacking & Over-Optimization)](#3-奖励欺骗与过度优化-reward-hacking--over-optimization)
-4. [长度偏差及其他 RM 病态现象 (Length Bias & Other Pathologies)](#4-长度偏差及其他-rm-病态现象-length-bias--other-pathologies)
-5. [RM / 评估者评估 (RM & Judge Evaluation)](#5-rm--评估者评估-rm--judge-evaluation)
-6. [面试题 (Interview Questions)](#6-面试题-interview-questions)
-
----
-
 ## 1. RM 训练方法 (RM Training)
 
 ### 1.1 核心目标 (Core Objective)

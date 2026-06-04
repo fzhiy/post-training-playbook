@@ -3,18 +3,6 @@
 
 ---
 
-## Table of Contents
-
-1. [Pipeline Overview](#1-pipeline-overview)
-2. [Instruction Data Synthesis](#2-instruction-data-synthesis)
-3. [Rejection Sampling & Self-Training](#3-rejection-sampling--self-training)
-4. [Preference Data Construction](#4-preference-data-construction)
-5. [Dedup & Decontamination](#5-dedup--decontamination)
-6. [Data Mixing & Curriculum](#6-data-mixing--curriculum)
-7. [Interview Questions](#7-interview-questions)
-
----
-
 ## 1. Pipeline Overview
 
 The ceiling of post-training (SFT / preference alignment / RLVR) is **largely set by the data pipeline** — with the same algorithm, different data quality and mixtures give wildly different results. A typical post-training data pipeline:

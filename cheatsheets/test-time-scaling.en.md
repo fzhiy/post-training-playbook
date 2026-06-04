@@ -3,18 +3,6 @@
 
 ---
 
-## Table of Contents
-
-1. [Overview](#1-overview)
-2. [Sequential Scaling](#2-sequential-scaling)
-3. [Parallel Scaling](#3-parallel-scaling)
-4. [Search-Guided Generation](#4-search-guided-generation)
-5. [Verifiers](#5-verifiers)
-6. [Compute-Optimal & RL-Learned Reasoning](#6-compute-optimal--rl-learned-reasoning)
-7. [Interview Questions](#7-interview-questions)
-
----
-
 ## 1. Overview
 
 **Test-time scaling (TTS)**, also called inference-time scaling, means **trading more compute spent at inference for higher accuracy, without changing the model weights**. It is the core of the o1 / R1 paradigm: the model learns to "think longer", and the evaluation lens shifts from "single-shot accuracy" to "accuracy under a given compute budget".

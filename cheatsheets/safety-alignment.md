@@ -3,18 +3,6 @@
 
 ---
 
-## 目录 (Table of Contents)
-
-1. [安全对齐总览 (Safety Alignment Overview)](#1-安全对齐总览-safety-alignment-overview)
-2. [红队与攻击面 (Red-Teaming & Attack Surface)](#2-红队与攻击面-red-teaming--attack-surface)
-3. [越狱攻击 (Jailbreak Attacks)](#3-越狱攻击-jailbreak-attacks)
-4. [防御与安全训练 (Defenses & Safety Training)](#4-防御与安全训练-defenses--safety-training)
-5. [安全评测 (Safety Evaluation)](#5-安全评测-safety-evaluation)
-6. [脆弱性与开放问题 (Vulnerabilities & Open Problems)](#6-脆弱性与开放问题-vulnerabilities--open-problems)
-7. [面试题 (Interview Questions)](#7-面试题-interview-questions)
-
----
-
 ## 1. 安全对齐总览 (Safety Alignment Overview)
 
 安全对齐要解决的问题:**让模型在保持有用的同时,拒绝它不该做的事**——而且要在面对**对抗性输入**时仍然守得住。它不是单一技术,而是横跨**训练信号 / 表征防御 / 运行时护栏 / 评测**四个层面的系统工程。

@@ -3,18 +3,6 @@
 
 ---
 
-## 目录 (Table of Contents)
-
-1. [数据流水线总览 (Pipeline Overview)](#1-数据流水线总览-pipeline-overview)
-2. [指令数据合成 (Instruction Data Synthesis)](#2-指令数据合成-instruction-data-synthesis)
-3. [拒绝采样与自训练 (Rejection Sampling & Self-Training)](#3-拒绝采样与自训练-rejection-sampling--self-training)
-4. [偏好数据构造 (Preference Data Construction)](#4-偏好数据构造-preference-data-construction)
-5. [去重与去污染 (Dedup & Decontamination)](#5-去重与去污染-dedup--decontamination)
-6. [数据配比与课程 (Data Mixing & Curriculum)](#6-数据配比与课程-data-mixing--curriculum)
-7. [面试题 (Interview Questions)](#7-面试题-interview-questions)
-
----
-
 ## 1. 数据流水线总览 (Pipeline Overview)
 
 后训练（SFT / 偏好对齐 / RLVR）的效果上限,**很大程度由数据流水线决定**——同样的算法,数据质量与配比不同,结果天差地别。一条典型后训练数据流水线:

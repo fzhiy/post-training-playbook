@@ -3,18 +3,6 @@
 
 ---
 
-## 目录 (Table of Contents)
-
-1. [测试时扩展总览 (Overview)](#1-测试时扩展总览-overview)
-2. [顺序扩展 (Sequential Scaling)](#2-顺序扩展-sequential-scaling)
-3. [并行扩展 (Parallel Scaling)](#3-并行扩展-parallel-scaling)
-4. [搜索类方法 (Search-Guided Generation)](#4-搜索类方法-search-guided-generation)
-5. [验证器 (Verifiers)](#5-验证器-verifiers)
-6. [计算最优与 RL 习得 (Compute-Optimal & RL-Learned Reasoning)](#6-计算最优与-rl-习得-compute-optimal--rl-learned-reasoning)
-7. [面试题 (Interview Questions)](#7-面试题-interview-questions)
-
----
-
 ## 1. 测试时扩展总览 (Overview)
 
 **测试时扩展 (test-time scaling, TTS)**,又称推理时扩展 (inference-time scaling),指**在不改变模型权重的前提下,通过在推理阶段投入更多计算来换取更高的准确率**。它是 o1 / R1 范式的核心:模型学会"想得更久",评测口径也从"单次准确率"转向"给定算力预算下的准确率"。

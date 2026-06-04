@@ -140,21 +140,10 @@
 <nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-test-time-scaling.html">中文 ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Test-Time Scaling Cheatsheet</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">From sequential/parallel scaling, search, and verifiers to compute-optimal allocation</a></li><li class="lv2"><a href="#sec-2">1. Overview</a></li><li class="lv3"><a href="#sec-3">1.1 Paradigm shift: train-time compute → test-time compute</a></li><li class="lv3"><a href="#sec-4">1.2 Two axes: sequential (depth) vs parallel (width)</a></li><li class="lv3"><a href="#sec-5">1.3 Core question: how to optimally allocate a given compute budget</a></li><li class="lv2"><a href="#sec-6">2. Sequential Scaling</a></li><li class="lv3"><a href="#sec-7">2.1 long CoT and &quot;think longer&quot;</a></li><li class="lv3"><a href="#sec-8">2.2 Budget forcing — s1</a></li><li class="lv3"><a href="#sec-9">2.3 Self-correction / refinement (self-refine) and its limits</a></li><li class="lv2"><a href="#sec-10">3. Parallel Scaling</a></li><li class="lv3"><a href="#sec-11">3.1 best-of-N and self-consistency (majority voting)</a></li><li class="lv3"><a href="#sec-12">3.2 Weighted voting / verifier reranking</a></li><li class="lv3"><a href="#sec-13">3.3 Coverage vs precision: the ceiling of pass@k</a></li><li class="lv2"><a href="#sec-14">4. Search-Guided Generation</a></li><li class="lv3"><a href="#sec-15">4.1 step-level beam search and lookahead</a></li><li class="lv3"><a href="#sec-16">4.2 Tree of Thoughts / MCTS</a></li><li class="lv3"><a href="#sec-17">4.3 PRM-guided search</a></li><li class="lv2"><a href="#sec-18">5. Verifiers</a></li><li class="lv3"><a href="#sec-19">5.1 ORM vs PRM</a></li><li class="lv3"><a href="#sec-20">5.2 Automatic process annotation — Math-Shepherd</a></li><li class="lv3"><a href="#sec-21">5.3 Generative verifiers</a></li><li class="lv3"><a href="#sec-22">5.4 The fragility of verifiers</a></li><li class="lv2"><a href="#sec-23">6. Compute-Optimal &amp; RL-Learned Reasoning</a></li><li class="lv3"><a href="#sec-24">6.1 Compute-optimal allocation — Snell et al.</a></li><li class="lv3"><a href="#sec-25">6.2 Reasoning scaling law: the test-time vs add-parameters tradeoff</a></li><li class="lv3"><a href="#sec-26">6.3 RL-learned test-time scaling — o1 / R1</a></li><li class="lv3"><a href="#sec-27">6.4 Open problems</a></li><li class="lv2"><a href="#sec-28">7. Interview Questions</a></li><li class="lv3"><a href="#sec-29">L1 — Fundamentals</a></li><li class="lv3"><a href="#sec-30">L2 — Intermediate</a></li><li class="lv3"><a href="#sec-31">L3 — Advanced</a></li><li class="lv2"><a href="#sec-32">Glossary</a></li><li class="lv2"><a href="#sec-33">§A Key Papers Timeline</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">From sequential/parallel scaling, search, and verifiers to compute-optimal allocation</a></li><li class="lv2"><a href="#sec-1">1. Overview</a></li><li class="lv3"><a href="#sec-2">1.1 Paradigm shift: train-time compute → test-time compute</a></li><li class="lv3"><a href="#sec-3">1.2 Two axes: sequential (depth) vs parallel (width)</a></li><li class="lv3"><a href="#sec-4">1.3 Core question: how to optimally allocate a given compute budget</a></li><li class="lv2"><a href="#sec-5">2. Sequential Scaling</a></li><li class="lv3"><a href="#sec-6">2.1 long CoT and &quot;think longer&quot;</a></li><li class="lv3"><a href="#sec-7">2.2 Budget forcing — s1</a></li><li class="lv3"><a href="#sec-8">2.3 Self-correction / refinement (self-refine) and its limits</a></li><li class="lv2"><a href="#sec-9">3. Parallel Scaling</a></li><li class="lv3"><a href="#sec-10">3.1 best-of-N and self-consistency (majority voting)</a></li><li class="lv3"><a href="#sec-11">3.2 Weighted voting / verifier reranking</a></li><li class="lv3"><a href="#sec-12">3.3 Coverage vs precision: the ceiling of pass@k</a></li><li class="lv2"><a href="#sec-13">4. Search-Guided Generation</a></li><li class="lv3"><a href="#sec-14">4.1 step-level beam search and lookahead</a></li><li class="lv3"><a href="#sec-15">4.2 Tree of Thoughts / MCTS</a></li><li class="lv3"><a href="#sec-16">4.3 PRM-guided search</a></li><li class="lv2"><a href="#sec-17">5. Verifiers</a></li><li class="lv3"><a href="#sec-18">5.1 ORM vs PRM</a></li><li class="lv3"><a href="#sec-19">5.2 Automatic process annotation — Math-Shepherd</a></li><li class="lv3"><a href="#sec-20">5.3 Generative verifiers</a></li><li class="lv3"><a href="#sec-21">5.4 The fragility of verifiers</a></li><li class="lv2"><a href="#sec-22">6. Compute-Optimal &amp; RL-Learned Reasoning</a></li><li class="lv3"><a href="#sec-23">6.1 Compute-optimal allocation — Snell et al.</a></li><li class="lv3"><a href="#sec-24">6.2 Reasoning scaling law: the test-time vs add-parameters tradeoff</a></li><li class="lv3"><a href="#sec-25">6.3 RL-learned test-time scaling — o1 / R1</a></li><li class="lv3"><a href="#sec-26">6.4 Open problems</a></li><li class="lv2"><a href="#sec-27">7. Interview Questions</a></li><li class="lv3"><a href="#sec-28">L1 — Fundamentals</a></li><li class="lv3"><a href="#sec-29">L2 — Intermediate</a></li><li class="lv3"><a href="#sec-30">L3 — Advanced</a></li><li class="lv2"><a href="#sec-31">Glossary</a></li><li class="lv2"><a href="#sec-32">§A Key Papers Timeline</a></li></ul></nav>
 <main id="out"><h2 id="sec-0">From sequential/parallel scaling, search, and verifiers to compute-optimal allocation</h2>
 <hr>
-<h2 id="sec-1">Table of Contents</h2>
-<ol>
-<li><a href="#1-overview">Overview</a></li>
-<li><a href="#2-sequential-scaling">Sequential Scaling</a></li>
-<li><a href="#3-parallel-scaling">Parallel Scaling</a></li>
-<li><a href="#4-search-guided-generation">Search-Guided Generation</a></li>
-<li><a href="#5-verifiers">Verifiers</a></li>
-<li><a href="#6-compute-optimal--rl-learned-reasoning">Compute-Optimal &amp; RL-Learned Reasoning</a></li>
-<li><a href="#7-interview-questions">Interview Questions</a></li>
-</ol>
-<hr>
-<h2 id="sec-2">1. Overview</h2>
+<h2 id="sec-1">1. Overview</h2>
 <p><strong>Test-time scaling (TTS)</strong>, also called inference-time scaling, means <strong>trading more compute spent at inference for higher accuracy, without changing the model weights</strong>. It is the core of the o1 / R1 paradigm: the model learns to &quot;think longer&quot;, and the evaluation lens shifts from &quot;single-shot accuracy&quot; to &quot;accuracy under a given compute budget&quot;.</p>
 <pre class="diagram"><code>Train-time compute                       Test-time compute
 ─────────────────────                    ─────────────────────
@@ -163,12 +152,12 @@ one-time cost, fixed               ⇄      Parallel: multi-sample + aggregate (
 inference cost unchanged                  Search: verifier-guided tree/beam search (beam, MCTS)
                                           cost grows linearly/super-linearly with budget
 </code></pre>
-<h3 id="sec-3">1.1 Paradigm shift: train-time compute → test-time compute</h3>
+<h3 id="sec-2">1.1 Paradigm shift: train-time compute → test-time compute</h3>
 <p>Classic scaling laws focus on <strong>train-time</strong> investment (params, data, steps); TTS brings another knob to the fore — <strong>how much inference compute to spend on a single query</strong>. <strong>Snell et al.</strong> (<a href="https://arxiv.org/abs/2408.03314">arXiv:2408.03314</a>, ICLR 2025) argue systematically that under a fixed FLOPs budget, <strong>optimally allocating test-time compute</strong> (search on hard problems, few samples on easy ones) is, <strong>in some settings, more cost-effective than simply scaling up parameters</strong>. This pries open the assumption that &quot;capability is fully decided at training time&quot;: a portion of capability can be &quot;cashed in on the spot&quot; at inference.</p>
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
 <p>One-line intuition: train-time compute raises the model&#39;s &quot;potential ceiling&quot;, while test-time compute raises &quot;how much of that potential gets realized on a single problem&quot;. The two are complementary — a model that <em>can</em> solve a problem but often gets it wrong can gain a lot from TTS; a problem the model simply <em>cannot</em> do won&#39;t be solved no matter how much you sample.</p>
 </div>
-<h3 id="sec-4">1.2 Two axes: sequential (depth) vs parallel (width)</h3>
+<h3 id="sec-3">1.2 Two axes: sequential (depth) vs parallel (width)</h3>
 <table>
 <thead>
 <tr>
@@ -202,7 +191,7 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
 </tr>
 </tbody></table>
 <p>Search can be viewed as a hybrid of sequential and parallel — expanding step by step (depth) over multiple partial paths (width), with a verifier deciding which to keep.</p>
-<h3 id="sec-5">1.3 Core question: how to optimally allocate a given compute budget</h3>
+<h3 id="sec-4">1.3 Core question: how to optimally allocate a given compute budget</h3>
 <p>The central question of TTS is not &quot;can we be more accurate&quot;, but <strong>&quot;given the same N× compute, how do we spend it best&quot;</strong>:</p>
 <ul>
 <li><strong>Difficulty adaptivity</strong>: one of Snell&#39;s key findings is that the optimal strategy <strong>varies with problem difficulty</strong> — easy problems suit a small amount of sequential correction, hard problems suit wider parallel sampling + search.</li>
@@ -211,11 +200,11 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
 </ul>
 <p>Below, §2–§4 unpack the three axes one by one, §5 covers the verifier that runs through all of them, and §6 covers compute-optimal allocation and &quot;how RL teaches a model to use test-time compute well&quot;.</p>
 <hr>
-<h2 id="sec-6">2. Sequential Scaling</h2>
+<h2 id="sec-5">2. Sequential Scaling</h2>
 <p>Sequential scaling means <strong>spending more tokens on a single reasoning chain</strong>: thinking longer, writing out intermediate steps in full, and going back to fix errors once they&#39;re found.</p>
-<h3 id="sec-7">2.1 long CoT and &quot;think longer&quot;</h3>
+<h3 id="sec-6">2.1 long CoT and &quot;think longer&quot;</h3>
 <p>The most naive sequential scaling is simply <strong>letting the model generate a longer chain of thought</strong>. The core observation of o1 / R1-style models: after RL training, the model <strong>spontaneously produces longer reasoning</strong> on hard problems (self-reflection, case enumeration, re-checking), and on hard problems, within a suitable budget range, <strong>accuracy rises with the number of reasoning tokens</strong> (over-long reasoning on easy problems instead hurts, see §6.4). Note there are two layers here: ① whether the model <strong>has the ability</strong> to use more tokens well (decided by training); ② whether at inference you <strong>let it</strong> use more tokens (decided by decoding control). §2.2 handles the latter.</p>
-<h3 id="sec-8">2.2 Budget forcing — s1</h3>
+<h3 id="sec-7">2.2 Budget forcing — s1</h3>
 <p><strong>s1</strong> (Muennighoff et al., <a href="https://arxiv.org/abs/2501.19393">arXiv:2501.19393</a>) proposes a minimalist sequential-scaling control — <strong>budget forcing</strong>: directly manipulate the &quot;thinking budget&quot; during decoding.</p>
 <ul>
 <li><strong>Wants to stop early but below the lower bound</strong> → suppress the end token, inject <code>&quot;Wait&quot;</code> to make the model keep thinking (often triggers self-correction);</li>
@@ -242,15 +231,15 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
         think_tokens.append(tok)
     <span class="hljs-keyword">return</span> think_tokens, n_wait
 </code></pre>
-<h3 id="sec-9">2.3 Self-correction / refinement (self-refine) and its limits</h3>
+<h3 id="sec-8">2.3 Self-correction / refinement (self-refine) and its limits</h3>
 <p><strong>Self-Refine</strong> (Madaan et al., <a href="https://arxiv.org/abs/2303.17651">arXiv:2303.17651</a>, NeurIPS 2023): use <strong>the same LLM</strong> in a loop to &quot;generate → self-critique → revise per feedback&quot;, with no extra training or supervision data, improving quality on a range of generation tasks.</p>
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p><strong>The ceiling of self-correction</strong>: whether self-correction truly fixes errors depends on whether the model <strong>can reliably tell that it was wrong</strong>. A body of follow-up work finds that under purely intrinsic self-correction with <strong>no external signal</strong> (no verifier, no ground truth), LLMs often <strong>change right to wrong</strong> or &quot;self-persuade&quot; into errors, with limited or even negative net gains. Reliable sequential correction usually needs <strong>external verification signals</strong> (unit tests, calculators, retrieval) as a backstop — which is exactly the point of §5 verifiers. A common interview point: &quot;is self-correction reliable?&quot; — answer &quot;it depends on whether there&#39;s a reliable external verification signal&quot;.</p>
 </div>
 <hr>
-<h2 id="sec-10">3. Parallel Scaling</h2>
+<h2 id="sec-9">3. Parallel Scaling</h2>
 <p>Parallel scaling means <strong>independently sampling many complete solutions, then aggregating them in some way</strong>. Naturally parallelizable and throughput-friendly, it is the most easily deployable TTS in practice.</p>
-<h3 id="sec-11">3.1 best-of-N and self-consistency (majority voting)</h3>
+<h3 id="sec-10">3.1 best-of-N and self-consistency (majority voting)</h3>
 <p>The two most basic aggregations:</p>
 <ul>
 <li><strong>Self-Consistency</strong> (Wang et al., <a href="https://arxiv.org/abs/2203.11171">arXiv:2203.11171</a>, ICLR 2023): sample many CoTs for the same problem and <strong>take a majority vote over the final answers</strong>. No verifier needed, only that answers can be normalized and compared; significantly improves math/commonsense reasoning.</li>
@@ -278,9 +267,9 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">best_of_n</span>(<span class="hljs-params">answers, scores</span>):
     <span class="hljs-keyword">return</span> <span class="hljs-built_in">max</span>(<span class="hljs-built_in">zip</span>(answers, scores), key=<span class="hljs-keyword">lambda</span> x: x[<span class="hljs-number">1</span>])[<span class="hljs-number">0</span>]  <span class="hljs-comment"># take the single highest-scoring one</span>
 </code></pre>
-<h3 id="sec-12">3.2 Weighted voting / verifier reranking</h3>
+<h3 id="sec-11">3.2 Weighted voting / verifier reranking</h3>
 <p>When a verifier is available, pure majority voting wastes the signal: a <strong>minority but high-confidence</strong> correct answer can be voted out by a majority of wrong answers. Weighted voting / verifier reranking lets the verifier score participate in the decision, usually beating pure majority voting — provided the verifier itself is reliable (otherwise it amplifies noise). This is also why §5 verifier quality is the core bottleneck of TTS.</p>
-<h3 id="sec-13">3.3 Coverage vs precision: the ceiling of pass@k</h3>
+<h3 id="sec-12">3.3 Coverage vs precision: the ceiling of pass@k</h3>
 <p><strong>Large Language Monkeys</strong> (Brown et al., <a href="https://arxiv.org/abs/2407.21787">arXiv:2407.21787</a>) systematically studies &quot;repeated sampling&quot;: it defines <strong>coverage = the fraction of problems where at least one sample is correct</strong>, and finds coverage grows approximately <strong>log-linearly</strong> with the number of samples across four orders of magnitude. But beware the distinction between two notions:</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>pass@</mtext><mi>k</mi><mo>=</mo><mi mathvariant="double-struck">E</mi><mrow><mo fence="true">[</mo><mn>1</mn><mo>−</mo><mrow><mo fence="true">(</mo><mfrac linethickness="0px"><mrow><mi>n</mi><mo>−</mo><mi>c</mi></mrow><mi>k</mi></mfrac><mo fence="true">)</mo></mrow><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">/</mo><mrow><mo fence="true">(</mo><mfrac linethickness="0px"><mi>n</mi><mi>k</mi></mfrac><mo fence="true">)</mo></mrow><mo fence="true">]</mo></mrow></mrow><annotation encoding="application/x-tex">\text{pass@}k = \mathbb{E}\left[1 - \binom{n-c}{k}\big/\binom{n}{k}\right]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">pass@</span></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.4em;vertical-align:-0.95em;"></span><span class="mord mathbb">E</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">[</span></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">(</span></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">)</span></span></span><span class="mord"><span class="delimsizing size1">/</span></span><span class="mord"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">(</span></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.1076em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">)</span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">]</span></span></span></span></span></span></span></p>
 <ul>
@@ -291,9 +280,9 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
 <p><strong>Pitfall</strong>: treating coverage / pass@k as &quot;the score the model actually gets&quot;. High coverage only means &quot;the answer is among the candidates&quot;, not &quot;it can be selected&quot;. <strong>The real gain of sampling-scaling = improvement in coverage × the verifier&#39;s selection ability</strong>; when the verifier is weak, coverage rises while actual accuracy barely moves. This mirrors §5. For &quot;sample-filter-retrain&quot; self-training routes like RFT, see <a href="cheatsheet-data-pipeline-en.html">data-pipeline §3</a>.</p>
 </div>
 <hr>
-<h2 id="sec-14">4. Search-Guided Generation</h2>
+<h2 id="sec-13">4. Search-Guided Generation</h2>
 <p>Search refines &quot;sampling&quot; from &quot;sampling a whole complete solution&quot; to &quot;<strong>step-by-step expansion + mid-course pruning</strong>&quot;: use a verifier to score <strong>partial reasoning paths</strong>, keeping only the promising branches to continue. It is a hybrid of sequential (depth) and parallel (width).</p>
-<h3 id="sec-15">4.1 step-level beam search and lookahead</h3>
+<h3 id="sec-14">4.1 step-level beam search and lookahead</h3>
 <p>Cut reasoning into &quot;steps&quot;, expand several candidate next-steps per step, use a PRM (process reward model, §5) to score the <strong>current partial path</strong>, and keep top-B to continue — i.e. <strong>step-level beam search</strong>. <strong>lookahead</strong> goes further: before scoring, first simulate a rollout a few steps forward, using &quot;future&quot; information to estimate the value of the current step (more accurate but more expensive).</p>
 <pre><code class="hljs language-python"><span class="hljs-comment"># PRM-guided step-level beam search: expand candidate next-steps per step, use the process</span>
 <span class="hljs-comment"># reward model (PRM) to score the [partial reasoning path], keep top-B to keep expanding.</span>
@@ -313,17 +302,17 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
         beams = cands[:beam]                 <span class="hljs-comment"># prune: keep only top-B branches</span>
     <span class="hljs-keyword">return</span> <span class="hljs-built_in">max</span>(beams, key=<span class="hljs-keyword">lambda</span> x: x[<span class="hljs-number">0</span>])
 </code></pre>
-<h3 id="sec-16">4.2 Tree of Thoughts / MCTS</h3>
+<h3 id="sec-15">4.2 Tree of Thoughts / MCTS</h3>
 <ul>
 <li><strong>Tree of Thoughts (ToT)</strong> (Yao et al., <a href="https://arxiv.org/abs/2305.10601">arXiv:2305.10601</a>, NeurIPS 2023): organize reasoning into a <strong>tree</strong> — nodes are coherent &quot;thoughts&quot;, and the model can generate multiple candidate thoughts, <strong>self-evaluate</strong>, and search with BFS/DFS <strong>backtracking</strong>, suited to problems needing trial-and-error / planning.</li>
 <li><strong>MCTS (Monte Carlo Tree Search)</strong>: use the selection-expansion-simulation-backup four steps to allocate the search budget over the reasoning tree, concentrating compute on more promising branches. <strong>rStar-Math</strong> (Guan et al., <a href="https://arxiv.org/abs/2501.04519">arXiv:2501.04519</a>) uses MCTS + a process reward model for <strong>self-evolution</strong>, getting 1.5B–7B small models to strong math performance <strong>without relying on distillation from frontier models</strong>.</li>
 </ul>
-<h3 id="sec-17">4.3 PRM-guided search</h3>
+<h3 id="sec-16">4.3 PRM-guided search</h3>
 <p>Whether beam or MCTS, <strong>pruning/selection depends on a signal that can score &quot;partial paths&quot;</strong> — exactly where the PRM (process reward model) comes in (an ORM can only score complete solutions and cannot directly guide mid-course pruning; it can only estimate partial-path value indirectly by rolling out to the end). The strength of search methods is <strong>highly coupled to PRM quality</strong>: when the PRM is noisy, search wastes compute on branches that were wrongly over-estimated. For PRM and ORM training details, see §5 and <a href="cheatsheet-reward-modeling-eval-en.html">reward-modeling-eval §2</a>.</p>
 <hr>
-<h2 id="sec-18">5. Verifiers</h2>
+<h2 id="sec-17">5. Verifiers</h2>
 <p>The verifier is the <strong>shared bottleneck</strong> of TTS: parallel relies on it to rerank, search relies on it to prune. Here we only cover <strong>how the verifier is consumed at test time</strong>; for its training (RM loss, data construction), see <a href="cheatsheet-reward-modeling-eval-en.html">reward-modeling-eval §2</a>.</p>
-<h3 id="sec-19">5.1 ORM vs PRM</h3>
+<h3 id="sec-18">5.1 ORM vs PRM</h3>
 <table>
 <thead>
 <tr>
@@ -354,9 +343,9 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
 </tr>
 </tbody></table>
 <p><strong>Let&#39;s Verify Step by Step</strong> (Lightman et al., <a href="https://arxiv.org/abs/2305.20050">arXiv:2305.20050</a>, ICLR 2024) builds <strong>PRM800K</strong> (800K human step-level annotations) and argues that <strong>on BoN reranking of MATH solutions, process-supervised verifiers beat outcome-supervised ones</strong>.</p>
-<h3 id="sec-20">5.2 Automatic process annotation — Math-Shepherd</h3>
+<h3 id="sec-19">5.2 Automatic process annotation — Math-Shepherd</h3>
 <p>The pain point of PRMs is that step-level annotation is expensive. <strong>Math-Shepherd</strong> (Wang et al., <a href="https://arxiv.org/abs/2312.08935">arXiv:2312.08935</a>, ACL 2024) proposes <strong>annotation-free</strong> auto-labeling: for a given step, <strong>roll out to the end multiple times</strong> from it, and use &quot;the fraction that reaches the correct answer after this step&quot; as the process label for this step, then train a PRM. This PRM can be used for BoN reranking and also as a PPO reward.</p>
-<h3 id="sec-21">5.3 Generative verifiers</h3>
+<h3 id="sec-20">5.3 Generative verifiers</h3>
 <p><strong>Generative Verifiers (GenRM)</strong> (Zhang et al., <a href="https://arxiv.org/abs/2408.15240">arXiv:2408.15240</a>, ICLR 2025) change verification from &quot;discriminative scoring&quot; to <strong>&quot;next-token prediction&quot;</strong> — let the verifier <strong>generate</strong> a CoT judging &quot;is this solution correct&quot;, then read out the yes/no probability as the score. Benefits: ① reuse the LLM&#39;s generation/reasoning ability for verification; ② the verifier can itself scale verification compute with CoT + majority voting (the verifier can also do TTS). This is the &quot;LLM-as-judge&quot; idea applied to verification.</p>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
 
@@ -374,29 +363,29 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
         <span class="hljs-keyword">return</span> <span class="hljs-built_in">float</span>(p[-<span class="hljs-number">1</span>])
     <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">f&quot;unknown mode: <span class="hljs-subst">{mode}</span>&quot;</span>)
 </code></pre>
-<h3 id="sec-22">5.4 The fragility of verifiers</h3>
+<h3 id="sec-21">5.4 The fragility of verifiers</h3>
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p>A verifier is not ground truth. It can be <strong>reward-hacked</strong> — e.g. learning &quot;long solution = good solution&quot;, being fooled by specific formats, or being miscalibrated on out-of-distribution samples. TTS pushes the verifier to the core of the decision loop, and its bias gets <strong>amplified by the number of samples</strong> (the more you sample, the more likely you draw a solution that &quot;fools the verifier but is actually wrong&quot;). Verifiable domains (math exact-match, code unit tests) can bypass this problem with <strong>rule-based verifiers</strong> — which is also why RLVR / R1 mainline choose verifiable domains (see §6.3). For details on RM over-optimization and length bias, see <a href="cheatsheet-reward-modeling-eval-en.html">reward-modeling-eval §3–§4</a>.</p>
 </div>
 <hr>
-<h2 id="sec-23">6. Compute-Optimal &amp; RL-Learned Reasoning</h2>
-<h3 id="sec-24">6.1 Compute-optimal allocation — Snell et al.</h3>
+<h2 id="sec-22">6. Compute-Optimal &amp; RL-Learned Reasoning</h2>
+<h3 id="sec-23">6.1 Compute-optimal allocation — Snell et al.</h3>
 <p><strong>Snell et al.</strong> (<a href="https://arxiv.org/abs/2408.03314">arXiv:2408.03314</a>, ICLR 2025) propose <strong>compute-optimal</strong> test-time scaling: given a test-time compute budget, <strong>adaptively choose the strategy by problem difficulty</strong> (sequential correction vs parallel sampling vs search) rather than one-size-fits-all. Conclusions: ① difficulty-adaptive allocation significantly beats fixed strategies; ② in some settings, a small model + optimal TTS <strong>can match or even surpass the single-shot inference of a model several times larger</strong> — but this has limits and is not universal.</p>
-<h3 id="sec-25">6.2 Reasoning scaling law: the test-time vs add-parameters tradeoff</h3>
+<h3 id="sec-24">6.2 Reasoning scaling law: the test-time vs add-parameters tradeoff</h3>
 <p>TTS and scaling up parameters are <strong>two ways to spend compute</strong>, each with its applicable regime:</p>
 <ul>
 <li><strong>TTS is more cost-effective</strong>: when the base model <strong>already has the ability but often errs</strong> (high coverage, low single-shot accuracy) and the task is <strong>verifiable/aggregatable</strong>.</li>
 <li><strong>Adding parameters is more cost-effective</strong>: when hard problems are <strong>fundamentally beyond the model&#39;s ability</strong> (low coverage, no amount of sampling finds the right one), or there&#39;s <strong>no reliable verifier</strong> to pick from candidates.</li>
 <li><strong>Essence</strong>: TTS cashes in &quot;potential&quot;; when potential is insufficient, the returns of test-time compute saturate quickly.</li>
 </ul>
-<h3 id="sec-26">6.3 RL-learned test-time scaling — o1 / R1</h3>
+<h3 id="sec-25">6.3 RL-learned test-time scaling — o1 / R1</h3>
 <p>TTS methods (§2–§4) are <strong>inference-time</strong> decoding/search strategies; but <strong>whether the model can use this compute well is shaped at training time</strong>. This is exactly the point of o1 / R1:</p>
 <ul>
 <li><strong>OpenAI o1</strong> (&quot;Learning to Reason with LLMs&quot;, OpenAI, 2024-09, no arXiv paper) uses large-scale RL to train the model to do long chain-of-thought reasoning before answering, publicly showing curves of <strong>accuracy rising with test-time compute</strong>.</li>
 <li><strong>DeepSeek-R1</strong> (DeepSeek-AI, <a href="https://arxiv.org/abs/2501.12948">arXiv:2501.12948</a>, later published in Nature 2025) trains long CoT with GRPO + verifiable rewards (RLVR), and <strong>long reasoning behaviors (self-reflection, re-checking) emerge spontaneously through RL</strong>; R1-Zero further shows that in its verifiable-task setting, pure RL (no SFT) can trigger them.</li>
 </ul>
 <p>In other words: <strong>RLVR makes the model acquire effective long-reasoning behaviors at training time</strong>, while TTS cashes in that ability and allocates compute at inference time. For <strong>training-side</strong> details such as GRPO / RLVR / the R1 four-stage recipe, see <a href="cheatsheet-reasoning-rl-frontier-en.html">reasoning-rl-frontier</a>; this page focuses on the inference side.</p>
-<h3 id="sec-27">6.4 Open problems</h3>
+<h3 id="sec-26">6.4 Open problems</h3>
 <ul>
 <li><strong>over-thinking</strong>: forcibly lengthening CoT on easy problems instead hurts and wastes compute; how to <strong>adaptively decide how long to think</strong> is still an open problem (budget forcing is a coarse-grained attempt).</li>
 <li><strong>Verifier reliability</strong>: non-verifiable domains (open-ended writing, multi-turn dialogue) lack reliable verifiers, limiting TTS gains (§5.4).</li>
@@ -404,8 +393,8 @@ inference cost unchanged                  Search: verifier-guided tree/beam sear
 <li><strong>The economics of test-time compute</strong>: latency and cost rise with the budget, and real deployment must trade off accuracy against per-query cost.</li>
 </ul>
 <hr>
-<h2 id="sec-28">7. Interview Questions</h2>
-<h3 id="sec-29">L1 — Fundamentals</h3>
+<h2 id="sec-27">7. Interview Questions</h2>
+<h3 id="sec-28">L1 — Fundamentals</h3>
 <hr>
 <details>
 <summary>Q1: What is test-time scaling? How does it differ from train-time scaling?</summary><p><strong>A:</strong> TTS means <strong>not changing the weights, and spending more compute at inference to trade for accuracy</strong> (think longer / sample more / search). Train-time scaling adds params/data/steps, a one-time investment with unchanged inference cost; TTS invests on demand at inference, with cost growing with the budget. Intuition: training decides the &quot;potential ceiling&quot;, TTS decides &quot;how much of that potential is realized per problem&quot;.</p>
@@ -463,7 +452,7 @@ Giving an agent <strong>real executable feedback</strong> (run code, check tool 
 On some verifiable tasks it can match or even surpass (Snell); but this has limits and isn&#39;t universal — problems beyond the base model&#39;s ability can&#39;t be made up by TTS.</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-30">L2 — Intermediate</h3>
+<h3 id="sec-29">L2 — Intermediate</h3>
 <hr>
 <details>
 <summary>Q9: Why is "the verifier the ceiling of TTS"? Give a concrete failure chain.</summary><p><strong>A:</strong> Parallel relies on the verifier to rerank, search relies on the verifier to prune — <strong>the final &quot;pick the right one&quot; step depends on the verifier</strong>. Failure chain: the verifier is biased (e.g. prefers long solutions) → the more you sample, the more likely you draw a solution that&#39;s &quot;long but wrong, yet over-estimated by the verifier&quot; → BoN/weighted voting selects it → accuracy drops instead of rising. That is, <strong>the verifier&#39;s bias is amplified by the number of samples</strong>. So high coverage ≠ high actual score, with verifier quality standing between the two.</p>
@@ -507,7 +496,7 @@ Use the model&#39;s own uncertainty / the consistency of a few early samples / t
 RLVR uses rule-based verifiers (exact-match / unit tests) ≈ ground truth, with almost no neural-RM-hacking problem; the cost is being applicable only to verifiable domains.</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-31">L3 — Advanced</h3>
+<h3 id="sec-30">L3 — Advanced</h3>
 <hr>
 <details>
 <summary>Q15: From an information-theoretic / selection angle, why does actual accuracy get capped by verifier quality as the number of samples N → ∞, rather than tending to coverage?</summary><p><strong>A:</strong> Let the oracle accuracy (= coverage) be <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi></mrow><annotation encoding="application/x-tex">C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span>, but we only have a <strong>noisy verifier</strong> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">v</span></span></span></span>. Final accuracy = P(the selected solution is exactly correct). As <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> grows, both the <strong>number of correct solutions</strong> and the <strong>number of solutions that &quot;look better but are actually wrong&quot;</strong> grow among the candidates; if the verifier has a systematic preference for &quot;wrong but high-scoring&quot; solutions (a nonzero false-positive rate), the max score of these distractors rises with <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> and <strong>overtakes</strong> the score of the truly correct solution. So the probability that <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>arg</mi><mo>⁡</mo><msub><mrow><mi>max</mi><mo>⁡</mo></mrow><mi>v</mi></msub></mrow><annotation encoding="application/x-tex">\arg\max_v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mop">ar<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop"><span class="mop">max</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> selects the correct solution is capped by the verifier&#39;s discrimination margin and FP-rate bound, and <strong>does not tend to <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi></mrow><annotation encoding="application/x-tex">C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span> as N grows</strong>. Under these assumptions (&quot;fixed noisy verifier + single scoring + argmax selection&quot;), only a <strong>noiseless oracle</strong> (a rule-based verifier) lets actual accuracy → coverage (with stronger assumptions like repeated verification / calibrated uncertainty / consistency verification, you can partly approach it). This explains why verifiable domains (RLVR) are the cleanest setting for TTS.</p>
@@ -544,7 +533,7 @@ You can <strong>penalize the token count in the RL reward</strong> (length regul
 You need to publish the test-time budget and decoding protocol used in evaluation (sample count / whether search / verifier), otherwise scores aren&#39;t comparable; ideally compare at iso-FLOPs or report the Pareto front.</p>
 </blockquote>
 </details><hr>
-<h2 id="sec-32">Glossary</h2>
+<h2 id="sec-31">Glossary</h2>
 <table>
 <thead>
 <tr>
@@ -643,7 +632,7 @@ You need to publish the test-time budget and decoding protocol used in evaluatio
 </tbody></table>
 <hr>
 <p><em>For study reference only. Paper conclusions and figures follow the original papers; benchmark scores are illustrative and not head-to-head comparisons.</em></p>
-<h2 id="sec-33">§A Key Papers Timeline</h2>
+<h2 id="sec-32">§A Key Papers Timeline</h2>
 <ul class="timeline">
 <li><p><strong>2022-03 · Self-Consistency Improves Chain of Thought Reasoning in Language Models</strong> — Wang et al., ICLR 2023. <a href="https://arxiv.org/abs/2203.11171">arXiv:2203.11171</a> — Replaces greedy decoding with sampling many CoTs + a majority vote over final answers, significantly improving arithmetic/commonsense reasoning; one of the earliest parallel test-time scaling methods.</p>
 </li>

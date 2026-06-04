@@ -3,18 +3,6 @@
 
 ---
 
-## Table of Contents
-
-1. [Safety Alignment Overview](#1-safety-alignment-overview)
-2. [Red-Teaming & Attack Surface](#2-red-teaming--attack-surface)
-3. [Jailbreak Attacks](#3-jailbreak-attacks)
-4. [Defenses & Safety Training](#4-defenses--safety-training)
-5. [Safety Evaluation](#5-safety-evaluation)
-6. [Vulnerabilities & Open Problems](#6-vulnerabilities--open-problems)
-7. [Interview Questions](#7-interview-questions)
-
----
-
 ## 1. Safety Alignment Overview
 
 The problem safety alignment must solve: **make the model refuse what it shouldn't do while staying helpful**—and hold the line even under **adversarial input**. It is not a single technique but systems engineering spanning four layers: **training signal / representation defense / runtime guardrails / evaluation**.
