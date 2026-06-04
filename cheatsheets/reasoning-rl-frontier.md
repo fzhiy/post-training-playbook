@@ -261,7 +261,7 @@ print(f"GSPO 截断 {gspo_clip}/3 条序列 (eps_l={eps_l}, eps_r={eps_r})")
 - **2024-01 · SPIN** — Chen et al., ICML 2024. [arXiv:2401.01335](https://arxiv.org/abs/2401.01335) — Self-Play 微调，用模型旧输出做负样本对抗式优化。
 - **2024-02 · GRPO / DeepSeekMath** — Shao et al., 预印本. [arXiv:2402.03300](https://arxiv.org/abs/2402.03300) — 去掉 critic，用组内相对奖励（z-score 标准化）替代 value baseline，保留对 ref 的 KL 惩罚；DeepSeek 系核心算法。
 - **2024-02 · RLOO** — Ahmadian et al., ACL 2024. [arXiv:2402.14740](https://arxiv.org/abs/2402.14740) — critic-free，样本 i 的 baseline = 其余 G-1 个样本奖励均值（leave-one-out）；纯 REINFORCE、无 clip，RLHF 上与 PPO 竞争。
-- **2025-01 · DeepSeek-R1 / RLVR** — Guo et al., Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948) — 用规则/验证器（数学 exact-match、代码单测）替代神经 RM，几乎消除 reward hacking；GRPO + 长 CoT RL 涌现自我反思，开启 inference-time scaling。
+- **2025-01 · DeepSeek-R1 / RLVR** — Guo et al., Nature 2025. [arXiv:2501.12948](https://arxiv.org/abs/2501.12948) — 用规则/验证器（数学 exact-match、代码单测）替代神经 RM，几乎消除「神经 RM 被 hack」(verifier hacking / format gaming 等仍存在)；GRPO + 长 CoT RL 涌现自我反思，开启 inference-time scaling。
 - **2025-03 · DAPO** — Yu et al., 预印本 (ByteDance Seed / 清华 AIR). [arXiv:2503.14476](https://arxiv.org/abs/2503.14476) — 长 CoT RL 四项改动：Clip-Higher（防熵塌缩）、Dynamic Sampling、Token-level loss、Overlong reward shaping。
 - **2025-03 · Dr.GRPO** — Liu et al., 预印本. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783) — 修 GRPO 两处偏置（std 归一化、1/长度归一化），去掉后估计更无偏、token 更省、回答不虚长。
 - **2025-06 · CISPO** — MiniMax team, 预印本 (MiniMax-M1 技术报告). [arXiv:2506.13585](https://arxiv.org/abs/2506.13585) — 对标量 IS 权重本身做 clip 而非对概率比率做 clip，保留所有 token 的梯度信号；论文报告在 Qwen2.5-32B 上对比 DAPO 约 2× 训练加速。
