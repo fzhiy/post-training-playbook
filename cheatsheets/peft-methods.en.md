@@ -54,7 +54,7 @@ $$W_{\text{merged}} = W_0 + \frac{\alpha}{r} \cdot B A$$
 
 ### 1.3 rsLoRA — Rank-Stabilized LoRA
 
-Standard LoRA uses the scaling factor $\alpha / r$. As rank $r$ grows, the Frobenius norm of $BA$ increases as $\sqrt{r}$, leading to excessively large gradients and training instability.
+Standard LoRA uses the scaling factor $\alpha / r$. As rank $r$ grows, the Frobenius norm of $BA$ increases as $\sqrt{r}$, while the $\alpha/r$ scaling factor simultaneously compresses the effective update to $O(\alpha/\sqrt{r})$, so at large rank the effective update magnitude shrinks as $r$ increases (update collapse), causing training instability.
 
 **rsLoRA fix**: change the scaling to $\alpha / \sqrt{r}$:
 
@@ -540,7 +540,7 @@ PEFT freezes the base model and trains only a small number of additional paramet
 - **$r$**: harder tasks (e.g., mathematical reasoning) typically require larger $r$ (commonly 4 / 8 / 16 / 64)
 - **$\alpha$**: implicitly modulates the LoRA learning rate; increasing $\alpha$ → larger update magnitude
 
-**rsLoRA** addresses: with standard LoRA at large $r$, the Frobenius norm of $BA$ grows as $\sqrt{r}$, leading to excessively large gradients and training instability. rsLoRA changes the scaling to $\alpha / \sqrt{r}$, ensuring consistent update magnitude across different $r$.
+**rsLoRA** addresses: with standard LoRA at large $r$, the Frobenius norm of $BA$ grows as $\sqrt{r}$, while the $\alpha/r$ scaling factor compresses the effective update to $O(\alpha/\sqrt{r})$, causing the effective update magnitude to shrink (collapse) as $r$ increases, making training unstable. rsLoRA changes the scaling to $\alpha / \sqrt{r}$, ensuring consistent update magnitude across different $r$.
 
 **Follow-up:** How do you determine the optimal $r$ in practice? Are there adaptive methods?
 

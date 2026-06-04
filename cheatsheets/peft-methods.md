@@ -55,7 +55,7 @@ $$W_{\text{merged}} = W_0 + \frac{\alpha}{r} \cdot B A$$
 
 ### 1.3 rsLoRA — Rank-Stabilized LoRA / 秩稳定缩放
 
-标准 LoRA 使用缩放因子 $\alpha / r$。当 rank $r$ 增大时，$BA$ 的 Frobenius 范数随 $\sqrt{r}$ 增长，导致梯度过大、训练不稳定。
+标准 LoRA 使用缩放因子 $\alpha / r$。当 rank $r$ 增大时，$BA$ 的 Frobenius 范数随 $\sqrt{r}$ 增长，而 $\alpha/r$ 缩放因子同时将更新压缩为 $\alpha/\sqrt{r}$ 量级，导致大 rank 下有效更新幅度随 $r$ 增大而缩小（更新坍缩），训练不稳定。
 
 **rsLoRA 修正**：将缩放改为 $\alpha / \sqrt{r}$：
 
@@ -541,7 +541,7 @@ PEFT 冻结 base model，仅训练少量额外参数（如 0.1%–1%），在显
 - **$r$**：任务越难（如数学推理）通常需要更大 $r$（常用 4 / 8 / 16 / 64）
 - **$\alpha$**：隐式调节 LoRA 学习率；$\alpha$ 调大 → 更新幅度更大
 
-**rsLoRA** 解决的问题：标准 LoRA 在大 $r$ 时，$BA$ 的 Frobenius 范数随 $\sqrt{r}$ 增长，导致梯度过大、训练不稳。rsLoRA 将缩放改为 $\alpha / \sqrt{r}$，保证不同 $r$ 下更新幅度一致。
+**rsLoRA** 解决的问题：标准 LoRA 在大 $r$ 时，$BA$ 的 Frobenius 范数随 $\sqrt{r}$ 增长，而 $\alpha/r$ 缩放因子将更新压缩为 $\alpha/\sqrt{r}$ 量级，导致有效更新幅度随 $r$ 增大而收缩（collapse），训练不稳。rsLoRA 将缩放改为 $\alpha / \sqrt{r}$，保证不同 $r$ 下更新幅度一致。
 
 **追问：** 实践中如何确定最优 $r$？有没有自适应方法？
 
