@@ -139,7 +139,7 @@ $$
 S_{ij} = q_i^\top k_j - m_h \cdot |i - j|
 $$
 
-$m_h$ takes fixed exponentially spaced values per head. Advantages: no extra parameters, good extrapolation. Drawbacks: does not support optimizations such as **prefix caching**.
+$m_h$ takes fixed exponentially spaced values per head. Advantages: no extra parameters, good extrapolation. Drawbacks: prefix caching requires dynamically computing bias offsets based on cached tokens' absolute positions at attention time, adding implementation complexity (some inference frameworks do not support this).
 
 ---
 
@@ -214,7 +214,7 @@ $$\ell_j=e^{\,m_{j-1}-m_j}\,\ell_{j-1}+\operatorname{rowsum}\!\big(e^{\,S_j-m_j}
 
 $$O_j=\frac{e^{\,m_{j-1}-m_j}\,\ell_{j-1}\,O_{j-1}+e^{\,S_j-m_j}\,V_j}{\ell_j}$$
 
-with $m_0=-\infty,\ \ell_0=0,\ O_0=0$; after sweeping all tiles, $O$ is the **exact** attention output. Only the three $O(N)$ vectors $(m,\ell,O)$ are kept, so memory drops $O(N^2)\to O(N)$.
+with $m_0=-\infty,\ \ell_0=0,\ O_0=0$; after sweeping all tiles, $O$ is the **exact** attention output. Only $m,\ell$ (each $O(N)$) and output $O$ ($O(Nd)$) need to be saved; the key insight is that the $O(N^2)$ attention score matrix is never materialized.
 
 > 📝 **Rescaling trick:** when a new tile's local max exceeds the running $m$, the factor $e^{\,m_{j-1}-m_j}<1$ **scales down** the accumulated $\ell,O$ so the normalizer always matches the global max — exactly equivalent to a single global softmax. Sources: FlashAttention (Dao et al., [arXiv:2205.14135](https://arxiv.org/abs/2205.14135)); the original online-softmax algorithm (Milakov & Gimelshein, [arXiv:1805.02867](https://arxiv.org/abs/1805.02867)).
 
@@ -248,7 +248,7 @@ $$
 y = \sum_{i \in \text{top-}k} g_i \cdot \text{Expert}_i(x), \quad g = \text{softmax}(\text{Router}(x))
 $$
 
-**Total parameter count** $\approx E \times$ single-expert parameters (much larger than dense), but **FLOPs/token** $\approx (k/E) \times$ dense FLOPs, achieving "large parameter count, low compute."
+**Total parameter count** $\approx E \times$ single-expert parameters (much larger than dense), but **FLOPs/token** $\approx (k/E) \times$ dense FLOPs (where "dense" refers to an FFN with the same total parameter count), achieving "large parameter count, low compute."
 
 **Load-balancing loss**: prevents **expert collapse** (all tokens routing to a few experts), typically via an auxiliary loss:
 
@@ -320,7 +320,7 @@ L(N, D) = \frac{A}{N^\alpha} + \frac{B}{D^\beta} + L_\infty
 $$
 
 - $N$: number of parameters, $D$: number of training tokens, $L_\infty$: irreducible loss
-- Given a FLOPs budget $C$, the optimal $N \propto D$ (roughly 1:1 ratio)
+- Given a FLOPs budget $C$, the optimal $N \propto D$ (both $\propto C^{0.5}$; empirically $D\approx20N$, i.e. ~20 tokens per parameter)
 
 **Practical implication**: earlier large models (e.g. 175B parameters trained on 300B tokens) were "over-parameterized, under-trained." Training a smaller model on more tokens yields a better cost-performance ratio.
 
@@ -768,7 +768,7 @@ Converting from MHA to GQA: average the weights of every $h/g$ K/V heads to init
 **A**:
 - **Absolute positional encoding** (Sinusoidal/Learned): position information is added directly to the embedding, maximum length is fixed, poor extrapolation
 - **RoPE**: rotations applied to Q/K so that attention scores depend only on relative position $m-n$; supports length extrapolation (PI/NTK/YaRN); used by the LLaMA family
-- **ALiBi**: adds a linear bias $-m_h|i-j|$ to attention scores; no extra parameters, good extrapolation, but does not support prefix caching
+- **ALiBi**: adds a linear bias $-m_h|i-j|$ to attention scores; no extra parameters, good extrapolation, but prefix caching requires dynamically computing bias offsets, adding implementation complexity (some inference frameworks do not support this)
 
 > **Follow-up**: Does RoPE implement relative encoding by modifying embeddings or by modifying attention scores? What is its mathematical relationship to absolute positional encoding?
 >
@@ -807,7 +807,7 @@ Converting from MHA to GQA: average the weights of every $h/g$ K/V heads to init
 <details>
 <summary>Q13. What is the basic principle of MoE (Mixture of Experts)?</summary>
 
-**A**: Replaces the FFN with $E$ expert FFNs. Each token uses a router (linear layer + softmax + top-$k$ selection) to select $k$ experts (typically $k=2$), and only the selected experts are activated for computation. Total parameters = $E \times$ expert parameters (much larger than dense), but FLOPs per token $\approx (k/E) \times$ dense FLOPs. A load-balancing loss is added to prevent expert collapse (all tokens routing to a few experts).
+**A**: Replaces the FFN with $E$ expert FFNs. Each token uses a router (linear layer + softmax + top-$k$ selection) to select $k$ experts (typically $k=2$), and only the selected experts are activated for computation. Total parameters = $E \times$ expert parameters (much larger than dense), but FLOPs per token $\approx (k/E) \times$ dense FLOPs (where "dense" refers to an FFN with the same total parameter count). A load-balancing loss is added to prevent expert collapse (all tokens routing to a few experts).
 
 > **Follow-up**: How do the memory and compute characteristics of MoE models differ between inference and training? What special requirements does MoE impose on tensor parallelism?
 >
@@ -820,7 +820,7 @@ Converting from MHA to GQA: average the weights of every $h/g$ K/V heads to init
 <details>
 <summary>Q14. What is the core conclusion of the Chinchilla Scaling Law?</summary>
 
-**A**: Given a training FLOPs budget $C$, the optimal model parameter count $N$ and training token count $D$ should roughly satisfy $N \propto D$ (roughly 1:1 ratio). That is, many previous large models (e.g. 175B parameters trained on only 300B tokens) were "over-parameterized and under-trained." Training a smaller model on more data yields a better loss per FLOP.
+**A**: Given a training FLOPs budget $C$, the optimal model parameter count $N$ and training token count $D$ should roughly satisfy $N \propto D$ (both $\propto C^{0.5}$; empirically $D\approx20N$, i.e. ~20 tokens per parameter). That is, many previous large models (e.g. 175B parameters trained on only 300B tokens) were "over-parameterized and under-trained." Training a smaller model on more data yields a better loss per FLOP.
 
 > **Follow-up**: Does the Scaling Law still apply in the post-training (SFT/RLHF) stage?
 >
@@ -900,7 +900,7 @@ $N$ = parameter count, $D$ = number of training tokens, $L_\infty$ = irreducible
 <details>
 <summary>Q19. What problem does FlashAttention solve? Is it an exact algorithm or an approximation?</summary>
 
-**A**: FlashAttention solves the **memory-bound** problem of standard attention — needing to write the $N \times N$ attention matrix back to HBM. The core is **tiling** + **online softmax**: Q/K/V are loaded in tiles into SRAM, tiled attention computation is performed within SRAM, and via the online softmax algorithm a result **mathematically equivalent** to standard attention is obtained without storing the full $N \times N$ matrix. FlashAttention is an **exact algorithm**, not an approximation. IO complexity is reduced from $O(N^2)$ to $O(N^2 d / M)$ ($M$ is SRAM size), and memory from $O(N^2)$ to $O(N)$.
+**A**: FlashAttention solves the **memory-bound** problem of standard attention — needing to write the $N \times N$ attention matrix back to HBM. The core is **tiling** + **online softmax**: Q/K/V are loaded in tiles into SRAM, tiled attention computation is performed within SRAM, and via the online softmax algorithm a result **mathematically equivalent** to standard attention is obtained without storing the full $N \times N$ matrix. FlashAttention is an **exact algorithm**, not an approximation. IO complexity is reduced from $O(N^2)$ to $O(N^2 d^2 / M)$ ($M$ is SRAM size), and memory from $O(N^2)$ to $O(N)$.
 
 > **Follow-up**: How does online softmax guarantee mathematical equivalence without storing the full score matrix?
 >
@@ -1100,7 +1100,7 @@ The Chinchilla Scaling Law optimizes **training loss given a FLOPs budget**. But
 
 - **2021-08 · ALiBi** — Press et al., ICLR 2022. [arXiv:2108.12409](https://arxiv.org/abs/2108.12409) — Replaces position embeddings with a linear-distance attention bias, extrapolating from short training to long inference and inspiring later length-generalization work.
 
-- **2022-03 · Chinchilla** — Hoffmann et al., NeurIPS 2022. [arXiv:2203.15556](https://arxiv.org/abs/2203.15556) — Compute-optimal scaling law: under fixed compute, parameters and training tokens should grow ~1:1, correcting the "just add parameters" bias and redefining pretraining budgets.
+- **2022-03 · Chinchilla** — Hoffmann et al., NeurIPS 2022. [arXiv:2203.15556](https://arxiv.org/abs/2203.15556) — Compute-optimal scaling law: under fixed compute, parameters and training tokens should scale at the same rate (empirically ~20 tokens per parameter), correcting the "just add parameters" bias and redefining pretraining budgets.
 
 - **2022-05 · FlashAttention** — Dao et al., NeurIPS 2022. [arXiv:2205.14135](https://arxiv.org/abs/2205.14135) — IO-aware exact attention: online-softmax tiling computes entirely in SRAM without materializing the N×N matrix, cutting memory from O(N²) to O(N).
 
