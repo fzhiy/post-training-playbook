@@ -81,10 +81,10 @@ function addTocAndIds(html) {
     if (!/^(目录|table of contents|contents)/i.test(text)) toc.push({ lvl: +lvl, id, text });
     return '<h' + lvl + ' id="' + id + '">' + inner + '</h' + lvl + '>';
   });
-  if (toc.length < 3) return { html, tocHtml: '' };
+  if (toc.length < 3) return { html, tocHtml: '', headingCount: i };
   const items = toc.map((t) => '<li class="lv' + t.lvl + '"><a href="#' + t.id + '">' + t.text + '</a></li>').join('');
   const tocHtml = '<nav class="toc"><div class="toc-h">目录 / Contents</div><ul>' + items + '</ul></nav>';
-  return { html, tocHtml };
+  return { html, tocHtml, headingCount: i };
 }
 
 // 3a) Auto-fold long code blocks (≥30 lines) into a collapsible <details> (build-time).
@@ -169,9 +169,11 @@ function renderDoc(md, title, outFile, eyebrow, opts) {
     .replace('{{TOC}}', () => r.tocHtml)
     .replace('{{CONTENT}}', () => bodyHtml);
   fs.writeFileSync(path.join(OUT, outFile), html);
+  return r.headingCount;
 }
 
 const items = [];
+const driftRows = [];
 // CN cheatsheets are <slug>.md; an English sibling (if present) is <slug>.en.md.
 // Render the CN page (with an EN toggle when the sibling exists) + the EN page.
 for (const f of fs.readdirSync(path.join(ROOT, 'cheatsheets')).filter((f) => f.endsWith('.md') && !f.endsWith('.en.md')).sort()) {
@@ -181,12 +183,42 @@ for (const f of fs.readdirSync(path.join(ROOT, 'cheatsheets')).filter((f) => f.e
   const hasEn = fs.existsSync(enPath);
   const cnOut = 'cheatsheet-' + slug + '.html';
   const enOut = 'cheatsheet-' + slug + '-en.html';
-  renderDoc(cnMd, titleOf(cnMd, slug), cnOut, 'Cheatsheet · 题解', { lang: 'zh-CN', altHref: hasEn ? enOut : null, altLabel: 'EN ⇄' });
+  const cnHeadings = renderDoc(cnMd, titleOf(cnMd, slug), cnOut, 'Cheatsheet · 题解', { lang: 'zh-CN', altHref: hasEn ? enOut : null, altLabel: 'EN ⇄' });
   if (hasEn) {
     const enMd = fs.readFileSync(enPath, 'utf8');
-    renderDoc(enMd, titleOf(enMd, slug), enOut, 'Cheatsheet', { lang: 'en', altHref: cnOut, altLabel: '中文 ⇄' });
+    const enHeadings = renderDoc(enMd, titleOf(enMd, slug), enOut, 'Cheatsheet', { lang: 'en', altHref: cnOut, altLabel: '中文 ⇄' });
+    driftRows.push({ slug, cn: cnHeadings, en: enHeadings });
   }
   items.push({ section: 'Cheatsheets 题解', title: titleOf(cnMd, slug), href: cnOut, enHref: hasEn ? enOut : null });
+}
+
+// CN/EN drift guard — make structural asymmetry impossible to ship.
+// Compares the rendered <h2>/<h3> heading count of each bilingual pair; a mismatch
+// almost always means a section was added to one language but not the other (the
+// eval-and-judges near-miss). Hard-fails the build so the gap can't go live.
+// BASELINE_DELTA records *known, accepted* CN−EN deltas; every other pair must be 0.
+const BASELINE_DELTA = {
+  // CN renders each "第一部分 / Part N" divider as two consecutive H2s (中文行 + English 行);
+  // the EN page uses one heading per Part. ×3 Parts = +3. Benign formatting, no missing content.
+  'ml-dl-fundamentals': 3,
+  // TODO(drift): one EN heading silently fails to render — source is 66/66 but rendered is 66/65,
+  // likely a malformed heading or a non-``` fence. Investigate + fix, then drop this entry to 0.
+  'llm-post-training': 1,
+};
+const drift = [];
+for (const r of driftRows) {
+  const delta = r.cn - r.en;
+  const allowed = BASELINE_DELTA[r.slug] || 0;
+  if (delta !== allowed) drift.push({ slug: r.slug, cn: r.cn, en: r.en, delta, allowed });
+}
+if (drift.length) {
+  console.error('\n✗ CN/EN drift guard FAILED — rendered H2/H3 heading counts diverge:');
+  for (const d of drift) {
+    console.error('  ' + d.slug + ': CN=' + d.cn + ' EN=' + d.en + ' (Δ=' + d.delta + ', expected Δ=' + d.allowed + ')');
+  }
+  console.error('\nEither match the CN/EN section structure, or — if the delta is intentional —');
+  console.error('update BASELINE_DELTA in build.js with a comment explaining why.\n');
+  process.exit(1);
 }
 for (const d of fs.readdirSync(path.join(ROOT, 'drills')).sort()) {
   const rp = path.join(ROOT, 'drills', d, 'README.md');
