@@ -81,7 +81,7 @@ $$
 \text{RoPE}(x) = x \odot \cos(m\theta) + \text{rotate\_half}(x) \odot \sin(m\theta)
 $$
 
-For $x \in \mathbb{R}^{d_k}$, each pair of adjacent dimensions $(x_{2i}, x_{2i+1})$ undergoes a 2D rotation.
+For $x \in \mathbb{R}^{d_k}$, the rotate_half implementation pairs the two halves $(x_i, x_{i+d/2})$ for the 2D rotation (the original RoPE paper uses adjacent pairs $(x_{2i}, x_{2i+1})$; the two differ only by a dimension permutation and are mathematically equivalent).
 
 ---
 
@@ -241,7 +241,7 @@ $$
 M_{\text{opt}} \approx 7 \times 10^9 \times 8\,\text{bytes} \approx 56\,\text{GB}
 $$
 
-where $M_{\text{param}}$ is parameter memory (BF16) and $M_{\text{opt}}$ is AdamW optimizer state memory (FP32 $m$ + $v$, 8 bytes/param each). Naively co-locating all 4 models puts memory requirements in the hundreds-of-GB range — a 7B model can still fit on a single 8×80 GB machine, but naive co-location yields low GPU utilization (see above); larger models (e.g., 70B) far exceed a single node.
+where $M_{\text{param}}$ is parameter memory (BF16) and $M_{\text{opt}}$ here counts only the FP32 $m$ + $v$ momenta (8 bytes/param total; the FP32 master copy adds $+4$ → 12 bytes for the full optimizer state, cf. §1.6). Naively co-locating all 4 models puts memory requirements in the hundreds-of-GB range — a 7B model can still fit on a single 8×80 GB machine, but naive co-location yields low GPU utilization (see above); larger models (e.g., 70B) far exceed a single node.
 
 **Memory savings with LoRA-in-RL:**
 
@@ -306,11 +306,11 @@ Each GPU holds a complete model replica; gradients are synchronized via All-Redu
 
 | Stage | Sharded content | Memory per GPU |
 |-------|----------------|---------------|
-| ZeRO-1 | Optimizer states (Adam: $m, v$) | ~4× parameter count (same parameter memory as DP) |
+| ZeRO-1 | Optimizer states (Adam: master + $m$ + $v$) | ~4× parameter count (same parameter memory as DP) |
 | ZeRO-2 | + Gradients | ~2× parameter count |
 | ZeRO-3 | + Parameters | ~$1/P$ of parameter count ($P$ = number of GPUs) |
 
-**Overhead:** ZeRO-3 requires All-Gather of parameters during the forward pass, increasing communication volume.
+**Overhead:** ZeRO-3 requires All-Gather of parameters during both forward and backward passes, increasing communication volume (see the $16\Phi$ note below).
 
 **The $16\Phi$ memory breakdown (mixed-precision Adam, $\Phi$ = #params):**
 
@@ -345,8 +345,9 @@ Each layer's weight matrix is split column-wise or row-wise across multiple GPUs
 The model is split into layer segments assigned to different machines.
 
 - **GPipe strategy:** Split the mini-batch into $M$ micro-batches; process forward passes sequentially, then backward passes in reverse order.
-- **1F1B schedule:** Alternately execute 1 forward and 1 backward, reducing pipeline bubble and peak memory.
+- **1F1B schedule:** Alternately execute 1 forward and 1 backward; **bubble fraction is the same as GPipe**, but **per-stage peak activation memory drops from $O(M)$ to $O(P)$ micro-batch buffers** (bounded by pipeline depth: backward starts earlier, activations freed sooner).
 - **Bubble rate:** $\text{Bubble} \approx (P-1) / (M + P - 1)$, $P$ = pipeline stages, $M$ = micro-batches.
+- **Interleaved 1F1B (virtual stages):** each device holds $v$ non-contiguous layer chunks, dropping the bubble to $(P-1)/(Mv + P - 1)$ (~$1/v$ of non-interleaved) at the cost of extra per-micro-batch p2p comm; Megatron-LM's interleaved/virtual-pipeline schedule (when virtual pipeline stages are enabled).
 
 #### Sequence Parallelism (SP)
 
@@ -366,10 +367,10 @@ Operations like LayerNorm and Dropout that carry no parameters but occupy activa
 Each layer needs to cache $K$ and $V$ for every token:
 
 $$
-\text{KV cache (bytes)} = 2 \times L \times n_{\text{heads}} \times d_{\text{head}} \times s \times \text{bytes\_per\_param}
+\text{KV cache (bytes)} = 2 \times L \times n_{\text{kv\_heads}} \times d_{\text{head}} \times s \times B \times \text{bytes\_per\_param}
 $$
 
-- $L$ = number of layers, $n_{\text{heads}}$ = number of KV heads (fewer than Q heads with GQA), $d_{\text{head}}$ = dimension per head, $s$ = sequence length
+- $L$ = number of layers, $n_{\text{kv\_heads}}$ = number of KV heads (fewer than Q heads with GQA), $d_{\text{head}}$ = dimension per head, $s$ = sequence length, $B$ = concurrent batch (number of requests)
 - With FP16, bytes_per_param = 2
 
 **PagedAttention (vLLM):** KV cache is divided into fixed-size pages (e.g., 16 tokens/page), allocated on demand, eliminating memory fragmentation and supporting more concurrent requests.
@@ -387,7 +388,7 @@ $$
 **Asymmetric Quantization:**
 
 $$
-x_q = \text{round}\!\left(\frac{x - z}{s}\right), \quad s = \frac{x_{\max} - x_{\min}}{2^b - 1}, \quad z = x_{\min}
+x_q = \text{round}\!\left(\frac{x}{s}\right) + z, \quad s = \frac{x_{\max} - x_{\min}}{2^b - 1}, \quad z = \text{round}\!\left(\frac{-x_{\min}}{s}\right)\ (\text{integer zero-point})
 $$
 
 **GPTQ — layer-wise post-training quantization via OBS (Frantar et al., ICLR 2023, arXiv:2210.17323):**
@@ -401,9 +402,9 @@ $$
 
 **SmoothQuant — migrate quantization difficulty from activations to weights (Xiao et al., ICML 2023, arXiv:2211.10438):**
 - Problem: activations have per-channel outliers that are very hard to quantize, while weights are smooth and easy.
-- Method: per-channel smoothing $\hat{X}=X\,\mathrm{diag}(s)^{-1},\ \hat{W}=\mathrm{diag}(s)\,W$, with scale $s_j=\dfrac{\max(|X_j|)^\alpha}{\max(|W_j|)^{1-\alpha}}$ ($\alpha\approx0.5$), moving part of the activation dynamic range into the weights to enable W8A8.
+- Method: per-channel smoothing $\hat{X}=X\,\mathrm{diag}(s)^{-1},\ \hat{W}=W\,\mathrm{diag}(s)$ (same orientation as AWQ above, preserving $\hat{X}\hat{W}^\top=XW^\top$), with scale $s_j=\dfrac{\max(|X_j|)^\alpha}{\max(|W_j|)^{1-\alpha}}$ ($\alpha\approx0.5$), moving part of the activation dynamic range into the weights to enable W8A8.
 
-**FP8 (Hopper/H100):** E4M3 (4 exponent, 3 mantissa, range ±448) for forward weights/activations; E5M2 (5 exponent, 2 mantissa, larger range ±57344) for gradients. Vs INT8: no scale calibration, more robust to outliers.
+**FP8 (Hopper/H100):** E4M3 (4 exponent, 3 mantissa, range ±448) for forward weights/activations; E5M2 (5 exponent, 2 mantissa, larger range ±57344) for gradients. Vs **asymmetric INT8**: drops the **zero-point** calibration (still needs per-tensor amax scaling), and the float format is more robust to outliers.
 
 **KV-cache quantization:** at long context the KV cache dominates memory. K has per-channel outliers → quantize per-channel; V is smoother → per-token (e.g., KIVI, arXiv:2402.02750). int8/int4/fp8 cut KV memory 2–4×; int8/fp8 with negligible loss on most tasks, while int4 is task-sensitive (long-context retrieval especially).
 
@@ -416,7 +417,7 @@ $$
 
 **Accept-Reject Sampling:**
 - For position $t$: if target model probability $p(x_t) \geq$ draft model probability $q(x_t)$ → accept
-- If $p(x_t) < q(x_t)$, accept with probability $p(x_t)/q(x_t)$; otherwise resample from $\max(0, p(x_t) - q(x_t))$
+- If $p(x_t) < q(x_t)$, accept with probability $p(x_t)/q(x_t)$; otherwise reject and resample from the **normalized residual** $\dfrac{\max(0,\,p(x) - q(x))}{\sum_x \max(0,\,p(x) - q(x))}$
 - The output distribution is **exactly identical** to direct sampling from the target model (lossless)
 
 **Speedup:** Depends on the token acceptance rate between the draft model and the target model. In typical scenarios a $1.5\times$–$2.5\times$ speedup is achievable.
@@ -454,7 +455,7 @@ def scaled_dot_product_attention(
     k: torch.Tensor,   # (batch, n_heads, seq_k, d_k)
     v: torch.Tensor,   # (batch, n_heads, seq_k, d_v)
     mask: torch.Tensor | None = None,  # (batch, 1, seq_q, seq_k) or broadcastable
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:   # returns (output, attn_weights)
     d_k = q.size(-1)
     scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_k)
     if mask is not None:
@@ -634,7 +635,7 @@ def dpo_loss(
 import torch
 
 class KVCache:
-    """Minimal KV cache for autoregressive generation."""
+    """Minimal KV cache (batch=1) for autoregressive generation."""
 
     def __init__(self, max_len: int, n_heads: int, d_k: int, device: torch.device):
         self.max_len = max_len
@@ -662,7 +663,7 @@ import torch
 def symmetric_quantize_int8(weight: torch.Tensor):
     """Per-tensor symmetric INT8 quantization."""
     scale = weight.abs().max() / 127.0
-    w_q = torch.round(weight / scale).clamp(-128, 127).to(torch.int8)
+    w_q = torch.round(weight / scale).clamp(-127, 127).to(torch.int8)  # symmetric: [-127,127] matches /127 scale
     return w_q, scale
 
 def symmetric_dequantize_int8(w_q: torch.Tensor, scale: float) -> torch.Tensor:
@@ -688,14 +689,14 @@ def column_parallel(X, W, b, n_shards=2):
     output is feature-sharded (no comm needed to obtain the partial output)."""
     Ws, bs = torch.chunk(W, n_shards, dim=0), torch.chunk(b, n_shards, dim=0)
     outs = [X @ Wi.T + bi for Wi, bi in zip(Ws, bs)]   # local matmul per rank
-    return torch.cat(outs, dim=-1)                      # g: gather (cat here)
+    return torch.cat(outs, dim=-1)                      # validation-only concat; in a fused MLP the output stays sharded (no gather)
 
 def row_parallel(X, W, b, n_shards=2):
     """Row-parallel: input X is feature-sharded; split W along input dim;
     each rank computes a partial product, summed via all-reduce."""
     Xs, Ws = torch.chunk(X, n_shards, dim=-1), torch.chunk(W, n_shards, dim=1)
     partial = [Xi @ Wi.T for Xi, Wi in zip(Xs, Ws)]
-    return sum(partial) + b                             # conjugate of f: all-reduce (sum); bias added once
+    return sum(partial) + b                             # g operator: all-reduce (sum); bias added once
 
 # --- Verify: TP equals a plain Linear ---
 torch.manual_seed(0)
@@ -840,11 +841,11 @@ Source of speedup: standard attention must write/read the attention matrix from 
 <summary>Q8: Explain what each of the three ZeRO stages does, and their respective communication overhead.</summary>
 
 **Answer:**
-- **ZeRO-1:** Shards optimizer states (Adam's $m$ and $v$, 8 bytes/param in FP32) across GPUs. Each GPU holds only $1/P$ of the optimizer state; after the update, parameters are gathered via AllGather.
+- **ZeRO-1:** Shards optimizer states (AdamW's FP32 master copy + $m$ + $v$, 12 bytes/param) across GPUs. Each GPU holds only $1/P$ of the optimizer state; after the update, parameters are gathered via AllGather.
 - **ZeRO-2:** On top of ZeRO-1, also shards gradients. Each GPU keeps only $1/P$ of the gradients (the rest are discarded after Reduce-Scatter).
 - **ZeRO-3:** Also shards parameters. During forward and backward passes, parameters are All-Gathered on demand and released after use.
 
-Communication: ZeRO-1 and ZeRO-2 have the same communication as standard DP ($2|\theta|$ per step). ZeRO-3 adds an extra AllGather during the forward pass (~$1.5\times$ total communication volume).
+Communication: ZeRO-1/2 match standard DP ($2|\theta|$ per step). ZeRO-3 needs **an AllGather of params in both forward and backward**, plus a Reduce-Scatter of grads in backward — $3|\theta|$ total (~$1.5\times$ plain DP's $2|\theta|$).
 
 **Follow-up:** When is ZeRO-2 better than ZeRO-3?
 
@@ -1075,10 +1076,10 @@ Let target model distribution be $p(x)$ and draft model distribution be $q(x)$.
 **Final effective probability:**
 
 $$
-P(\text{output}=x) = \min(p(x), q(x)) + \frac{\max(0, p(x) - q(x))}{1 - \sum_i \min(p(i), q(i))} \cdot \delta
+P(\text{output}=x) = \min(p(x), q(x)) + \underbrace{\Big(1 - \sum_i \min(p(i), q(i))\Big)}_{P(\text{reject})} \cdot \frac{\max(0, p(x) - q(x))}{1 - \sum_i \min(p(i), q(i))}
 $$
 
-In fact, it can be proven that through this rejection sampling + correction sampling, the final output distribution **exactly equals** $p(x)$.
+The second term = reject probability $\times$ normalized residual; the reject probability cancels the denominator to give $\max(0, p(x)-q(x))$, so $P(\text{output}=x) = \min(p,q) + \max(0,\,p-q) = p(x)$ — **exactly** the target distribution.
 
 Core intuition: when $p(x) > q(x)$, the draft model "under-sampled" $x$ and the deficit is compensated from the residual probability mass after rejection; when $p(x) < q(x)$, rejection removes the excess probability.
 
@@ -1564,4 +1565,4 @@ MLA's advantage: the number of Q heads is no longer directly tied to cache size,
 
 - **2023-09 · PagedAttention / vLLM** — Kwon et al., SOSP 2023. [arXiv:2309.06180](https://arxiv.org/abs/2309.06180) — Manages the KV cache like OS virtual-memory paging: stores KV in non-contiguous blocks allocated on demand, eliminating fragmentation and reservation waste and enabling prefix sharing, greatly raising serving throughput.
 
-- **2024-02 · KIVI** — Liu et al., ICML 2024. [arXiv:2402.02750](https://arxiv.org/abs/2402.02750) — Asymmetric 2-bit quantization for the KV cache: quantizes keys per-channel and values per-token (matching their distinct outlier distributions), shrinking KV memory ~8× in long-context inference with near-lossless accuracy.
+- **2024-02 · KIVI** — Liu et al., ICML 2024. [arXiv:2402.02750](https://arxiv.org/abs/2402.02750) — Asymmetric 2-bit quantization for the KV cache: quantizes keys per-channel and values per-token (matching their distinct outlier distributions), cutting **peak memory (incl. model weights) ~2.6×** in long-context inference (KV itself 16-bit→2-bit, ~8× in theory) with near-lossless accuracy.
