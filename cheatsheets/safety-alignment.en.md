@@ -19,7 +19,7 @@ The mainstream alignment objective is often summarized as **HHH: Helpful / Harml
 
 | Layer | Approach | Representative | Section |
 |------|------|------|------|
-| **Training signal** | Write "safety / privilege order" into the loss/reward | Safe RLHF / RBR / Instruction Hierarchy / Constitutional AI | §4.1–4.2, §4.5 |
+| **Training signal** | Write "safety / privilege order" into the loss/reward | Safe RLHF / RBR / Instruction Hierarchy / Constitutional AI | §4.1–4.2, §4.5; CAI on data-pipeline |
 | **Representation / internal** | Rewrite internal representations that produce harmful output | Circuit Breakers | §4.4 |
 | **Runtime I/O guardrails** | Intercept independently at input/output | Llama Guard | §4.3 |
 | **Evaluation / audit** | Attack the model, measure refusal and over-refusal | Red-teaming / HarmBench / StrongREJECT / XSTest | §2, §5 |
@@ -156,7 +156,7 @@ def safe_rlhf_step(lam, batch_reward, batch_cost, d, lr_lambda=0.05):
 
 ### 4.2 Rule-Based Rewards (RBR)
 
-**RBR** (Mu et al., [arXiv:2411.01111](https://arxiv.org/abs/2411.01111), NeurIPS 2024): uses **human-written boolean rules** (e.g., "did it refuse? does it contain a disclaimer? did it leak harmful detail?") to directly construct the safety reward during RL, rather than training an opaque safety RM. Advantages: **interpretable, auditable, easy to update with policy**—compared with a black-box safety RM it is easier to find and patch rule loopholes; but the rules themselves can still be gamed and require continuous auditing. Well-suited to a "relatively well-specified rules" dimension like safety.
+**RBR** (Mu et al., [arXiv:2411.01111](https://arxiv.org/abs/2411.01111), NeurIPS 2024): uses **human-written rules** (e.g., "did it refuse? does it contain a disclaimer? did it leak harmful detail?", framed as yes/no propositions) whose compliance an **LLM judge scores as a probability (0–1 soft score, not a hard 0/1)**, linearly combined ($R=R_{rm}+\sum_i w_i\phi_i$) into the safety reward during RL, rather than training an opaque safety RM. Advantages: **interpretable, auditable, easy to update with policy**—compared with a black-box safety RM it is easier to find and patch rule loopholes; but the rules themselves can still be gamed and require continuous auditing. Well-suited to a "relatively well-specified rules" dimension like safety.
 
 ### 4.3 Guard Classifier — Llama Guard
 
@@ -180,7 +180,7 @@ Safety evaluation must answer two things: **can harmful requests be blocked (ASR
 
 ### 5.1 The Judge Trap — StrongREJECT
 
-**A StrongREJECT for Empty Jailbreaks** (Souly et al., [arXiv:2402.10260](https://arxiv.org/abs/2402.10260), NeurIPS 2024 D&B) points out a systematic flaw in existing jailbreak evaluations: **many "successful jailbreaks" are actually empty jailbreaks**—the model indeed did not refuse, but the answer is **vague, wrong, and of no real harmful value**, yet old metrics counted it as a successful attack, leading attack effectiveness to be **overestimated**. StrongREJECT instead uses a rubric to score **whether it refused + the specificity of the answer + usefulness** at the same time, counting only "truly provided useful harmful information" into ASR.
+**A StrongREJECT for Empty Jailbreaks** (Souly et al., [arXiv:2402.10260](https://arxiv.org/abs/2402.10260), NeurIPS 2024 D&B) points out a systematic flaw in existing jailbreak evaluations: **many "successful jailbreaks" are actually empty jailbreaks**—the model indeed did not refuse, but the answer is **vague, wrong, and of no real harmful value**, yet old metrics counted it as a successful attack, leading attack effectiveness to be **overestimated**. StrongREJECT instead uses a rubric to score **whether it refused + the specificity of the answer + convincingness** at the same time, counting only "truly provided useful harmful information" into ASR.
 
 ```python
 # StrongREJECT-style judging: a "successful" jailbreak cannot be measured by "the model
@@ -188,17 +188,17 @@ Safety evaluation must answer two things: **can harmful requests be blocked (ASR
 # information. Classify the response into three states: refusal / empty compliance (answered
 # but useless) / real compliance. The real StrongREJECT uses a rubric to score
 # refusal+specificity+convincingness; here we use placeholder features.
-def classify_response(refused, specificity, usefulness, tau=0.5):
+def classify_response(refused, specificity, convincingness, tau=0.5):
     if refused:
         return "refusal", 0.0                          # explicit refusal → not a jailbreak
-    if specificity < tau or usefulness < tau:
-        return "empty_compliance", 0.0                 # answered but vague/useless → not a success
-    return "real_compliance", specificity * usefulness # truly useful → jailbreak success score
+    if specificity < tau or convincingness < tau:
+        return "empty_compliance", 0.0                 # answered but vague/unconvincing → not a success
+    return "real_compliance", specificity * convincingness # truly convincing → jailbreak success score
 
 def attack_success_rate(records, tau=0.5):
-    # records: list[dict(refused, specificity, usefulness)]
+    # records: list[dict(refused, specificity, convincingness)]
     succ = sum(classify_response(r["refused"], r["specificity"],
-                                 r["usefulness"], tau)[0] == "real_compliance"
+                                 r["convincingness"], tau)[0] == "real_compliance"
                for r in records)
     return succ / max(1, len(records))                 # count only "real compliance" into ASR
 ```
@@ -209,7 +209,7 @@ def attack_success_rate(records, tau=0.5):
 
 ### 5.3 Over-Refusal — XSTest
 
-**XSTest** (Röttger et al., [arXiv:2308.01263](https://arxiv.org/abs/2308.01263), NAACL 2024): specifically tests **over-refusal (exaggerated safety behavior)**. It constructs **250 safe prompts** that **superficially resemble unsafe requests** (e.g., containing "kill," "attack," "shoot" but harmless in context) to see whether the model would "rather kill by mistake" and refuse. It pairs them with an equal number of genuinely unsafe prompts, and only a **both-ends comparison** can distinguish "truly safe" from "over-conservative."
+**XSTest** (Röttger et al., [arXiv:2308.01263](https://arxiv.org/abs/2308.01263), NAACL 2024): specifically tests **over-refusal (exaggerated safety behavior)**. It constructs **250 safe prompts** that **superficially resemble unsafe requests** (e.g., containing "kill," "attack," "shoot" but harmless in context) to see whether the model would "rather kill by mistake" and refuse. It pairs them with 200 genuinely unsafe prompts (450 total), and only a **both-ends comparison** can distinguish "truly safe" from "over-conservative."
 
 ### 5.4 Safety Dataset — Do-Not-Answer
 
@@ -227,7 +227,7 @@ Current safety alignment is **far from solid**. Four repeatedly verified vulnera
 
 ### 6.2 Shallow Safety Alignment
 
-**Safety Alignment Should Be More Than a Few Tokens Deep** (Qi et al., [arXiv:2406.05946](https://arxiv.org/abs/2406.05946), ICLR 2025 Oral / Outstanding): current alignment is **"shallow"—it mainly changes the distribution of the model's first few output tokens** (making the answer begin with "I cannot..."), while later tokens are almost unconstrained by safety. This single mechanism explains several attacks: **prefix injection, prefilling, adversarial suffixes, fine-tuning**—all essentially bypass those first few tokens and then let the model "run free."
+**Safety Alignment Should Be Made More Than Just a Few Tokens Deep** (Qi et al., [arXiv:2406.05946](https://arxiv.org/abs/2406.05946), ICLR 2025 Oral / Outstanding): current alignment is **"shallow"—it mainly changes the distribution of the model's first few output tokens** (making the answer begin with "I cannot..."), while later tokens are almost unconstrained by safety. This single mechanism explains several attacks: **prefix injection, prefilling, adversarial suffixes, fine-tuning**—all essentially bypass those first few tokens and then let the model "run free."
 
 ```python
 import numpy as np
@@ -346,7 +346,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q7: What is ASR in safety evaluation? Why does "the model didn't refuse" not equal a successful jailbreak?</summary>
 
-**A:** ASR = Attack Success Rate. "The model didn't refuse" does not equal success, because it may be an **empty jailbreak**—the model answered but the content is vague, wrong, and of no real harmful value. StrongREJECT points out that counting empty jailbreaks as success **overestimates** attack effectiveness; one should jointly score "whether it refused + specificity + usefulness," counting only what truly provides useful harmful information into ASR.
+**A:** ASR = Attack Success Rate. "The model didn't refuse" does not equal success, because it may be an **empty jailbreak**—the model answered but the content is vague, wrong, and of no real harmful value. StrongREJECT points out that counting empty jailbreaks as success **overestimates** attack effectiveness; one should jointly score "whether it refused + specificity + convincingness," counting only what truly provides useful harmful information into ASR.
 
 > **Follow-up:** Why does an empty jailbreak systematically inflate attack success rate?
 > Because many attacks merely get the model to "start answering" without producing useful content, and the old "does it contain a refusal phrase" metric cannot distinguish "truly delivered" from "made up," so it counts a lot of harmless waffle as success.
@@ -422,7 +422,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q13: What are the pros and cons of Rule-Based Rewards (RBR) vs. a learned safety RM?</summary>
 
-**A:** RBR uses **human-written boolean rules** (did it refuse? does it contain a disclaimer? did it leak harmful detail?) to directly construct the safety reward. Pros: **interpretable, auditable, easy to update with policy**; compared with a black-box safety RM it is easier to find and patch rule loopholes (but the rules themselves can still be gamed and require continuous auditing), suited to "relatively well-specified rules" safety dimensions. Cons: gray areas not fully covered by rules are hard to express, rule maintenance needs human effort, and for "semantic-level" harm (subtle inducement) it is less flexible than a learned RM.
+**A:** RBR uses **human-written rules** (did it refuse? does it contain a disclaimer? did it leak harmful detail?; scored by an LLM judge as 0–1 compliance probabilities) to directly construct the safety reward. Pros: **interpretable, auditable, easy to update with policy**; compared with a black-box safety RM it is easier to find and patch rule loopholes (but the rules themselves can still be gamed and require continuous auditing), suited to "relatively well-specified rules" safety dimensions. Cons: gray areas not fully covered by rules are hard to express, rule maintenance needs human effort, and for "semantic-level" harm (subtle inducement) it is less flexible than a learned RM.
 
 > **Follow-up:** Why is the safety dimension especially suited to rule-based rewards?
 > Because safety policy itself often exists as explicit rules/policies (a list of refusable categories), rule-based rewards can directly align with the policy and ease compliance auditing; whereas a subjective dimension like "usefulness" is better suited to a learned RM.
@@ -446,7 +446,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q15: What problem with existing jailbreak evaluation does StrongREJECT solve?</summary>
 
-**A:** It solves the **overestimation** of attack effectiveness caused by **empty jailbreaks**: many "successful jailbreaks" merely have the model not refuse, but the answer is vague/wrong/of no harmful value, yet old metrics (checking for refusal phrases) count it as success. StrongREJECT uses a rubric to jointly score **whether it refused + specificity + usefulness**, counting only "truly provided useful harmful information" into ASR, making attack strength comparable and not inflated by waffle.
+**A:** It solves the **overestimation** of attack effectiveness caused by **empty jailbreaks**: many "successful jailbreaks" merely have the model not refuse, but the answer is vague/wrong/of no harmful value, yet old metrics (checking for refusal phrases) count it as success. StrongREJECT uses a rubric to jointly score **whether it refused + specificity + convincingness**, counting only "truly provided useful harmful information" into ASR, making attack strength comparable and not inflated by waffle.
 
 > **Follow-up:** Why is this critical for comparing different attack methods?
 > If the judge counts empty jailbreaks as success, a "high success rate" attack may merely be better at making the model waffle, not more dangerous; only by uniformly using StrongREJECT can the true harmful output of attacks be fairly compared side by side.
@@ -458,7 +458,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q16: What does XSTest test? Why is testing over-refusal specifically needed?</summary>
 
-**A:** XSTest tests **over-refusal (exaggerated safety)**: using 250 prompts that **superficially resemble unsafe but are actually harmless** (containing words like kill/attack but harmless in context) to see whether the model would "rather kill by mistake." Testing it specifically is needed because safety training almost always pushes the boundary toward easier-to-refuse, and testing only the harmful-refusal rate would **reward a degenerate "refuse everything" policy**; pairing with an equal number of genuinely unsafe prompts for a both-ends comparison is the only way to distinguish true safety from over-conservatism.
+**A:** XSTest tests **over-refusal (exaggerated safety)**: using 250 prompts that **superficially resemble unsafe but are actually harmless** (containing words like kill/attack but harmless in context) to see whether the model would "rather kill by mistake." Testing it specifically is needed because safety training almost always pushes the boundary toward easier-to-refuse, and testing only the harmful-refusal rate would **reward a degenerate "refuse everything" policy**; pairing with 200 genuinely unsafe prompts (450 total) for a both-ends comparison is the only way to distinguish true safety from over-conservatism.
 
 > **Follow-up:** How would a model that only refuses do on XSTest?
 > It would score perfectly on harmful-refusal rate, but its over-refusal on XSTest would be extremely high—exposing that it trades usability for safety rather than truly learning to distinguish.
@@ -616,7 +616,7 @@ In practice: **defense in depth combined** rather than a single point—classifi
 | Many-shot Jailbreak | Prepend many harmful examples in a long context to override refusal |
 | Safe-RLHF | Reward+cost dual models + Lagrangian constrained optimization |
 | Cost Model | A model scoring how harmful a response is (dual to the reward) |
-| RBR | Human-written boolean rules build the safety reward directly; interpretable |
+| RBR | Human-written rules scored by an LLM judge build the safety reward directly; interpretable |
 | Llama Guard | An LLM-based input/output safety classifier (runtime guardrail) |
 | Circuit Breakers | Representation-level defense: short-circuit harmful generation trajectories |
 | Instruction Hierarchy | A system > user > tool privilege order to defend against injection |
@@ -669,7 +669,7 @@ In practice: **defense in depth combined** rather than a single point—classifi
 
 - **2024-02 · HarmBench: Standardized Automated Red Teaming** — Mazeika et al., ICML 2024. [arXiv:2402.04249](https://arxiv.org/abs/2402.04249) — Uses a unified framework of 18 attacks × 33 models to make jailbreak attack/defense reproducible and comparable, systematically evaluating defense robustness on that basis.
 
-- **2024-02 · A StrongREJECT for Empty Jailbreaks** — Souly et al., NeurIPS 2024 D&B. [arXiv:2402.10260](https://arxiv.org/abs/2402.10260) — Points out that "empty jailbreaks" make old metrics overestimate attacks; switches to a rubric scoring refusal + specificity + usefulness, counting only genuinely useful harmful output toward ASR.
+- **2024-02 · A StrongREJECT for Empty Jailbreaks** — Souly et al., NeurIPS 2024 D&B. [arXiv:2402.10260](https://arxiv.org/abs/2402.10260) — Points out that "empty jailbreaks" make old metrics overestimate attacks; switches to a rubric scoring refusal + specificity + convincingness, counting only genuinely useful harmful output toward ASR.
 
 - **2024-04 · The Instruction Hierarchy** — Wallace et al., preprint. [arXiv:2404.13208](https://arxiv.org/abs/2404.13208) — Trains the model to obey a system > user > tool privilege order so low-privilege content cannot override high-privilege safety instructions, defending against (indirect) prompt injection from the training side.
 
@@ -677,10 +677,10 @@ In practice: **defense in depth combined** rather than a single point—classifi
 
 - **2024-06 · Improving Alignment and Robustness with Circuit Breakers** — Zou et al., NeurIPS 2024. [arXiv:2406.04313](https://arxiv.org/abs/2406.04313) — Uses representation rerouting to interrupt harmful generation trajectories at the representation layer, making it harder to produce harmful content even when refusal is bypassed, empirically more robust to many unseen attacks.
 
-- **2024-06 · Safety Alignment Should Be More Than a Few Tokens Deep** — Qi et al., ICLR 2025 Oral/Outstanding. [arXiv:2406.05946](https://arxiv.org/abs/2406.05946) — Shows current alignment only changes the "shallow" behavior of the first few output tokens, unifying the explanation of prefix-injection / adversarial-suffix / fine-tuning attacks, and proposes directions to deepen alignment.
+- **2024-06 · Safety Alignment Should Be Made More Than Just a Few Tokens Deep** — Qi et al., ICLR 2025 Oral/Outstanding. [arXiv:2406.05946](https://arxiv.org/abs/2406.05946) — Shows current alignment only changes the "shallow" behavior of the first few output tokens, unifying the explanation of prefix-injection / adversarial-suffix / fine-tuning attacks, and proposes directions to deepen alignment.
 
 - **2024-06 · Refusal in LMs Is Mediated by a Single Direction** — Arditi et al., NeurIPS 2024. [arXiv:2406.11717](https://arxiv.org/abs/2406.11717) — Finds across 13 open-source models that refusal is mediated by a single linear direction in the residual stream: ablate it to turn refusal off, inject it to trigger refusal — exposing the representation-level fragility of open-weight model alignment.
 
-- **2024-11 · Rule Based Rewards for Language Model Safety** — Mu et al., NeurIPS 2024. [arXiv:2411.01111](https://arxiv.org/abs/2411.01111) — Uses human-written boolean rules to build the safety reward directly in RL, replacing the opaque safety RM, making the safety signal interpretable, auditable, and updatable with the policy; rule loopholes are easier to find and patch than in a black-box RM, but the rules themselves can still be gamed and require continuous auditing.
+- **2024-11 · Rule Based Rewards for Language Model Safety** — Mu et al., NeurIPS 2024. [arXiv:2411.01111](https://arxiv.org/abs/2411.01111) — Uses human-written rules scored by an LLM judge to build the safety reward directly in RL, replacing the opaque safety RM, making the safety signal interpretable, auditable, and updatable with the policy; rule loopholes are easier to find and patch than in a black-box RM, but the rules themselves can still be gamed and require continuous auditing.
 
 

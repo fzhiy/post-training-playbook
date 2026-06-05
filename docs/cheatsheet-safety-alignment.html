@@ -165,7 +165,7 @@
 <td><strong>训练信号</strong></td>
 <td>把&quot;安全/特权序&quot;写进损失/奖励</td>
 <td>安全 RLHF / RBR / 指令层级 / Constitutional AI</td>
-<td>§4.1–4.2, §4.5</td>
+<td>§4.1–4.2, §4.5;CAI 见 data-pipeline</td>
 </tr>
 <tr>
 <td><strong>表征/内部</strong></td>
@@ -290,7 +290,7 @@
     <span class="hljs-keyword">return</span> effective_reward, lam, obj
 </code></pre>
 <h3 id="sec-16">4.2 规则化奖励 — Rule-Based Rewards (RBR)</h3>
-<p><strong>RBR</strong>(Mu et al., <a href="https://arxiv.org/abs/2411.01111">arXiv:2411.01111</a>, NeurIPS 2024):用<strong>人写的布尔规则</strong>(如&quot;是否拒答?是否含免责声明?是否泄露有害细节?&quot;)在 RL 时直接构造安全奖励,而非训练一个不透明的安全 RM。优点:<strong>可解释、可审计、易随政策更新</strong>——相比黑盒安全 RM 更容易发现并修补规则漏洞;但规则本身仍可能被 gaming,需持续审计。适合安全这种&quot;规则相对明确&quot;的维度。</p>
+<p><strong>RBR</strong>(Mu et al., <a href="https://arxiv.org/abs/2411.01111">arXiv:2411.01111</a>, NeurIPS 2024):用<strong>人写的规则</strong>(如&quot;是否拒答?是否含免责声明?是否泄露有害细节?&quot;这类 yes/no 命题),由 <strong>LLM 裁判</strong>给出每条规则的<strong>合规概率(0–1 软分,而非硬 0/1)</strong>,线性加权(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><msub><mi>R</mi><mrow><mi>r</mi><mi>m</mi></mrow></msub><mo>+</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>w</mi><mi>i</mi></msub><msub><mi>ϕ</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">R=R_{rm}+\sum_i w_i\phi_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">r</span><span class="mord mathnormal mtight">m</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0497em;vertical-align:-0.2997em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:0em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.162em;"><span style="top:-2.4003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2997em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0269em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">ϕ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>)成安全奖励,而非训练一个不透明的安全 RM。优点:<strong>可解释、可审计、易随政策更新</strong>——相比黑盒安全 RM 更容易发现并修补规则漏洞;但规则本身仍可能被 gaming,需持续审计。适合安全这种&quot;规则相对明确&quot;的维度。</p>
 <h3 id="sec-17">4.3 防护分类器 — Llama Guard</h3>
 <p><strong>Llama Guard</strong>(Inan et al., <a href="https://arxiv.org/abs/2312.06674">arXiv:2312.06674</a>):把内容审核<strong>当成一个 LLM 分类任务</strong>——给定一套危害类别 (taxonomy),用一个微调过的模型在<strong>输入端和输出端</strong>都做拦截(用户请求是否有害?模型回答是否有害?)。是一道独立于主模型的<strong>运行时护栏</strong>,可单独更新而不动主模型。</p>
 <h3 id="sec-18">4.4 表征级防御 — Circuit Breakers</h3>
@@ -304,28 +304,28 @@
 <h2 id="sec-20">5. 安全评测 (Safety Evaluation)</h2>
 <p>安全评测要回答两件事:<strong>有害请求拦得住吗(ASR)?无害请求误伤了吗(over-refusal)?</strong> 二者必须同时测。</p>
 <h3 id="sec-21">5.1 评判器陷阱 — StrongREJECT</h3>
-<p><strong>A StrongREJECT for Empty Jailbreaks</strong>(Souly et al., <a href="https://arxiv.org/abs/2402.10260">arXiv:2402.10260</a>, NeurIPS 2024 D&amp;B)指出已有越狱评测的一个系统性缺陷:<strong>很多&quot;成功越狱&quot;其实是空越狱 (empty jailbreak)</strong>——模型确实没拒绝,但回答<strong>空泛、错误、无实际危害价值</strong>,却被旧指标当成攻击成功,导致攻击效果被<strong>高估</strong>。StrongREJECT 改用 rubric 同时评 <strong>是否拒答 + 回答的具体性 + 可用性</strong>,只把&quot;真正给出有用有害信息&quot;计入 ASR。</p>
+<p><strong>A StrongREJECT for Empty Jailbreaks</strong>(Souly et al., <a href="https://arxiv.org/abs/2402.10260">arXiv:2402.10260</a>, NeurIPS 2024 D&amp;B)指出已有越狱评测的一个系统性缺陷:<strong>很多&quot;成功越狱&quot;其实是空越狱 (empty jailbreak)</strong>——模型确实没拒绝,但回答<strong>空泛、错误、无实际危害价值</strong>,却被旧指标当成攻击成功,导致攻击效果被<strong>高估</strong>。StrongREJECT 改用 rubric 同时评 <strong>是否拒答 + 回答的具体性 + 说服力(convincingness)</strong>,只把&quot;真正给出有用有害信息&quot;计入 ASR。</p>
 <pre><code class="hljs language-python"><span class="hljs-comment"># StrongREJECT 式评判:越狱&quot;成功&quot;不能只看&quot;模型没拒绝&quot;,还要看回答是否</span>
 <span class="hljs-comment"># 真正给出了有用的有害信息。把回答分三态:拒答 / 空合规(答了但无用)/ 真合规。</span>
 <span class="hljs-comment"># 真实 StrongREJECT 用 rubric 评 refusal+specificity+convincingness;此处用占位特征。</span>
-<span class="hljs-keyword">def</span> <span class="hljs-title function_">classify_response</span>(<span class="hljs-params">refused, specificity, usefulness, tau=<span class="hljs-number">0.5</span></span>):
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">classify_response</span>(<span class="hljs-params">refused, specificity, convincingness, tau=<span class="hljs-number">0.5</span></span>):
     <span class="hljs-keyword">if</span> refused:
         <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;refusal&quot;</span>, <span class="hljs-number">0.0</span>                          <span class="hljs-comment"># 明确拒答 → 非越狱</span>
-    <span class="hljs-keyword">if</span> specificity &lt; tau <span class="hljs-keyword">or</span> usefulness &lt; tau:
-        <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;empty_compliance&quot;</span>, <span class="hljs-number">0.0</span>                 <span class="hljs-comment"># 答了但空泛/无用 → 不算成功</span>
-    <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;real_compliance&quot;</span>, specificity * usefulness <span class="hljs-comment"># 真有用 → 越狱成功度</span>
+    <span class="hljs-keyword">if</span> specificity &lt; tau <span class="hljs-keyword">or</span> convincingness &lt; tau:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;empty_compliance&quot;</span>, <span class="hljs-number">0.0</span>                 <span class="hljs-comment"># 答了但空泛/不够有说服力 → 不算成功</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;real_compliance&quot;</span>, specificity * convincingness <span class="hljs-comment"># 真合规 → 越狱成功度</span>
 
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">attack_success_rate</span>(<span class="hljs-params">records, tau=<span class="hljs-number">0.5</span></span>):
-    <span class="hljs-comment"># records: list[dict(refused, specificity, usefulness)]</span>
+    <span class="hljs-comment"># records: list[dict(refused, specificity, convincingness)]</span>
     succ = <span class="hljs-built_in">sum</span>(classify_response(r[<span class="hljs-string">&quot;refused&quot;</span>], r[<span class="hljs-string">&quot;specificity&quot;</span>],
-                                 r[<span class="hljs-string">&quot;usefulness&quot;</span>], tau)[<span class="hljs-number">0</span>] == <span class="hljs-string">&quot;real_compliance&quot;</span>
+                                 r[<span class="hljs-string">&quot;convincingness&quot;</span>], tau)[<span class="hljs-number">0</span>] == <span class="hljs-string">&quot;real_compliance&quot;</span>
                <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> records)
     <span class="hljs-keyword">return</span> succ / <span class="hljs-built_in">max</span>(<span class="hljs-number">1</span>, <span class="hljs-built_in">len</span>(records))                 <span class="hljs-comment"># 只把&quot;真合规&quot;计入 ASR</span>
 </code></pre>
 <h3 id="sec-22">5.2 自动化红队基准 — HarmBench</h3>
 <p><strong>HarmBench</strong>(Mazeika et al., <a href="https://arxiv.org/abs/2402.04249">arXiv:2402.04249</a>, ICML 2024):提供一个<strong>标准化框架</strong>,统一比较 <strong>18 种红队攻击方法 × 33 个目标模型/防御</strong>。把&quot;各家用各自的攻击和指标、结果不可比&quot;变成<strong>可复现的横向评测</strong>,并据此评估防御(如对抗训练)的鲁棒性。</p>
 <h3 id="sec-23">5.3 过度拒答 — XSTest</h3>
-<p><strong>XSTest</strong>(Röttger et al., <a href="https://arxiv.org/abs/2308.01263">arXiv:2308.01263</a>, NAACL 2024):专测 <strong>over-refusal(夸张的安全行为)</strong>。构造 <strong>250 条安全提示</strong>,它们<strong>表面酷似不安全请求</strong>(如含 &quot;kill&quot;&quot;attack&quot;&quot;shoot&quot; 但语境无害),看模型会不会&quot;宁可错杀&quot;地拒绝。配套等量真正不安全的提示,<strong>两端对照</strong>才能区分&quot;真安全&quot;与&quot;过度保守&quot;。</p>
+<p><strong>XSTest</strong>(Röttger et al., <a href="https://arxiv.org/abs/2308.01263">arXiv:2308.01263</a>, NAACL 2024):专测 <strong>over-refusal(夸张的安全行为)</strong>。构造 <strong>250 条安全提示</strong>,它们<strong>表面酷似不安全请求</strong>(如含 &quot;kill&quot;&quot;attack&quot;&quot;shoot&quot; 但语境无害),看模型会不会&quot;宁可错杀&quot;地拒绝。配套 200 条真正不安全的提示(共 450 条),<strong>两端对照</strong>才能区分&quot;真安全&quot;与&quot;过度保守&quot;。</p>
 <h3 id="sec-24">5.4 安全数据集 — Do-Not-Answer</h3>
 <p><strong>Do-Not-Answer</strong>(Wang et al., <a href="https://arxiv.org/abs/2308.13387">arXiv:2308.13387</a>, Findings of EACL 2024):整理一套<strong>负责任的 LLM 本应拒答</strong>的指令集合,并证明<strong>轻量分类器</strong>(如小 BERT)就能评估拒答质量,接近 GPT-4 的判别力——让安全评测<strong>低成本、可复现</strong>,不必每次都用昂贵的大模型当裁判。</p>
 <hr>
@@ -334,7 +334,7 @@
 <h3 id="sec-26">6.1 微调即破安全</h3>
 <p><strong>Fine-tuning Compromises Safety</strong>(Qi et al., <a href="https://arxiv.org/abs/2310.03693">arXiv:2310.03693</a>, ICLR 2024):在一个对齐良好的模型上<strong>只用约 10 条对抗性样本微调</strong>,就能基本绕过其安全对齐;甚至<strong>良性微调</strong>(在正常数据上继续训练)也会无意中削弱安全。一种解释:对齐主要约束了<strong>推理时的输出分布</strong>,而对后续的<strong>权重更新缺乏鲁棒性</strong>——几步梯度就能把它推翻。</p>
 <h3 id="sec-27">6.2 浅层安全对齐</h3>
-<p><strong>Safety Alignment Should Be More Than a Few Tokens Deep</strong>(Qi et al., <a href="https://arxiv.org/abs/2406.05946">arXiv:2406.05946</a>, ICLR 2025 Oral / Outstanding):当前对齐是**&quot;浅&quot;的——它主要改变了模型输出<strong>前几个 token</strong> 的分布**(让回答以&quot;我不能…&quot;开头),而靠后的 token 几乎不受安全约束。这一个机制就解释了多种攻击:<strong>前缀注入、prefilling、对抗后缀、微调</strong>,本质都在绕过那几个 token 之后让模型&quot;裸奔&quot;。</p>
+<p><strong>Safety Alignment Should Be Made More Than Just a Few Tokens Deep</strong>(Qi et al., <a href="https://arxiv.org/abs/2406.05946">arXiv:2406.05946</a>, ICLR 2025 Oral / Outstanding):当前对齐是**&quot;浅&quot;的——它主要改变了模型输出<strong>前几个 token</strong> 的分布**(让回答以&quot;我不能…&quot;开头),而靠后的 token 几乎不受安全约束。这一个机制就解释了多种攻击:<strong>前缀注入、prefilling、对抗后缀、微调</strong>,本质都在绕过那几个 token 之后让模型&quot;裸奔&quot;。</p>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
 
 <span class="hljs-comment"># 浅层对齐:标准 SFT 安全损失被前几个 token(如&quot;我不能…&quot;)主导,</span>
@@ -410,7 +410,7 @@
 </blockquote>
 </details><hr>
 <details>
-<summary>Q7: 安全评测里 ASR 是什么?为什么"模型没拒绝"不等于越狱成功?</summary><p><strong>答：</strong> ASR = Attack Success Rate(攻击成功率)。&quot;模型没拒绝&quot;不等于成功,因为可能是<strong>空越狱</strong>——模型答了但内容空泛、错误、无实际危害价值。StrongREJECT 指出旧指标把空越狱算成功会<strong>高估攻击效果</strong>,应同时评&quot;是否拒答 + 具体性 + 可用性&quot;,只把真正给出有用有害信息的计入 ASR。</p>
+<summary>Q7: 安全评测里 ASR 是什么?为什么"模型没拒绝"不等于越狱成功?</summary><p><strong>答：</strong> ASR = Attack Success Rate(攻击成功率)。&quot;模型没拒绝&quot;不等于成功,因为可能是<strong>空越狱</strong>——模型答了但内容空泛、错误、无实际危害价值。StrongREJECT 指出旧指标把空越狱算成功会<strong>高估攻击效果</strong>,应同时评&quot;是否拒答 + 具体性 + 说服力(convincingness)&quot;,只把真正给出有用有害信息的计入 ASR。</p>
 <blockquote>
 <p><strong>追问：</strong> 空越狱为什么会系统性虚高攻击成功率?
 因为很多攻击只是让模型&quot;开始作答&quot;却产不出有用内容,旧的&quot;是否含拒绝词&quot;指标无法区分&quot;真给了&quot;和&quot;瞎编&quot;,于是把大量无害的废话也计为成功。</p>
@@ -454,7 +454,7 @@
 </blockquote>
 </details><hr>
 <details>
-<summary>Q13: Rule-Based Rewards (RBR) 相比学出来的安全 RM 有何优劣?</summary><p><strong>答：</strong> RBR 用<strong>人写的布尔规则</strong>(是否拒答?是否含免责声明?是否泄露有害细节?)直接构造安全奖励。优:<strong>可解释、可审计、易随政策更新</strong>;相比黑盒安全 RM 更容易发现并修补规则漏洞(但规则本身仍可能被 gaming,需持续审计),适合&quot;规则相对明确&quot;的安全维度。劣:规则覆盖不全的灰色地带难表达,规则维护需人工,且对&quot;语义级&quot;危害(隐晦诱导)不如学出来的 RM 灵活。</p>
+<summary>Q13: Rule-Based Rewards (RBR) 相比学出来的安全 RM 有何优劣?</summary><p><strong>答：</strong> RBR 用<strong>人写的规则</strong>(是否拒答?是否含免责声明?是否泄露有害细节?;由 LLM 裁判给 0–1 合规软分)直接构造安全奖励。优:<strong>可解释、可审计、易随政策更新</strong>;相比黑盒安全 RM 更容易发现并修补规则漏洞(但规则本身仍可能被 gaming,需持续审计),适合&quot;规则相对明确&quot;的安全维度。劣:规则覆盖不全的灰色地带难表达,规则维护需人工,且对&quot;语义级&quot;危害(隐晦诱导)不如学出来的 RM 灵活。</p>
 <blockquote>
 <p><strong>追问：</strong> 为什么安全维度特别适合用规则奖励?
 因为安全策略本身常以明文规则/政策形式存在(可拒答的类别清单),规则化奖励能直接对齐政策、便于合规审计;而&quot;有用性&quot;这类主观维度更适合学出来的 RM。</p>
@@ -468,14 +468,14 @@
 </blockquote>
 </details><hr>
 <details>
-<summary>Q15: StrongREJECT 解决了已有越狱评测的什么问题?</summary><p><strong>答：</strong> 解决<strong>空越狱 (empty jailbreak)</strong> 导致的攻击效果<strong>高估</strong>:很多&quot;成功越狱&quot;其实模型只是没拒绝,但回答空泛/错误/无危害价值,旧指标(看是否含拒绝词)却算成功。StrongREJECT 用 rubric 同时评<strong>是否拒答 + 具体性 + 可用性</strong>,只把&quot;真正给出有用有害信息&quot;计入 ASR,让攻击强度可比、不被废话灌水。</p>
+<summary>Q15: StrongREJECT 解决了已有越狱评测的什么问题?</summary><p><strong>答：</strong> 解决<strong>空越狱 (empty jailbreak)</strong> 导致的攻击效果<strong>高估</strong>:很多&quot;成功越狱&quot;其实模型只是没拒绝,但回答空泛/错误/无危害价值,旧指标(看是否含拒绝词)却算成功。StrongREJECT 用 rubric 同时评<strong>是否拒答 + 具体性 + 说服力(convincingness)</strong>,只把&quot;真正给出有用有害信息&quot;计入 ASR,让攻击强度可比、不被废话灌水。</p>
 <blockquote>
 <p><strong>追问：</strong> 为什么这对比较不同攻击方法很关键?
 若评判器把空越狱计成功,&quot;成功率高&quot;的攻击可能只是更会让模型废话,而非更危险;统一用 StrongREJECT 才能公平横比攻击的真实危害产出。</p>
 </blockquote>
 </details><hr>
 <details>
-<summary>Q16: XSTest 测的是什么?为什么需要专门测 over-refusal?</summary><p><strong>答：</strong> XSTest 测 <strong>over-refusal(夸张安全)</strong>:用 250 条<strong>表面酷似不安全、实则无害</strong>的提示(含 kill/attack 等词但语境无害),看模型会不会&quot;宁可错杀&quot;。需要专门测是因为安全训练几乎总把边界推向更易拒答,只测有害拒答率会<strong>奖励&quot;什么都拒&quot;的退化策略</strong>;配套等量真不安全提示两端对照,才能区分真安全与过度保守。</p>
+<summary>Q16: XSTest 测的是什么?为什么需要专门测 over-refusal?</summary><p><strong>答：</strong> XSTest 测 <strong>over-refusal(夸张安全)</strong>:用 250 条<strong>表面酷似不安全、实则无害</strong>的提示(含 kill/attack 等词但语境无害),看模型会不会&quot;宁可错杀&quot;。需要专门测是因为安全训练几乎总把边界推向更易拒答,只测有害拒答率会<strong>奖励&quot;什么都拒&quot;的退化策略</strong>;配套 200 条真不安全提示(共 450 条)两端对照,才能区分真安全与过度保守。</p>
 <blockquote>
 <p><strong>追问：</strong> 一个只会拒答的模型在 XSTest 上会怎样?
 有害拒答率满分,但 XSTest 上 over-refusal 极高——暴露它是靠牺牲可用性换安全,不是真正学会区分。</p>
@@ -661,7 +661,7 @@
 <tr>
 <td>RBR</td>
 <td>规则化奖励</td>
-<td>人写布尔规则直接构造安全奖励,可解释</td>
+<td>人写规则 + LLM 裁判软分,直接构造安全奖励,可解释</td>
 </tr>
 <tr>
 <td>Llama Guard</td>
@@ -757,7 +757,7 @@
 </li>
 <li><p><strong>2024-02 · HarmBench: Standardized Automated Red Teaming</strong> — Mazeika et al., ICML 2024. <a href="https://arxiv.org/abs/2402.04249">arXiv:2402.04249</a> — 用 18 攻击 × 33 模型的统一框架让越狱攻防可复现、可横比,并据此系统评估防御鲁棒性。</p>
 </li>
-<li><p><strong>2024-02 · A StrongREJECT for Empty Jailbreaks</strong> — Souly et al., NeurIPS 2024 D&amp;B. <a href="https://arxiv.org/abs/2402.10260">arXiv:2402.10260</a> — 指出&quot;空越狱&quot;使旧指标高估攻击,改用 rubric 评拒答+具体性+可用性,只把真有用的有害产出计入 ASR。</p>
+<li><p><strong>2024-02 · A StrongREJECT for Empty Jailbreaks</strong> — Souly et al., NeurIPS 2024 D&amp;B. <a href="https://arxiv.org/abs/2402.10260">arXiv:2402.10260</a> — 指出&quot;空越狱&quot;使旧指标高估攻击,改用 rubric 评拒答+具体性+说服力(convincingness),只把真有用的有害产出计入 ASR。</p>
 </li>
 <li><p><strong>2024-04 · The Instruction Hierarchy</strong> — Wallace et al., preprint. <a href="https://arxiv.org/abs/2404.13208">arXiv:2404.13208</a> — 训练模型遵守 system&gt;user&gt;工具 的特权序,使低特权内容无法覆盖高特权安全指令,从训练侧防御(间接)prompt injection。</p>
 </li>
@@ -765,11 +765,11 @@
 </li>
 <li><p><strong>2024-06 · Improving Alignment and Robustness with Circuit Breakers</strong> — Zou et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2406.04313">arXiv:2406.04313</a> — 用 representation rerouting 在表征层中断有害生成轨迹,使模型即便被绕过拒答也更难产出有害内容,对多类未见攻击经验上更鲁棒。</p>
 </li>
-<li><p><strong>2024-06 · Safety Alignment Should Be More Than a Few Tokens Deep</strong> — Qi et al., ICLR 2025 Oral/Outstanding. <a href="https://arxiv.org/abs/2406.05946">arXiv:2406.05946</a> — 证明当前对齐只改了输出前几个 token 的&quot;浅层&quot;行为,统一解释前缀注入/对抗后缀/微调等攻击,并提出加深对齐的方向。</p>
+<li><p><strong>2024-06 · Safety Alignment Should Be Made More Than Just a Few Tokens Deep</strong> — Qi et al., ICLR 2025 Oral/Outstanding. <a href="https://arxiv.org/abs/2406.05946">arXiv:2406.05946</a> — 证明当前对齐只改了输出前几个 token 的&quot;浅层&quot;行为,统一解释前缀注入/对抗后缀/微调等攻击,并提出加深对齐的方向。</p>
 </li>
 <li><p><strong>2024-06 · Refusal in LMs Is Mediated by a Single Direction</strong> — Arditi et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2406.11717">arXiv:2406.11717</a> — 在 13 个开源模型上发现拒答由残差流单一线性方向中介:消除即关拒答、注入即触发,揭示开放权重模型对齐的表征级脆弱性。</p>
 </li>
-<li><p><strong>2024-11 · Rule Based Rewards for Language Model Safety</strong> — Mu et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2411.01111">arXiv:2411.01111</a> — 用人写布尔规则在 RL 中直接构造安全奖励,替代不透明的安全 RM,使安全信号可解释、可审计、随政策更新;规则漏洞比黑盒 RM 更易发现修补,但规则本身仍可能被 gaming、需持续审计。</p>
+<li><p><strong>2024-11 · Rule Based Rewards for Language Model Safety</strong> — Mu et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2411.01111">arXiv:2411.01111</a> — 用人写规则(LLM 裁判给 0–1 软分)在 RL 中直接构造安全奖励,替代不透明的安全 RM,使安全信号可解释、可审计、随政策更新;规则漏洞比黑盒 RM 更易发现修补,但规则本身仍可能被 gaming、需持续审计。</p>
 </li>
 </ul>
 </main>

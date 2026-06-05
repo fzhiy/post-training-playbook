@@ -19,7 +19,7 @@
 
 | 层面 | 做法 | 代表 | 章节 |
 |------|------|------|------|
-| **训练信号** | 把"安全/特权序"写进损失/奖励 | 安全 RLHF / RBR / 指令层级 / Constitutional AI | §4.1–4.2, §4.5 |
+| **训练信号** | 把"安全/特权序"写进损失/奖励 | 安全 RLHF / RBR / 指令层级 / Constitutional AI | §4.1–4.2, §4.5;CAI 见 data-pipeline |
 | **表征/内部** | 改写产生有害输出的内部表征 | Circuit Breakers | §4.4 |
 | **运行时 I/O 护栏** | 在输入/输出端独立拦截 | Llama Guard | §4.3 |
 | **评测/审计** | 攻击模型、度量拒答与过度拒答 | 红队 / HarmBench / StrongREJECT / XSTest | §2, §5 |
@@ -155,7 +155,7 @@ def safe_rlhf_step(lam, batch_reward, batch_cost, d, lr_lambda=0.05):
 
 ### 4.2 规则化奖励 — Rule-Based Rewards (RBR)
 
-**RBR**(Mu et al., [arXiv:2411.01111](https://arxiv.org/abs/2411.01111), NeurIPS 2024):用**人写的布尔规则**(如"是否拒答?是否含免责声明?是否泄露有害细节?")在 RL 时直接构造安全奖励,而非训练一个不透明的安全 RM。优点:**可解释、可审计、易随政策更新**——相比黑盒安全 RM 更容易发现并修补规则漏洞;但规则本身仍可能被 gaming,需持续审计。适合安全这种"规则相对明确"的维度。
+**RBR**(Mu et al., [arXiv:2411.01111](https://arxiv.org/abs/2411.01111), NeurIPS 2024):用**人写的规则**(如"是否拒答?是否含免责声明?是否泄露有害细节?"这类 yes/no 命题),由 **LLM 裁判**给出每条规则的**合规概率(0–1 软分,而非硬 0/1)**,线性加权($R=R_{rm}+\sum_i w_i\phi_i$)成安全奖励,而非训练一个不透明的安全 RM。优点:**可解释、可审计、易随政策更新**——相比黑盒安全 RM 更容易发现并修补规则漏洞;但规则本身仍可能被 gaming,需持续审计。适合安全这种"规则相对明确"的维度。
 
 ### 4.3 防护分类器 — Llama Guard
 
@@ -179,23 +179,23 @@ def safe_rlhf_step(lam, batch_reward, batch_cost, d, lr_lambda=0.05):
 
 ### 5.1 评判器陷阱 — StrongREJECT
 
-**A StrongREJECT for Empty Jailbreaks**(Souly et al., [arXiv:2402.10260](https://arxiv.org/abs/2402.10260), NeurIPS 2024 D&B)指出已有越狱评测的一个系统性缺陷:**很多"成功越狱"其实是空越狱 (empty jailbreak)**——模型确实没拒绝,但回答**空泛、错误、无实际危害价值**,却被旧指标当成攻击成功,导致攻击效果被**高估**。StrongREJECT 改用 rubric 同时评 **是否拒答 + 回答的具体性 + 可用性**,只把"真正给出有用有害信息"计入 ASR。
+**A StrongREJECT for Empty Jailbreaks**(Souly et al., [arXiv:2402.10260](https://arxiv.org/abs/2402.10260), NeurIPS 2024 D&B)指出已有越狱评测的一个系统性缺陷:**很多"成功越狱"其实是空越狱 (empty jailbreak)**——模型确实没拒绝,但回答**空泛、错误、无实际危害价值**,却被旧指标当成攻击成功,导致攻击效果被**高估**。StrongREJECT 改用 rubric 同时评 **是否拒答 + 回答的具体性 + 说服力(convincingness)**,只把"真正给出有用有害信息"计入 ASR。
 
 ```python
 # StrongREJECT 式评判:越狱"成功"不能只看"模型没拒绝",还要看回答是否
 # 真正给出了有用的有害信息。把回答分三态:拒答 / 空合规(答了但无用)/ 真合规。
 # 真实 StrongREJECT 用 rubric 评 refusal+specificity+convincingness;此处用占位特征。
-def classify_response(refused, specificity, usefulness, tau=0.5):
+def classify_response(refused, specificity, convincingness, tau=0.5):
     if refused:
         return "refusal", 0.0                          # 明确拒答 → 非越狱
-    if specificity < tau or usefulness < tau:
-        return "empty_compliance", 0.0                 # 答了但空泛/无用 → 不算成功
-    return "real_compliance", specificity * usefulness # 真有用 → 越狱成功度
+    if specificity < tau or convincingness < tau:
+        return "empty_compliance", 0.0                 # 答了但空泛/不够有说服力 → 不算成功
+    return "real_compliance", specificity * convincingness # 真合规 → 越狱成功度
 
 def attack_success_rate(records, tau=0.5):
-    # records: list[dict(refused, specificity, usefulness)]
+    # records: list[dict(refused, specificity, convincingness)]
     succ = sum(classify_response(r["refused"], r["specificity"],
-                                 r["usefulness"], tau)[0] == "real_compliance"
+                                 r["convincingness"], tau)[0] == "real_compliance"
                for r in records)
     return succ / max(1, len(records))                 # 只把"真合规"计入 ASR
 ```
@@ -206,7 +206,7 @@ def attack_success_rate(records, tau=0.5):
 
 ### 5.3 过度拒答 — XSTest
 
-**XSTest**(Röttger et al., [arXiv:2308.01263](https://arxiv.org/abs/2308.01263), NAACL 2024):专测 **over-refusal(夸张的安全行为)**。构造 **250 条安全提示**,它们**表面酷似不安全请求**(如含 "kill""attack""shoot" 但语境无害),看模型会不会"宁可错杀"地拒绝。配套等量真正不安全的提示,**两端对照**才能区分"真安全"与"过度保守"。
+**XSTest**(Röttger et al., [arXiv:2308.01263](https://arxiv.org/abs/2308.01263), NAACL 2024):专测 **over-refusal(夸张的安全行为)**。构造 **250 条安全提示**,它们**表面酷似不安全请求**(如含 "kill""attack""shoot" 但语境无害),看模型会不会"宁可错杀"地拒绝。配套 200 条真正不安全的提示(共 450 条),**两端对照**才能区分"真安全"与"过度保守"。
 
 ### 5.4 安全数据集 — Do-Not-Answer
 
@@ -224,7 +224,7 @@ def attack_success_rate(records, tau=0.5):
 
 ### 6.2 浅层安全对齐
 
-**Safety Alignment Should Be More Than a Few Tokens Deep**(Qi et al., [arXiv:2406.05946](https://arxiv.org/abs/2406.05946), ICLR 2025 Oral / Outstanding):当前对齐是**"浅"的——它主要改变了模型输出**前几个 token** 的分布**(让回答以"我不能…"开头),而靠后的 token 几乎不受安全约束。这一个机制就解释了多种攻击:**前缀注入、prefilling、对抗后缀、微调**,本质都在绕过那几个 token 之后让模型"裸奔"。
+**Safety Alignment Should Be Made More Than Just a Few Tokens Deep**(Qi et al., [arXiv:2406.05946](https://arxiv.org/abs/2406.05946), ICLR 2025 Oral / Outstanding):当前对齐是**"浅"的——它主要改变了模型输出**前几个 token** 的分布**(让回答以"我不能…"开头),而靠后的 token 几乎不受安全约束。这一个机制就解释了多种攻击:**前缀注入、prefilling、对抗后缀、微调**,本质都在绕过那几个 token 之后让模型"裸奔"。
 
 ```python
 import numpy as np
@@ -342,7 +342,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q7: 安全评测里 ASR 是什么?为什么"模型没拒绝"不等于越狱成功?</summary>
 
-**答：** ASR = Attack Success Rate(攻击成功率)。"模型没拒绝"不等于成功,因为可能是**空越狱**——模型答了但内容空泛、错误、无实际危害价值。StrongREJECT 指出旧指标把空越狱算成功会**高估攻击效果**,应同时评"是否拒答 + 具体性 + 可用性",只把真正给出有用有害信息的计入 ASR。
+**答：** ASR = Attack Success Rate(攻击成功率)。"模型没拒绝"不等于成功,因为可能是**空越狱**——模型答了但内容空泛、错误、无实际危害价值。StrongREJECT 指出旧指标把空越狱算成功会**高估攻击效果**,应同时评"是否拒答 + 具体性 + 说服力(convincingness)",只把真正给出有用有害信息的计入 ASR。
 
 > **追问：** 空越狱为什么会系统性虚高攻击成功率?
 > 因为很多攻击只是让模型"开始作答"却产不出有用内容,旧的"是否含拒绝词"指标无法区分"真给了"和"瞎编",于是把大量无害的废话也计为成功。
@@ -418,7 +418,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q13: Rule-Based Rewards (RBR) 相比学出来的安全 RM 有何优劣?</summary>
 
-**答：** RBR 用**人写的布尔规则**(是否拒答?是否含免责声明?是否泄露有害细节?)直接构造安全奖励。优:**可解释、可审计、易随政策更新**;相比黑盒安全 RM 更容易发现并修补规则漏洞(但规则本身仍可能被 gaming,需持续审计),适合"规则相对明确"的安全维度。劣:规则覆盖不全的灰色地带难表达,规则维护需人工,且对"语义级"危害(隐晦诱导)不如学出来的 RM 灵活。
+**答：** RBR 用**人写的规则**(是否拒答?是否含免责声明?是否泄露有害细节?;由 LLM 裁判给 0–1 合规软分)直接构造安全奖励。优:**可解释、可审计、易随政策更新**;相比黑盒安全 RM 更容易发现并修补规则漏洞(但规则本身仍可能被 gaming,需持续审计),适合"规则相对明确"的安全维度。劣:规则覆盖不全的灰色地带难表达,规则维护需人工,且对"语义级"危害(隐晦诱导)不如学出来的 RM 灵活。
 
 > **追问：** 为什么安全维度特别适合用规则奖励?
 > 因为安全策略本身常以明文规则/政策形式存在(可拒答的类别清单),规则化奖励能直接对齐政策、便于合规审计;而"有用性"这类主观维度更适合学出来的 RM。
@@ -442,7 +442,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q15: StrongREJECT 解决了已有越狱评测的什么问题?</summary>
 
-**答：** 解决**空越狱 (empty jailbreak)** 导致的攻击效果**高估**:很多"成功越狱"其实模型只是没拒绝,但回答空泛/错误/无危害价值,旧指标(看是否含拒绝词)却算成功。StrongREJECT 用 rubric 同时评**是否拒答 + 具体性 + 可用性**,只把"真正给出有用有害信息"计入 ASR,让攻击强度可比、不被废话灌水。
+**答：** 解决**空越狱 (empty jailbreak)** 导致的攻击效果**高估**:很多"成功越狱"其实模型只是没拒绝,但回答空泛/错误/无危害价值,旧指标(看是否含拒绝词)却算成功。StrongREJECT 用 rubric 同时评**是否拒答 + 具体性 + 说服力(convincingness)**,只把"真正给出有用有害信息"计入 ASR,让攻击强度可比、不被废话灌水。
 
 > **追问：** 为什么这对比较不同攻击方法很关键?
 > 若评判器把空越狱计成功,"成功率高"的攻击可能只是更会让模型废话,而非更危险;统一用 StrongREJECT 才能公平横比攻击的真实危害产出。
@@ -454,7 +454,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 <details>
 <summary>Q16: XSTest 测的是什么?为什么需要专门测 over-refusal?</summary>
 
-**答：** XSTest 测 **over-refusal(夸张安全)**:用 250 条**表面酷似不安全、实则无害**的提示(含 kill/attack 等词但语境无害),看模型会不会"宁可错杀"。需要专门测是因为安全训练几乎总把边界推向更易拒答,只测有害拒答率会**奖励"什么都拒"的退化策略**;配套等量真不安全提示两端对照,才能区分真安全与过度保守。
+**答：** XSTest 测 **over-refusal(夸张安全)**:用 250 条**表面酷似不安全、实则无害**的提示(含 kill/attack 等词但语境无害),看模型会不会"宁可错杀"。需要专门测是因为安全训练几乎总把边界推向更易拒答,只测有害拒答率会**奖励"什么都拒"的退化策略**;配套 200 条真不安全提示(共 450 条)两端对照,才能区分真安全与过度保守。
 
 > **追问：** 一个只会拒答的模型在 XSTest 上会怎样?
 > 有害拒答率满分,但 XSTest 上 over-refusal 极高——暴露它是靠牺牲可用性换安全,不是真正学会区分。
@@ -612,7 +612,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 | Many-shot Jailbreak | 多样本越狱 | 长上下文预置大量有害示例覆盖拒答 |
 | Safe-RLHF | 安全 RLHF | reward+cost 双模型 + 拉格朗日约束优化 |
 | Cost Model | 代价模型 | 评估回答有害程度的模型(对偶于 reward) |
-| RBR | 规则化奖励 | 人写布尔规则直接构造安全奖励,可解释 |
+| RBR | 规则化奖励 | 人写规则 + LLM 裁判软分,直接构造安全奖励,可解释 |
 | Llama Guard | — | LLM 化的输入/输出安全分类器(运行时护栏) |
 | Circuit Breakers | 断路器 | 表征级防御:短路有害生成轨迹 |
 | Instruction Hierarchy | 指令层级 | system>user>工具 的特权序,防注入 |
@@ -665,7 +665,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 
 - **2024-02 · HarmBench: Standardized Automated Red Teaming** — Mazeika et al., ICML 2024. [arXiv:2402.04249](https://arxiv.org/abs/2402.04249) — 用 18 攻击 × 33 模型的统一框架让越狱攻防可复现、可横比,并据此系统评估防御鲁棒性。
 
-- **2024-02 · A StrongREJECT for Empty Jailbreaks** — Souly et al., NeurIPS 2024 D&B. [arXiv:2402.10260](https://arxiv.org/abs/2402.10260) — 指出"空越狱"使旧指标高估攻击,改用 rubric 评拒答+具体性+可用性,只把真有用的有害产出计入 ASR。
+- **2024-02 · A StrongREJECT for Empty Jailbreaks** — Souly et al., NeurIPS 2024 D&B. [arXiv:2402.10260](https://arxiv.org/abs/2402.10260) — 指出"空越狱"使旧指标高估攻击,改用 rubric 评拒答+具体性+说服力(convincingness),只把真有用的有害产出计入 ASR。
 
 - **2024-04 · The Instruction Hierarchy** — Wallace et al., preprint. [arXiv:2404.13208](https://arxiv.org/abs/2404.13208) — 训练模型遵守 system>user>工具 的特权序,使低特权内容无法覆盖高特权安全指令,从训练侧防御(间接)prompt injection。
 
@@ -673,8 +673,8 @@ def weighted_safety_loss(token_nll, mode="deep"):
 
 - **2024-06 · Improving Alignment and Robustness with Circuit Breakers** — Zou et al., NeurIPS 2024. [arXiv:2406.04313](https://arxiv.org/abs/2406.04313) — 用 representation rerouting 在表征层中断有害生成轨迹,使模型即便被绕过拒答也更难产出有害内容,对多类未见攻击经验上更鲁棒。
 
-- **2024-06 · Safety Alignment Should Be More Than a Few Tokens Deep** — Qi et al., ICLR 2025 Oral/Outstanding. [arXiv:2406.05946](https://arxiv.org/abs/2406.05946) — 证明当前对齐只改了输出前几个 token 的"浅层"行为,统一解释前缀注入/对抗后缀/微调等攻击,并提出加深对齐的方向。
+- **2024-06 · Safety Alignment Should Be Made More Than Just a Few Tokens Deep** — Qi et al., ICLR 2025 Oral/Outstanding. [arXiv:2406.05946](https://arxiv.org/abs/2406.05946) — 证明当前对齐只改了输出前几个 token 的"浅层"行为,统一解释前缀注入/对抗后缀/微调等攻击,并提出加深对齐的方向。
 
 - **2024-06 · Refusal in LMs Is Mediated by a Single Direction** — Arditi et al., NeurIPS 2024. [arXiv:2406.11717](https://arxiv.org/abs/2406.11717) — 在 13 个开源模型上发现拒答由残差流单一线性方向中介:消除即关拒答、注入即触发,揭示开放权重模型对齐的表征级脆弱性。
 
-- **2024-11 · Rule Based Rewards for Language Model Safety** — Mu et al., NeurIPS 2024. [arXiv:2411.01111](https://arxiv.org/abs/2411.01111) — 用人写布尔规则在 RL 中直接构造安全奖励,替代不透明的安全 RM,使安全信号可解释、可审计、随政策更新;规则漏洞比黑盒 RM 更易发现修补,但规则本身仍可能被 gaming、需持续审计。
+- **2024-11 · Rule Based Rewards for Language Model Safety** — Mu et al., NeurIPS 2024. [arXiv:2411.01111](https://arxiv.org/abs/2411.01111) — 用人写规则(LLM 裁判给 0–1 软分)在 RL 中直接构造安全奖励,替代不透明的安全 RM,使安全信号可解释、可审计、随政策更新;规则漏洞比黑盒 RM 更易发现修补,但规则本身仍可能被 gaming、需持续审计。
