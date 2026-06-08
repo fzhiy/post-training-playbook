@@ -140,7 +140,7 @@
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-ml-system-design-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">ML / LLM 系统设计速查表</h1><p class="hero-sub">ML / LLM System Design — Cheat Sheet</p><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">一、概念与公式推导 / Concepts &amp; Key Formulas</a></li><li class="lv3"><a href="#sec-1">1.1 因果语言模型 / Causal Language Modeling (CLM)</a></li><li class="lv3"><a href="#sec-2">1.2 Softmax 与 Attention / Softmax &amp; Attention</a></li><li class="lv3"><a href="#sec-3">1.3 Position Encoding / 位置编码</a></li><li class="lv3"><a href="#sec-4">1.4 LoRA — 低秩适配 / Low-Rank Adaptation</a></li><li class="lv3"><a href="#sec-5">1.5 RLHF 与 DPO / Reinforcement Learning from Human Feedback</a></li><li class="lv3"><a href="#sec-6">1.5b RLHF 分布式架构 / Distributed RLHF Architecture</a></li><li class="lv3"><a href="#sec-7">1.6 分布式训练 — 并行策略 / Distributed Training Parallelism</a></li><li class="lv3"><a href="#sec-8">1.7 KV Cache 显存分析 / KV Cache Memory Analysis</a></li><li class="lv3"><a href="#sec-9">1.7b FlashAttention — 从 FA2 到 FA3 / FlashAttention: FA2 → FA3</a></li><li class="lv3"><a href="#sec-10">1.8 量化基础 / Quantization Fundamentals</a></li><li class="lv3"><a href="#sec-11">1.8b FP8 训练与 Transformer Engine / FP8 Training &amp; Transformer Engine</a></li><li class="lv3"><a href="#sec-12">1.8c Marlin INT4 内核 / Marlin INT4 Kernel</a></li><li class="lv3"><a href="#sec-13">1.8d 量化粒度对比 / Quantization Granularity Comparison</a></li><li class="lv3"><a href="#sec-14">1.9 Speculative Decoding / 投机解码</a></li><li class="lv3"><a href="#sec-15">1.9b Chunked Prefill / Chunked Prefill</a></li><li class="lv3"><a href="#sec-16">1.10 模型设计通用框架 / 7-Step ML System Design Framework</a></li><li class="lv2"><a href="#sec-17">二、PyTorch 代码片段 / From-Scratch Snippets</a></li><li class="lv3"><a href="#sec-18">2.1 Scaled Dot-Product Attention</a></li><li class="lv3"><a href="#sec-19">2.2 Causal Self-Attention Layer</a></li><li class="lv3"><a href="#sec-20">2.3 LoRA Layer</a></li><li class="lv3"><a href="#sec-21">2.4 Grouped-Query Attention (GQA)</a></li><li class="lv3"><a href="#sec-22">2.5 RoPE (Rotary Position Embedding)</a></li><li class="lv3"><a href="#sec-23">2.6 DPO Loss</a></li><li class="lv3"><a href="#sec-24">2.7 KV Cache Wrapper (Minimal)</a></li><li class="lv3"><a href="#sec-25">2.8 Symmetric INT8 Quantize / Dequantize</a></li><li class="lv3"><a href="#sec-26">2.9 Tensor-Parallel Linear (Column / Row)</a></li><li class="lv2"><a href="#sec-27">三、面试题 / Interview Questions</a></li><li class="lv3"><a href="#sec-28">L1 — 基础 / Basic</a></li><li class="lv3"><a href="#sec-29">L2 — 中级 / Intermediate</a></li><li class="lv3"><a href="#sec-30">L3 — 深度 / Deep</a></li><li class="lv2"><a href="#sec-31">附录：关键术语对照表 / Appendix: Key Term Glossary</a></li><li class="lv2"><a href="#sec-32">更多 L3 深挖 / Extended L3</a></li><li class="lv2"><a href="#sec-33">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">一、概念与公式推导 / Concepts &amp; Key Formulas</a></li><li class="lv3"><a href="#sec-1">1.1 因果语言模型 / Causal Language Modeling (CLM)</a></li><li class="lv3"><a href="#sec-2">1.2 Softmax 与 Attention / Softmax &amp; Attention</a></li><li class="lv3"><a href="#sec-3">1.3 Position Encoding / 位置编码</a></li><li class="lv3"><a href="#sec-4">1.4 LoRA — 低秩适配 / Low-Rank Adaptation</a></li><li class="lv3"><a href="#sec-5">1.5 RLHF 与 DPO / Reinforcement Learning from Human Feedback</a></li><li class="lv3"><a href="#sec-6">1.5b RLHF 分布式架构 / Distributed RLHF Architecture</a></li><li class="lv3"><a href="#sec-7">1.6 分布式训练 — 并行策略 / Distributed Training Parallelism</a></li><li class="lv3"><a href="#sec-8">1.6b 解耦服务 — DistServe 与 Mooncake / Disaggregated Serving</a></li><li class="lv3"><a href="#sec-9">1.6c 专家并行 (EP) 与 All-to-All / Expert Parallelism &amp; All-to-All</a></li><li class="lv3"><a href="#sec-10">1.6d FSDP2 vs ZeRO — 参数分片策略对比 / FSDP2 vs ZeRO</a></li><li class="lv3"><a href="#sec-11">1.7 KV Cache 显存分析 / KV Cache Memory Analysis</a></li><li class="lv3"><a href="#sec-12">1.7b FlashAttention — 从 FA2 到 FA3 / FlashAttention: FA2 → FA3</a></li><li class="lv3"><a href="#sec-13">1.7c RadixAttention — 前缀感知 KV Cache 复用 / RadixAttention &amp; Prefix-Aware KV Cache Reuse</a></li><li class="lv3"><a href="#sec-14">1.8 量化基础 / Quantization Fundamentals</a></li><li class="lv3"><a href="#sec-15">1.8b FP8 训练与 Transformer Engine / FP8 Training &amp; Transformer Engine</a></li><li class="lv3"><a href="#sec-16">1.8c Marlin INT4 内核 / Marlin INT4 Kernel</a></li><li class="lv3"><a href="#sec-17">1.8d 量化粒度对比 / Quantization Granularity Comparison</a></li><li class="lv3"><a href="#sec-18">1.9 Speculative Decoding / 投机解码</a></li><li class="lv3"><a href="#sec-19">1.9b Chunked Prefill / Chunked Prefill</a></li><li class="lv3"><a href="#sec-20">1.10 模型设计通用框架 / 7-Step ML System Design Framework</a></li><li class="lv2"><a href="#sec-21">二、PyTorch 代码片段 / From-Scratch Snippets</a></li><li class="lv3"><a href="#sec-22">2.1 Scaled Dot-Product Attention</a></li><li class="lv3"><a href="#sec-23">2.2 Causal Self-Attention Layer</a></li><li class="lv3"><a href="#sec-24">2.3 LoRA Layer</a></li><li class="lv3"><a href="#sec-25">2.4 Grouped-Query Attention (GQA)</a></li><li class="lv3"><a href="#sec-26">2.5 RoPE (Rotary Position Embedding)</a></li><li class="lv3"><a href="#sec-27">2.6 DPO Loss</a></li><li class="lv3"><a href="#sec-28">2.7 KV Cache Wrapper (Minimal)</a></li><li class="lv3"><a href="#sec-29">2.8 Symmetric INT8 Quantize / Dequantize</a></li><li class="lv3"><a href="#sec-30">2.9 Tensor-Parallel Linear (Column / Row)</a></li><li class="lv2"><a href="#sec-31">三、面试题 / Interview Questions</a></li><li class="lv3"><a href="#sec-32">L1 — 基础 / Basic</a></li><li class="lv3"><a href="#sec-33">L2 — 中级 / Intermediate</a></li><li class="lv3"><a href="#sec-34">L3 — 深度 / Deep</a></li><li class="lv2"><a href="#sec-35">附录：关键术语对照表 / Appendix: Key Term Glossary</a></li><li class="lv2"><a href="#sec-36">更多 L3 深挖 / Extended L3</a></li><li class="lv2"><a href="#sec-37">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>面向 LLM Research Intern 岗位准备 | For LLM research intern preparation
 公开发布版 · 无特定论文内部结果 | Public edition · No proprietary results included</p>
@@ -590,10 +590,233 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <ul>
 <li>单机 8 卡：DP/ZeRO-2 + TP（NVLink 快）</li>
 <li>多机：DP/ZeRO-3 + PP（跨节点带宽低）+ TP（节点内）</li>
-<li>超长上下文：加入 SP（Ring Attention）</li>
 </ul>
+<h3 id="sec-8">1.6b 解耦服务 — DistServe 与 Mooncake / Disaggregated Serving</h3>
+<p>传统 LLM 服务将 prefill 和 decode <strong>共享同一 GPU</strong>（如 vLLM），但两个阶段的资源需求截然不同：prefill 是 <strong>compute-bound</strong>（受益于 intra-op 并行），decode 是 <strong>memory-bandwidth-bound</strong>（受益于增大 batch）。共享 GPU 导致<strong>相互干扰</strong>——compute-heavy prefill 拖慢 decode（TPOT 膨胀），decode batch 拖慢 prefill（TTFT 膨胀）；且只能采用折中并行策略。</p>
+<p><strong>DistServe (Zhong et al., OSDI 2024, arXiv:2401.09670)</strong> 首次正式论证<strong>解耦 prefill 和 decode 到不同 GPU</strong>：prefill 实例和 decode 实例独立配置并行策略，KV cache 通过节点内 NVLINK 快速迁移（OPT-175B ShareGPT 实测 KV cache 传输 &lt;0.1% 总延迟，取决于 placement 和 interconnect）。</p>
+<p><strong>核心收益：</strong></p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>vs SOTA (vLLM 等)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>最大请求速率 (goodput)</td>
+<td>最高 <strong>7.4×</strong> (vs DeepSpeed-MII)；vs vLLM 各任务 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2.0</mn></mrow><annotation encoding="application/x-tex">2.0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2.0</span></span></span></span>–<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5.7</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">5.7\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5.7</span><span class="mord">×</span></span></span></span></td>
+</tr>
+<tr>
+<td>SLO 遵守率</td>
+<td>&gt;90% 请求满足延迟约束</td>
+</tr>
+<tr>
+<td>单 GPU goodput (13B 示例)</td>
+<td>~3.3 rps/GPU (vs ~1.6, 合成工作负载示意)</td>
+</tr>
+</tbody></table>
+<p><strong>Mooncake (Qin et al., Moonshot AI / Kimi, arXiv:2407.00079)</strong> 将解耦思想工程化为生产系统，同时引入<strong>以 KV cache 为中心的架构</strong>：</p>
+<ul>
+<li><strong>KVCache 池</strong>: 利用 GPU 集群中<strong>未充分利用的 CPU DRAM + SSD</strong> 组成共享 KV cache 池，通过 RDMA（含 GPUDirect）提供高速跨机传输（Messenger 组件；vLLM 集成支持 TCP/NVMe-of 等额外协议）</li>
+<li><strong>Conductor 全局调度器</strong>: 基于 KV cache 复用潜力 + 节点负载 + SLO 约束做请求调度；过载时<strong>预测式提前拒绝</strong></li>
+<li><strong>Chunked Pipeline Parallelism (CPP)</strong>: 长上下文 prefill 分块到多 GPU + 逐层流式传输增量的 KV cache，重叠传输与计算</li>
+</ul>
+<p><strong>关键数字：</strong> Kimi 真实负载重放测试：<strong>~75% 更多请求</strong>在 SLO 内处理；长上下文模拟设置下吞吐 <strong>50–525% 提升</strong>（取决于上下文长度）。Mooncake Transfer Engine 已开源并集成入 vLLM (PR #10884)。</p>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p><strong>DistServe vs Mooncake</strong>: DistServe 提供理论论证（OSDI 论文），Mooncake 证明工程可行性（Kimi 万级并发）。共同结论：<strong>在 SLO 约束和长上下文场景下，prefill/decode 解耦 + 专用并行策略 + KV cache 传输显示出显著收益；非普适法则，但在 serving 前沿是主要方向之一。</strong></p>
+</div>
+<h3 id="sec-9">1.6c 专家并行 (EP) 与 All-to-All / Expert Parallelism &amp; All-to-All</h3>
+<p>Mixture-of-Experts (MoE) 模型（如 Mixtral 8×7B、DeepSeek-V3）将 FFN 层拆为多个 expert，每 token 只激活 top-k 个（如 top-2），因此需要<strong>专家并行 (Expert Parallelism, EP)</strong>: 将 expert 分布到不同 GPU，token 通过 <strong>all-to-all 通信</strong>路由到对应 expert 所在的 GPU。</p>
+<p><strong>EP 的核心瓶颈——All-to-All 通信：</strong></p>
+<p>在 DeepSpeed-MoE 推理 DeepSeek-V2-236B 的初步实验中（8 GPUs, Speculative MoE 论文），all-to-all 占 expert 层延迟的 <strong>~59%</strong>，占模型总前向延迟的 <strong>~47%</strong>。EP 的通信成本取决于路由 token 量、hidden size、top-k、dtype 和 interconnect；增加 EP degree 会增加通信参与方和碎片化风险，需与 DP、TP 仔细 trade off。</p>
+<p><strong>优化方向：</strong></p>
+<table>
+<thead>
+<tr>
+<th>系统 / 方法</th>
+<th>场景</th>
+<th>思路</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Parm (IEEE INFOCOM 2024)</strong></td>
+<td>训练</td>
+<td>专用通信调度:消除冗余通信+重叠节点内/间</td>
+<td>1.13–5.77× vs DeepSpeed-MoE</td>
+</tr>
+<tr>
+<td><strong>MoNTA (arXiv:2411.00662)</strong></td>
+<td>训练</td>
+<td>基于网络拓扑的并行策略择优</td>
+<td>All-to-All 8× 加速，端到端 13% 延迟改善</td>
+</tr>
+<tr>
+<td><strong>ScheMoE (2024)</strong></td>
+<td>训练</td>
+<td>泛化调度框架 + 优化 all-to-all collective + 数据压缩</td>
+<td>9–30% vs Tutel/Faster-MoE</td>
+</tr>
+<tr>
+<td><strong>Speculative MoE (arXiv:2503.04398)</strong></td>
+<td>推理</td>
+<td>推测式 token 路由:预判 token-expert 分配减少通信</td>
+<td>1.58–6.54× 吞吐 vs DeepSpeed-MoE</td>
+</tr>
+</tbody></table>
+<p><strong>EP 与其它并行的组合——「8 卡 TP + EP」的权衡：</strong></p>
+<ul>
+<li>节点内 NVLink 带宽高 (900 GB/s)，all-to-all 通信开销相对低 → EP 放节点内</li>
+<li>跨节点带宽低 (InfiniBand / RoCE)，all-to-all 通信开销高 → 优先用 DP/PP 而不是跨节点 EP</li>
+<li>实际部署中，EP 与 TP 常组合使用：TP 做 dense 层的矩阵乘法分片，EP 做 MoE expert 的分布</li>
+</ul>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p><strong>EP 不是「免费」的并行度</strong>: 增加 EP 度虽然降低单卡显存压力，但会<strong>增加 all-to-all 的通信参与方数量</strong>（每次 all-to-all 需要所有 EP rank 参与）。通信开销随 EP degree 线性增长，需要与 DP、TP 仔细 trade off。</p>
+</div>
+<h3 id="sec-10">1.6d FSDP2 vs ZeRO — 参数分片策略对比 / FSDP2 vs ZeRO</h3>
+<p>ZeRO（DeepSpeed, Rajbhandari et al., arXiv:1910.02054）和 FSDP（PyTorch）都通过<strong>参数/梯度/优化器状态分片</strong>降低单卡显存，但 PyTorch FSDP2 在架构设计上做了根本性改进。</p>
+<p><strong>FSDP2 核心变化 — per-parameter DTensor 分片：</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>FSDP1</th>
+<th><strong>FSDP2</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>参数表示</td>
+<td>FlatParameter（多参数展平→单体 tensor）</td>
+<td>DTensor per-parameter 分片</td>
+</tr>
+<tr>
+<td>FQN</td>
+<td>展平后失真</td>
+<td><strong>保持不变</strong></td>
+</tr>
+<tr>
+<td>状态字典</td>
+<td>需要 FULL/SHARDED/LOCAL API</td>
+<td>默认 sharded DTensor；全量需显式 materialize</td>
+</tr>
+<tr>
+<td>拓扑</td>
+<td>ProcessGroup</td>
+<td><strong>DeviceMesh / DTensor</strong></td>
+</tr>
+</tbody></table>
+<p><strong><code>reshard_after_forward</code> — ZeRO 等效映射：</strong></p>
+<table>
+<thead>
+<tr>
+<th><code>reshard_after_forward</code></th>
+<th>ZeRO 等效</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>True</code></td>
+<td><strong>ZeRO-3</strong> (FULL_SHARD)</td>
+<td>前向后立即释放参数分片，反向重新 all-gather</td>
+</tr>
+<tr>
+<td><code>False</code></td>
+<td><strong>ZeRO-2</strong> (SHARD_GRAD_OP)</td>
+<td>前向后保留完整参数，反向无需重新通信</td>
+</tr>
+<tr>
+<td><code>int</code> (如 8)</td>
+<td><strong>ZeRO++ / HSDP</strong></td>
+<td>在小 world size 内 all-gather，跨组继续 shard</td>
+</tr>
+</tbody></table>
+<p><strong>各 ZeRO Stage 单卡显存占用 (混合精度 Adam，沿用 §1.6 的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>16</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">16\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">16Φ</span></span></span></span> 约定——参数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">2Φ</span></span></span></span> + 梯度 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">2Φ</span></span></span></span> + 优化器状态 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">12\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">12Φ</span></span></span></span>)：</strong></p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>参数</th>
+<th>梯度</th>
+<th>优化器状态</th>
+<th>总显存</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>DDP (baseline)</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">2Φ</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">2Φ</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">12\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">12Φ</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>16</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">16\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">16Φ</span></span></span></span></td>
+</tr>
+<tr>
+<td>ZeRO-1</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">2Φ</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">2Φ</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">12\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">12Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mi mathvariant="normal">Φ</mi><mo>+</mo><mn>12</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">4\Phi + 12\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord">4Φ</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">12Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+</tr>
+<tr>
+<td>ZeRO-2</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi></mrow><annotation encoding="application/x-tex">2\Phi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord">2Φ</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">2\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">2Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">12\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">12Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi><mo>+</mo><mn>14</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">2\Phi + 14\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord">2Φ</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">14Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+</tr>
+<tr>
+<td>ZeRO-3 / FSDP FULL_SHARD</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">2\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">2Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">2\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">2Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">12\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">12Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>16</mn><mi mathvariant="normal">Φ</mi><mi mathvariant="normal">/</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">16\Phi/P</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">16Φ/</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span></span></span></span></td>
+</tr>
+</tbody></table>
+<p><strong>FSDP2 的通信优化 — pre-/post- hook 隐式预取：</strong>
+前向 pre-hook → all-gather 参数 → 计算 → post-forward (可选 reshard)；反向 pre-hook → 如需则重新 all-gather → 反向计算 → reduce-scatter 梯度。FSDP2 通过隐式预取重叠通信与计算，在 Llama2-7B 128 A100 训练上<strong>比 FSDP1 高 ~1.5% 吞吐</strong>。</p>
+<p><strong>选型建议：</strong></p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型能单卡装下</td>
+<td>DDP</td>
+<td>无通信开销</td>
+</tr>
+<tr>
+<td>参数能装下，优化器装不下</td>
+<td>ZeRO-1</td>
+<td>只分片 opt states</td>
+</tr>
+<tr>
+<td>中等 SFT / LoRA</td>
+<td>ZeRO-2 / FSDP <code>SHARD_GRAD_OP</code></td>
+<td>ZeRO-3 的额外 all-gather 反而不划算</td>
+</tr>
+<tr>
+<td>70B+ 全参训练</td>
+<td>ZeRO-3 / FSDP <code>FULL_SHARD</code></td>
+<td>参数必须分片</td>
+</tr>
+<tr>
+<td>PyTorch 原生管线</td>
+<td><strong>FSDP2</strong> (<code>fully_shard</code>)</td>
+<td>与 DTensor/DeviceMesh/DCP 深度集成</td>
+</tr>
+<tr>
+<td>HuggingFace 生态</td>
+<td>DeepSpeed ZeRO</td>
+<td>成熟、配置丰富、文档多</td>
+</tr>
+</tbody></table>
+<div class="callout callout-bad"><div class="callout-label">陷阱 / Pitfall</div>
+<p><strong>陷阱</strong>: 「ZeRO-3 最省显存 = 最快」是错的。如果 ZeRO-2 已经装得下，通常比 ZeRO-3 吞吐更高——因为 ZeRO-3 每次前向+反向都要 all-gather 参数，通信量 ~1.5× DP。<strong>选最浅的分片级别，不是最深。</strong></p>
+</div>
 <hr>
-<h3 id="sec-8">1.7 KV Cache 显存分析 / KV Cache Memory Analysis</h3>
+<h3 id="sec-11">1.7 KV Cache 显存分析 / KV Cache Memory Analysis</h3>
 <p>每层每个 token 需缓存 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi></mrow><annotation encoding="application/x-tex">K</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">K</span></span></span></span> 和 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">V</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span></span></span></span>：</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>KV cache (bytes)</mtext><mo>=</mo><mn>2</mn><mo>×</mo><mi>L</mi><mo>×</mo><msub><mi>n</mi><mtext>kv_heads</mtext></msub><mo>×</mo><msub><mi>d</mi><mtext>head</mtext></msub><mo>×</mo><mi>s</mi><mo>×</mo><mi>B</mi><mo>×</mo><mtext>bytes_per_param</mtext></mrow><annotation encoding="application/x-tex">\text{KV cache (bytes)} = 2 \times L \times n_{\text{kv\_heads}} \times d_{\text{head}} \times s \times B \times \text{bytes\_per\_param}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">KV cache (bytes)</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">L</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.9503em;vertical-align:-0.367em;"></span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">kv_heads</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.367em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">d</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">head</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0044em;vertical-align:-0.31em;"></span><span class="mord text"><span class="mord">bytes_per_param</span></span></span></span></span></span></p>
 <ul>
@@ -601,7 +824,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li>FP16 下 bytes_per_param = 2</li>
 </ul>
 <p><strong>PagedAttention（vLLM）：</strong> 将 KV cache 分为固定大小的 page（如 16 tokens/page），按需分配，消除显存碎片，支持更多并发。</p>
-<h3 id="sec-9">1.7b FlashAttention — 从 FA2 到 FA3 / FlashAttention: FA2 → FA3</h3>
+<h3 id="sec-12">1.7b FlashAttention — 从 FA2 到 FA3 / FlashAttention: FA2 → FA3</h3>
 <p>FlashAttention 是主流通用 CUDA attention 后端，在条件满足时被 PyTorch SDPA / vLLM / HuggingFace 等框架优先选用。核心思路：<strong>避免物化完整的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">N\times N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> 注意力矩阵</strong>，通过分块 (tiling) + 在线 softmax 重计算，将 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>N</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(N^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> 显存降到 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>N</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(N)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mclose">)</span></span></span></span>。</p>
 <p><strong>FA2 (Dao, ICLR 2024, arXiv:2307.08691):</strong></p>
 <ul>
@@ -646,11 +869,49 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </tr>
 </tbody></table>
 <p>反向 ~1.5–1.75× vs FA2。FA3 可通过 Dao-AILab <code>flash-attn</code> 库直接使用；HuggingFace 在近期版本中支持 <code>flash_attention_3</code> 作为可选 attention 后端。PyTorch SDPA 截至当前仍以 FA2 为 Flash 后端（FA3 集成属后续工作）。</p>
+<h3 id="sec-13">1.7c RadixAttention — 前缀感知 KV Cache 复用 / RadixAttention &amp; Prefix-Aware KV Cache Reuse</h3>
+<p><strong>SGLang (Zheng et al., NeurIPS 2024, arXiv:2312.07104)</strong> 的核心创新 <strong>RadixAttention</strong> 是一个<strong>自动 KV cache 复用</strong>机制——通过将 KV cache 组织为<strong>基数树 (radix tree)</strong>，实现任意粒度前缀的零计算复用。</p>
+<p><strong>基数树结构：</strong></p>
+<ul>
+<li>每条边代表一个 token 序列片段，每个节点存储对应的 KV cache tensor</li>
+<li>新请求到达时，运行时在树中查找<strong>最长匹配前缀</strong>——其 KV cache 可直接复用，无需重算（如 system prompt、few-shot 示例、多轮对话历史）</li>
+<li>两个请求共享前缀但在某点分叉时，树<strong>自动分裂节点</strong>，允许细粒度共享</li>
+<li>用 <strong>LRU (Least Recently Used)</strong> 驱逐策略——GPU 显存满时，最久未被访问的分支被剪枝</li>
+</ul>
+<p><strong>缓存感知调度 — 最优性保证：</strong>
+SGLang 按匹配前缀长度排序请求（最长共享前缀优先），等价于在基数树上的 DFS 遍历顺序。<strong>消融实验</strong>中该策略在测试的调度策略中表现最优；论文指出实现为简化版，当等待中的请求共享未入树前缀时可能次优。</p>
+<p><strong>性能：</strong></p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>数值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>吞吐量 vs vLLM/Guidance</td>
+<td>最高 <strong>6.4×</strong></td>
+</tr>
+<tr>
+<td>延迟降低</td>
+<td>最高 <strong>3.7×</strong></td>
+</tr>
+<tr>
+<td>Chatbot Arena 生产缓存命中率</td>
+<td><strong>52–74%</strong></td>
+</tr>
+<tr>
+<td>无可复用场景开销</td>
+<td>&lt;0.3%</td>
+</tr>
+</tbody></table>
+<p><strong>与 vLLM Prefix Caching 的区别：</strong>
+vLLM 用<strong>基于哈希的块级</strong>方法——每个 KV block 的哈希 = hash(tokens + parent block hash)，适合简单场景（相同 system prompt）。SGLang 论文对比的是 vLLM v0.2.2 及当时的 prefix caching 支持；基数树天然表示细粒度分支前缀和缓存感知调度。两者最新版本已互相借鉴——vLLM 后续版本扩展了 prefix caching 能力，SGLang 也已开源。</p>
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
-<p><strong>FA2 → FA3 的启示</strong>: 并非新数学——是<strong>硬件-软件协同</strong>把 Hopper 的异步执行模型（TMA + WGMMA + setmaxnreg）变成算法优势。CUDA 代码针对硬件代数重写，换来的利用率 35%→85% 比很多&quot;新算法&quot;效果更大。</p>
+<p><strong>本质</strong>: PagedAttention 解决 KV cache 的<strong>显存分配</strong>问题（不浪费在 padding/碎片上）；RadixAttention 解决 KV cache 的<strong>复用</strong>问题（不重算已见过的前缀）。两者正交且互补——vLLM 和 SGLang 的最新版本已互相集成对方的技术。</p>
 </div>
-<hr>
-<h3 id="sec-10">1.8 量化基础 / Quantization Fundamentals</h3>
+<p><strong>工程演进</strong>: SGLang 后续推出 <strong>HiCache</strong>——将基数树扩展为<strong>三级缓存层级</strong>: GPU (L1) → CPU Host Memory (L2) → 分布式存储 (L3)，进一步扩展可复用 KV cache 的容量。</p>
+<h3 id="sec-14">1.8 量化基础 / Quantization Fundamentals</h3>
 <p><strong>对称量化 / Symmetric Quantization：</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>x</mi><mi>q</mi></msub><mo>=</mo><mtext>round</mtext><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><mfrac><mi>x</mi><mi>s</mi></mfrac><mo fence="true">)</mo></mrow><mo separator="true">,</mo><mspace width="1em"/><mi>s</mi><mo>=</mo><mfrac><mrow><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi mathvariant="normal">∣</mi><mi>x</mi><mi mathvariant="normal">∣</mi><mo stretchy="false">)</mo></mrow><mrow><msup><mn>2</mn><mrow><mi>b</mi><mo>−</mo><mn>1</mn></mrow></msup><mo>−</mo><mn>1</mn></mrow></mfrac></mrow><annotation encoding="application/x-tex">x_q = \text{round}\!\left(\frac{x}{s}\right), \quad s = \frac{\max(|x|)}{2^{b-1} - 1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">q</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.836em;vertical-align:-0.686em;"></span><span class="mord text"><span class="mord">round</span></span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size2">(</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.1076em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">s</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size2">)</span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1963em;vertical-align:-0.7693em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7751em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">1</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mop">max</span><span class="mopen">(</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mord">∣</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
 <p><strong>非对称量化 / Asymmetric Quantization：</strong></p>
@@ -673,7 +934,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </ul>
 <p><strong>FP8（Hopper/H100）：</strong> E4M3（4 指数 3 尾数，范围 ±448）用于前向的权重/激活；E5M2（5 指数 2 尾数，动态范围更大 ±57344）用于梯度。相比<strong>非对称 INT8</strong> 免去<strong>零点（zero-point）校准</strong>（仍需 per-tensor amax scaling），且浮点表示对离群值更鲁棒。</p>
 <p><strong>KV-cache 量化：</strong> 长上下文下 KV cache 主导显存。K 沿 channel 维有离群值 → 宜 per-channel 量化；V 较平滑 → per-token 量化（如 KIVI, arXiv:2402.02750）。常用 int8/int4/fp8，可把 KV 显存降 2–4×；int8/fp8 多数任务精度损失可忽略，int4 则依任务而定（长上下文检索更敏感）。</p>
-<h3 id="sec-11">1.8b FP8 训练与 Transformer Engine / FP8 Training &amp; Transformer Engine</h3>
+<h3 id="sec-15">1.8b FP8 训练与 Transformer Engine / FP8 Training &amp; Transformer Engine</h3>
 <p>H100 引入原生 FP8 Tensor Core（吞吐为 FP16 的 2×），配合 <strong>NVIDIA Transformer Engine (TE)</strong> 在训练中动态管理 FP8 精度。</p>
 <p><strong>FP8 两种子格式：</strong></p>
 <table>
@@ -775,7 +1036,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
 </tbody></table>
 <p>模型越大加速越显著（GEMM 占比更高 + BF16 内存带宽压力更重，FP8 将权重传输量减半）。</p>
 <p><strong>调试提示：</strong> 剧烈学习率或小 batch 时延迟缩放可能不稳定（历史 amax 含异常值），可切换 <code>Float8CurrentScaling</code>（用当前张量 amax）。TE Linear 层要求输入维度被 16 整除。</p>
-<h3 id="sec-12">1.8c Marlin INT4 内核 / Marlin INT4 Kernel</h3>
+<h3 id="sec-16">1.8c Marlin INT4 内核 / Marlin INT4 Kernel</h3>
 <p><strong>Marlin (Frantar et al., IST-DASLab, arXiv:2408.11743)</strong> 是面向 GPTQ INT4 权重的极致优化的 FP16×INT4 GEMM 内核，目标是 LLM 推理时的 auto-regressive decode。</p>
 <p><strong>核心贡献：</strong></p>
 <ul>
@@ -787,7 +1048,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
 <p>Marlin 的设计哲学与 FA3 相同：<strong>不是新数学——是针对具体硬件代数重排计算，让所有执行单元同时忙起来。</strong> batch 1→16 的平坦性能曲线对生产服务尤为关键（意味着可以增大并发批处理而不会损失每 token 延迟）。</p>
 </div>
-<h3 id="sec-13">1.8d 量化粒度对比 / Quantization Granularity Comparison</h3>
+<h3 id="sec-17">1.8d 量化粒度对比 / Quantization Granularity Comparison</h3>
 <p>量化精度 vs 开销由<strong>共享缩放因子的粒度</strong>决定。各粒度的工程取舍：</p>
 <table>
 <thead>
@@ -840,7 +1101,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
 </div>
 <p>选粒度 = 平衡<strong>精度 → 开销 → 硬件支持</strong>。per-tensor scaling 在 FP8 训练中通过动态 amax（DelayedScaling）可正常工作，但用于低 bit 激活量化和 outlier-heavy 张量时较脆弱；per-group（GPTQ group-128）是 INT4 权重量化的工业标准；per-block/sub-channel 是 FP8/FP4 的方向。</p>
 <hr>
-<h3 id="sec-14">1.9 Speculative Decoding / 投机解码</h3>
+<h3 id="sec-18">1.9 Speculative Decoding / 投机解码</h3>
 <p><strong>核心思想：</strong> 用小型 draft model 并行预测 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> 个 token，再用 target model 一次前向验证。</p>
 <p><strong>接受-拒绝采样 / Accept-Reject：</strong></p>
 <ul>
@@ -849,7 +1110,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
 <li>保证输出分布与直接用 target model 采样<strong>完全一致</strong>（无损）</li>
 </ul>
 <p><strong>加速比 / Speedup：</strong> 取决于 draft model 与 target model 的 token 接受率。典型场景下可获得 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.5</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">1.5\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.5</span><span class="mord">×</span></span></span></span>–<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2.5</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">2.5\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2.5</span><span class="mord">×</span></span></span></span> 加速。</p>
-<h3 id="sec-15">1.9b Chunked Prefill / Chunked Prefill</h3>
+<h3 id="sec-19">1.9b Chunked Prefill / Chunked Prefill</h3>
 <p>LLM 推理两个阶段的 GPU 利用率截然不同：<strong>prefill</strong> 处理输入 prompt 是 compute-bound（GPU 高效），<strong>decode</strong> 逐 token 自回归是 memory-bandwidth-bound（GPU 利用率极低，单 token 成本可达 prefill 的 200×）。</p>
 <p><strong>SARATHI (Agrawal et al., Microsoft Research, arXiv:2308.16369)</strong> 的核心洞察：decode 的 arithmetic intensity 极低——在 decode batch 中混入一个 compute-heavy 的 prefill chunk，对 decode 延迟的增量很小（LLaMA-13B/A6000 实测：decode-only ~12.49ms/token → 混入 prefill chunk 后约 1.2ms/token），GPU 利用率则大幅提升。具体增量取决于模型规模、硬件和 chunk size。</p>
 <p>两个核心技术：</p>
@@ -906,7 +1167,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
 <p><strong>核心启示</strong>: SARATHI 没有发明新的 attention 算法——它只是<strong>重排了调度顺序</strong>（把 prefill 切块 + 与 decode 混批）。这 10× decode 吞吐提升来自认识到 <strong>decode 的 memory-bandwidth slack 可以&quot;吸收&quot;prefill 的 compute-heavy chunk 而几乎不增加延迟</strong>。一个好的调度算法比一个新 kernel 的收益可能更大。</p>
 </div>
 <hr>
-<h3 id="sec-16">1.10 模型设计通用框架 / 7-Step ML System Design Framework</h3>
+<h3 id="sec-20">1.10 模型设计通用框架 / 7-Step ML System Design Framework</h3>
 <table>
 <thead>
 <tr>
@@ -952,11 +1213,11 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
 </tr>
 </tbody></table>
 <hr>
-<h2 id="sec-17">二、PyTorch 代码片段 / From-Scratch Snippets</h2>
+<h2 id="sec-21">二、PyTorch 代码片段 / From-Scratch Snippets</h2>
 <blockquote>
 <p>以下为教学用途的最小实现，突出核心逻辑，省略生产级的错误处理和优化。</p>
 </blockquote>
-<h3 id="sec-18">2.1 Scaled Dot-Product Attention</h3>
+<h3 id="sec-22">2.1 Scaled Dot-Product Attention</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
 <span class="hljs-keyword">import</span> math
@@ -974,7 +1235,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
     attn_weights = F.softmax(scores, dim=-<span class="hljs-number">1</span>)
     <span class="hljs-keyword">return</span> torch.matmul(attn_weights, v), attn_weights
 </code></pre>
-<h3 id="sec-19">2.2 Causal Self-Attention Layer</h3>
+<h3 id="sec-23">2.2 Causal Self-Attention Layer</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 <span class="hljs-keyword">import</span> math
@@ -1003,7 +1264,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
         out = (attn @ v).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>).reshape(B, T, C)
         <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.out_proj(out)
 </code></pre>
-<h3 id="sec-20">2.3 LoRA Layer</h3>
+<h3 id="sec-24">2.3 LoRA Layer</h3>
 <details class="code-fold"><summary>36 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 <span class="hljs-keyword">import</span> math
@@ -1040,7 +1301,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
             new_linear.bias.data.copy_(<span class="hljs-variable language_">self</span>.base.bias.data)
         <span class="hljs-keyword">return</span> new_linear
 </code></pre></details>
-<h3 id="sec-21">2.4 Grouped-Query Attention (GQA)</h3>
+<h3 id="sec-25">2.4 Grouped-Query Attention (GQA)</h3>
 <details class="code-fold"><summary>42 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 <span class="hljs-keyword">import</span> math
@@ -1083,7 +1344,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
         out = (attn @ v).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>).reshape(B, T, -<span class="hljs-number">1</span>)
         <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.wo(out)
 </code></pre></details>
-<h3 id="sec-22">2.5 RoPE (Rotary Position Embedding)</h3>
+<h3 id="sec-26">2.5 RoPE (Rotary Position Embedding)</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">precompute_rope_freqs</span>(<span class="hljs-params">dim: <span class="hljs-built_in">int</span>, max_len: <span class="hljs-built_in">int</span> = <span class="hljs-number">4096</span>, base: <span class="hljs-built_in">float</span> = <span class="hljs-number">10000.0</span></span>):
@@ -1107,7 +1368,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
     out2 = x2 * cos + x1 * sin
     <span class="hljs-keyword">return</span> torch.cat([out1, out2], dim=-<span class="hljs-number">1</span>)
 </code></pre>
-<h3 id="sec-23">2.6 DPO Loss</h3>
+<h3 id="sec-27">2.6 DPO Loss</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
 
@@ -1124,7 +1385,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
     logits = beta * (log_ratio_w - log_ratio_l)
     <span class="hljs-keyword">return</span> -F.logsigmoid(logits).mean()
 </code></pre>
-<h3 id="sec-24">2.7 KV Cache Wrapper (Minimal)</h3>
+<h3 id="sec-28">2.7 KV Cache Wrapper (Minimal)</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
 <span class="hljs-keyword">class</span> <span class="hljs-title class_">KVCache</span>:
@@ -1147,7 +1408,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
         <span class="hljs-string">&quot;&quot;&quot;Return the current cached KV (trimmed to cur_len).&quot;&quot;&quot;</span>
         <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.k[:, :, :<span class="hljs-variable language_">self</span>.cur_len], <span class="hljs-variable language_">self</span>.v[:, :, :<span class="hljs-variable language_">self</span>.cur_len]
 </code></pre>
-<h3 id="sec-25">2.8 Symmetric INT8 Quantize / Dequantize</h3>
+<h3 id="sec-29">2.8 Symmetric INT8 Quantize / Dequantize</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">symmetric_quantize_int8</span>(<span class="hljs-params">weight: torch.Tensor</span>):
@@ -1161,7 +1422,7 @@ loss.backward()        <span class="hljs-comment"># ⚠️ backward 必须在 fp
     <span class="hljs-keyword">return</span> w_q.<span class="hljs-built_in">float</span>() * scale
 </code></pre>
 <hr>
-<h3 id="sec-26">2.9 Tensor-Parallel Linear (Column / Row)</h3>
+<h3 id="sec-30">2.9 Tensor-Parallel Linear (Column / Row)</h3>
 <details class="code-fold"><summary>32 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 
@@ -1198,8 +1459,8 @@ Y_ref = ref(X)
 <p>Megatron MLP 把 <strong>column-parallel → GeLU（本地）→ row-parallel</strong> 串联，整个块前向只需 <strong>一次</strong> all-reduce（反向一次），把通信摊薄到最少。</p>
 </blockquote>
 <hr>
-<h2 id="sec-27">三、面试题 / Interview Questions</h2>
-<h3 id="sec-28">L1 — 基础 / Basic</h3>
+<h2 id="sec-31">三、面试题 / Interview Questions</h2>
+<h3 id="sec-32">L1 — 基础 / Basic</h3>
 <details>
 <summary>Q1: Transformer 中 self-attention 的时间复杂度是多少？如何降低？</summary><p><strong>答 / Answer：</strong> 标准 self-attention 时间复杂度为 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2 d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span>（<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> 为序列长度，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span> 为维度），因为需要计算 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">n \times n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> 的注意力矩阵。降低方法包括：</p>
 <ul>
@@ -1303,7 +1564,7 @@ LLM 训练中，少数异常样本可能产生极大梯度（gradient spike）�
 <p>是的。Continuous batching 解决了&quot;什么时候调度请求&quot;的问题，PagedAttention 解决了&quot;KV cache 如何分配显存&quot;的问题——将 KV cache 分成固定大小的 page，按需分配，避免因请求长度不一导致的显存碎片。</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-29">L2 — 中级 / Intermediate</h3>
+<h3 id="sec-33">L2 — 中级 / Intermediate</h3>
 <details>
 <summary>Q8: 解释 ZeRO 的三个阶段分别做了什么，各自的通信开销如何？</summary><p><strong>答 / Answer：</strong></p>
 <ul>
@@ -1458,7 +1719,7 @@ LLM 训练中，少数异常样本可能产生极大梯度（gradient spike）�
 <p>Staleness 导致 rollout 使用旧参数 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><msub><mi>θ</mi><mtext>old</mtext></msub></msub></mrow><annotation encoding="application/x-tex">\pi_{\theta_{\text{old}}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6864em;vertical-align:-0.2559em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.0278em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">old</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2559em;"><span></span></span></span></span></span></span></span></span></span> 生成数据，形成 off-policy 偏差。PPO 的 importance ratio clip（<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>≈</mo><mn>0.1</mn><mtext>–</mtext><mn>0.2</mn></mrow><annotation encoding="application/x-tex">\epsilon \approx 0.1\text{–}0.2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4831em;"></span><span class="mord mathnormal">ϵ</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.1</span><span class="mord text"><span class="mord">–</span></span><span class="mord">0.2</span></span></span></span>）对小幅 staleness 有容忍度，但 staleness 过大时梯度估计方差增大，训练不稳定。缓解方式：控制权重同步频率（不超过几个 mini-batch 更新），或使用更激进的 importance sampling 校正。</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-30">L3 — 深度 / Deep</h3>
+<h3 id="sec-34">L3 — 深度 / Deep</h3>
 <details>
 <summary>Q17: Megatron-LM 的 Column-Parallel 和 Row-Parallel Linear 是如何减少 AllReduce 次数的？</summary><p><strong>答 / Answer：</strong></p>
 <p>考虑两层连续的线性变换 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>=</mo><mi>G</mi><mi>E</mi><mi>L</mi><mi>U</mi><mo stretchy="false">(</mo><mi>X</mi><mi>A</mi><mo stretchy="false">)</mo><mi>B</mi></mrow><annotation encoding="application/x-tex">Y = GELU(XA)B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">Y</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">GE</span><span class="mord mathnormal" style="margin-right:0.109em;">LU</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="mord mathnormal">A</span><span class="mclose">)</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span>（MLP block），<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>h</mi><mo>×</mo><mn>4</mn><mi>h</mi></mrow></msup></mrow><annotation encoding="application/x-tex">A \in \mathbb{R}^{h \times 4h}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mtight">4</span><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span></span>，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mn>4</mn><mi>h</mi><mo>×</mo><mi>h</mi></mrow></msup></mrow><annotation encoding="application/x-tex">B \in \mathbb{R}^{4h \times h}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">4</span><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span></span>：</p>
@@ -1785,7 +2046,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p>微调解决&quot;风格和格式&quot;——让模型以客服的语气和流程回答；RAG 解决&quot;知识和事实&quot;——提供最新的产品信息和公司政策。它们互补而非替代：只微调会&quot;幻觉&quot;产品细节；只 RAG 会让模型语气像通用助手而非专业客服。理想方案是两者结合。</p>
 </blockquote>
 </details><hr>
-<h2 id="sec-31">附录：关键术语对照表 / Appendix: Key Term Glossary</h2>
+<h2 id="sec-35">附录：关键术语对照表 / Appendix: Key Term Glossary</h2>
 <table>
 <thead>
 <tr>
@@ -1906,7 +2167,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </tr>
 </tbody></table>
 <hr>
-<h2 id="sec-32">更多 L3 深挖 / Extended L3</h2>
+<h2 id="sec-36">更多 L3 深挖 / Extended L3</h2>
 <details>
 <summary>Q26: Explain the IO-aware tiling strategy in FlashAttention. Why does standard attention have a memory access bottleneck, and how does the online softmax trick enable block-wise computation without materializing the full N×N attention matrix?</summary><p>标准 attention 需要将完整的 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">N \times N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> attention matrix 写入 HBM（High Bandwidth Memory），IO 成为瓶颈。FlashAttention 利用 GPU SRAM（速度快但容量小）做 tiling：</p>
 <ol>
@@ -2045,7 +2306,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <blockquote>
 <p><strong>追问：</strong> MLA 的低秩压缩是否会导致不同 head 的 attention pattern 趋同（loss of head diversity）？投影矩阵 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>W</mi><mrow><mi>U</mi><mi>K</mi></mrow></msup></mrow><annotation encoding="application/x-tex">W^{UK}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8413em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8413em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.109em;">U</span><span class="mord mathnormal mtight" style="margin-right:0.0715em;">K</span></span></span></span></span></span></span></span></span></span></span></span> 的高秩性是否能完全缓解这种风险？实践中有什么信号可以检测 head 多样性的退化？</p>
 </blockquote>
-</details><h2 id="sec-33">§A 核心论文时间线 / Key Papers Timeline</h2>
+</details><h2 id="sec-37">§A 核心论文时间线 / Key Papers Timeline</h2>
 <ul class="timeline">
 <li><p><strong>2018-11 · GPipe</strong> — Huang et al., NeurIPS 2019. <a href="https://arxiv.org/abs/1811.06965">arXiv:1811.06965</a> — 流水线并行的奠基工作：把层切成 stage 分布到多设备，再把 mini-batch 拆成 micro-batch 注入流水线以摊薄 bubble，并用重计算换激活显存，使超大模型可跨设备训练。</p>
 </li>

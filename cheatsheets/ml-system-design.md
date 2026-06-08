@@ -359,10 +359,101 @@ $$
 **实践选型 / Practical Guidance：**
 - 单机 8 卡：DP/ZeRO-2 + TP（NVLink 快）
 - 多机：DP/ZeRO-3 + PP（跨节点带宽低）+ TP（节点内）
-- 超长上下文：加入 SP（Ring Attention）
+
+### 1.6b 解耦服务 — DistServe 与 Mooncake / Disaggregated Serving
+
+传统 LLM 服务将 prefill 和 decode **共享同一 GPU**（如 vLLM），但两个阶段的资源需求截然不同：prefill 是 **compute-bound**（受益于 intra-op 并行），decode 是 **memory-bandwidth-bound**（受益于增大 batch）。共享 GPU 导致**相互干扰**——compute-heavy prefill 拖慢 decode（TPOT 膨胀），decode batch 拖慢 prefill（TTFT 膨胀）；且只能采用折中并行策略。
+
+**DistServe (Zhong et al., OSDI 2024, arXiv:2401.09670)** 首次正式论证**解耦 prefill 和 decode 到不同 GPU**：prefill 实例和 decode 实例独立配置并行策略，KV cache 通过节点内 NVLINK 快速迁移（OPT-175B ShareGPT 实测 KV cache 传输 <0.1% 总延迟，取决于 placement 和 interconnect）。
+
+**核心收益：**
+
+| 指标 | vs SOTA (vLLM 等) |
+|------|-------------------|
+| 最大请求速率 (goodput) | 最高 **7.4×** (vs DeepSpeed-MII)；vs vLLM 各任务 $2.0$–$5.7\times$ |
+| SLO 遵守率 | >90% 请求满足延迟约束 |
+| 单 GPU goodput (13B 示例) | ~3.3 rps/GPU (vs ~1.6, 合成工作负载示意) |
+
+**Mooncake (Qin et al., Moonshot AI / Kimi, arXiv:2407.00079)** 将解耦思想工程化为生产系统，同时引入**以 KV cache 为中心的架构**：
+- **KVCache 池**: 利用 GPU 集群中**未充分利用的 CPU DRAM + SSD** 组成共享 KV cache 池，通过 RDMA（含 GPUDirect）提供高速跨机传输（Messenger 组件；vLLM 集成支持 TCP/NVMe-of 等额外协议）
+- **Conductor 全局调度器**: 基于 KV cache 复用潜力 + 节点负载 + SLO 约束做请求调度；过载时**预测式提前拒绝**
+- **Chunked Pipeline Parallelism (CPP)**: 长上下文 prefill 分块到多 GPU + 逐层流式传输增量的 KV cache，重叠传输与计算
+
+**关键数字：** Kimi 真实负载重放测试：**~75% 更多请求**在 SLO 内处理；长上下文模拟设置下吞吐 **50–525% 提升**（取决于上下文长度）。Mooncake Transfer Engine 已开源并集成入 vLLM (PR #10884)。
+
+> 💡 **DistServe vs Mooncake**: DistServe 提供理论论证（OSDI 论文），Mooncake 证明工程可行性（Kimi 万级并发）。共同结论：**在 SLO 约束和长上下文场景下，prefill/decode 解耦 + 专用并行策略 + KV cache 传输显示出显著收益；非普适法则，但在 serving 前沿是主要方向之一。**
+
+### 1.6c 专家并行 (EP) 与 All-to-All / Expert Parallelism & All-to-All
+
+Mixture-of-Experts (MoE) 模型（如 Mixtral 8×7B、DeepSeek-V3）将 FFN 层拆为多个 expert，每 token 只激活 top-k 个（如 top-2），因此需要**专家并行 (Expert Parallelism, EP)**: 将 expert 分布到不同 GPU，token 通过 **all-to-all 通信**路由到对应 expert 所在的 GPU。
+
+**EP 的核心瓶颈——All-to-All 通信：**
+
+在 DeepSpeed-MoE 推理 DeepSeek-V2-236B 的初步实验中（8 GPUs, Speculative MoE 论文），all-to-all 占 expert 层延迟的 **~59%**，占模型总前向延迟的 **~47%**。EP 的通信成本取决于路由 token 量、hidden size、top-k、dtype 和 interconnect；增加 EP degree 会增加通信参与方和碎片化风险，需与 DP、TP 仔细 trade off。
+
+**优化方向：**
+
+| 系统 / 方法 | 场景 | 思路 | 效果 |
+|------------|------|------|------|
+| **Parm (IEEE INFOCOM 2024)** | 训练 | 专用通信调度:消除冗余通信+重叠节点内/间 | 1.13–5.77× vs DeepSpeed-MoE |
+| **MoNTA (arXiv:2411.00662)** | 训练 | 基于网络拓扑的并行策略择优 | All-to-All 8× 加速，端到端 13% 延迟改善 |
+| **ScheMoE (2024)** | 训练 | 泛化调度框架 + 优化 all-to-all collective + 数据压缩 | 9–30% vs Tutel/Faster-MoE |
+| **Speculative MoE (arXiv:2503.04398)** | 推理 | 推测式 token 路由:预判 token-expert 分配减少通信 | 1.58–6.54× 吞吐 vs DeepSpeed-MoE |
+
+**EP 与其它并行的组合——「8 卡 TP + EP」的权衡：**
+- 节点内 NVLink 带宽高 (900 GB/s)，all-to-all 通信开销相对低 → EP 放节点内
+- 跨节点带宽低 (InfiniBand / RoCE)，all-to-all 通信开销高 → 优先用 DP/PP 而不是跨节点 EP
+- 实际部署中，EP 与 TP 常组合使用：TP 做 dense 层的矩阵乘法分片，EP 做 MoE expert 的分布
+
+> ⚠️ **EP 不是「免费」的并行度**: 增加 EP 度虽然降低单卡显存压力，但会**增加 all-to-all 的通信参与方数量**（每次 all-to-all 需要所有 EP rank 参与）。通信开销随 EP degree 线性增长，需要与 DP、TP 仔细 trade off。
+
+### 1.6d FSDP2 vs ZeRO — 参数分片策略对比 / FSDP2 vs ZeRO
+
+ZeRO（DeepSpeed, Rajbhandari et al., arXiv:1910.02054）和 FSDP（PyTorch）都通过**参数/梯度/优化器状态分片**降低单卡显存，但 PyTorch FSDP2 在架构设计上做了根本性改进。
+
+**FSDP2 核心变化 — per-parameter DTensor 分片：**
+
+| 维度 | FSDP1 | **FSDP2** |
+|------|-------|-----------|
+| 参数表示 | FlatParameter（多参数展平→单体 tensor） | DTensor per-parameter 分片 |
+| FQN | 展平后失真 | **保持不变** |
+| 状态字典 | 需要 FULL/SHARDED/LOCAL API | 默认 sharded DTensor；全量需显式 materialize |
+| 拓扑 | ProcessGroup | **DeviceMesh / DTensor** |
+
+**`reshard_after_forward` — ZeRO 等效映射：**
+
+| `reshard_after_forward` | ZeRO 等效 | 行为 |
+|------------------------|-----------|------|
+| `True` | **ZeRO-3** (FULL_SHARD) | 前向后立即释放参数分片，反向重新 all-gather |
+| `False` | **ZeRO-2** (SHARD_GRAD_OP) | 前向后保留完整参数，反向无需重新通信 |
+| `int` (如 8) | **ZeRO++ / HSDP** | 在小 world size 内 all-gather，跨组继续 shard |
+
+**各 ZeRO Stage 单卡显存占用 (混合精度 Adam，沿用 §1.6 的 $16\Phi$ 约定——参数 $2\Phi$ + 梯度 $2\Phi$ + 优化器状态 $12\Phi$)：**
+
+| Stage | 参数 | 梯度 | 优化器状态 | 总显存 |
+|-------|------|------|-----------|--------|
+| DDP (baseline) | $2\Phi$ | $2\Phi$ | $12\Phi$ | $16\Phi$ |
+| ZeRO-1 | $2\Phi$ | $2\Phi$ | $12\Phi/P$ | $4\Phi + 12\Phi/P$ |
+| ZeRO-2 | $2\Phi$ | $2\Phi/P$ | $12\Phi/P$ | $2\Phi + 14\Phi/P$ |
+| ZeRO-3 / FSDP FULL_SHARD | $2\Phi/P$ | $2\Phi/P$ | $12\Phi/P$ | $16\Phi/P$ |
+
+**FSDP2 的通信优化 — pre-/post- hook 隐式预取：**
+前向 pre-hook → all-gather 参数 → 计算 → post-forward (可选 reshard)；反向 pre-hook → 如需则重新 all-gather → 反向计算 → reduce-scatter 梯度。FSDP2 通过隐式预取重叠通信与计算，在 Llama2-7B 128 A100 训练上**比 FSDP1 高 ~1.5% 吞吐**。
+
+**选型建议：**
+
+| 场景 | 推荐 | 原因 |
+|------|------|------|
+| 模型能单卡装下 | DDP | 无通信开销 |
+| 参数能装下，优化器装不下 | ZeRO-1 | 只分片 opt states |
+| 中等 SFT / LoRA | ZeRO-2 / FSDP `SHARD_GRAD_OP` | ZeRO-3 的额外 all-gather 反而不划算 |
+| 70B+ 全参训练 | ZeRO-3 / FSDP `FULL_SHARD` | 参数必须分片 |
+| PyTorch 原生管线 | **FSDP2** (`fully_shard`) | 与 DTensor/DeviceMesh/DCP 深度集成 |
+| HuggingFace 生态 | DeepSpeed ZeRO | 成熟、配置丰富、文档多 |
+
+> ❌ **陷阱**: 「ZeRO-3 最省显存 = 最快」是错的。如果 ZeRO-2 已经装得下，通常比 ZeRO-3 吞吐更高——因为 ZeRO-3 每次前向+反向都要 all-gather 参数，通信量 ~1.5× DP。**选最浅的分片级别，不是最深。**
 
 ---
-
 ### 1.7 KV Cache 显存分析 / KV Cache Memory Analysis
 
 每层每个 token 需缓存 $K$ 和 $V$：
@@ -402,9 +493,34 @@ FlashAttention 是主流通用 CUDA attention 后端，在条件满足时被 PyT
 
 反向 ~1.5–1.75× vs FA2。FA3 可通过 Dao-AILab `flash-attn` 库直接使用；HuggingFace 在近期版本中支持 `flash_attention_3` 作为可选 attention 后端。PyTorch SDPA 截至当前仍以 FA2 为 Flash 后端（FA3 集成属后续工作）。
 
-> 💡 **FA2 → FA3 的启示**: 并非新数学——是**硬件-软件协同**把 Hopper 的异步执行模型（TMA + WGMMA + setmaxnreg）变成算法优势。CUDA 代码针对硬件代数重写，换来的利用率 35%→85% 比很多"新算法"效果更大。
+### 1.7c RadixAttention — 前缀感知 KV Cache 复用 / RadixAttention & Prefix-Aware KV Cache Reuse
 
----
+**SGLang (Zheng et al., NeurIPS 2024, arXiv:2312.07104)** 的核心创新 **RadixAttention** 是一个**自动 KV cache 复用**机制——通过将 KV cache 组织为**基数树 (radix tree)**，实现任意粒度前缀的零计算复用。
+
+**基数树结构：**
+- 每条边代表一个 token 序列片段，每个节点存储对应的 KV cache tensor
+- 新请求到达时，运行时在树中查找**最长匹配前缀**——其 KV cache 可直接复用，无需重算（如 system prompt、few-shot 示例、多轮对话历史）
+- 两个请求共享前缀但在某点分叉时，树**自动分裂节点**，允许细粒度共享
+- 用 **LRU (Least Recently Used)** 驱逐策略——GPU 显存满时，最久未被访问的分支被剪枝
+
+**缓存感知调度 — 最优性保证：**
+SGLang 按匹配前缀长度排序请求（最长共享前缀优先），等价于在基数树上的 DFS 遍历顺序。**消融实验**中该策略在测试的调度策略中表现最优；论文指出实现为简化版，当等待中的请求共享未入树前缀时可能次优。
+
+**性能：**
+
+| 指标 | 数值 |
+|------|------|
+| 吞吐量 vs vLLM/Guidance | 最高 **6.4×** |
+| 延迟降低 | 最高 **3.7×** |
+| Chatbot Arena 生产缓存命中率 | **52–74%** |
+| 无可复用场景开销 | <0.3% |
+
+**与 vLLM Prefix Caching 的区别：**
+vLLM 用**基于哈希的块级**方法——每个 KV block 的哈希 = hash(tokens + parent block hash)，适合简单场景（相同 system prompt）。SGLang 论文对比的是 vLLM v0.2.2 及当时的 prefix caching 支持；基数树天然表示细粒度分支前缀和缓存感知调度。两者最新版本已互相借鉴——vLLM 后续版本扩展了 prefix caching 能力，SGLang 也已开源。
+
+> 💡 **本质**: PagedAttention 解决 KV cache 的**显存分配**问题（不浪费在 padding/碎片上）；RadixAttention 解决 KV cache 的**复用**问题（不重算已见过的前缀）。两者正交且互补——vLLM 和 SGLang 的最新版本已互相集成对方的技术。
+
+**工程演进**: SGLang 后续推出 **HiCache**——将基数树扩展为**三级缓存层级**: GPU (L1) → CPU Host Memory (L2) → 分布式存储 (L3)，进一步扩展可复用 KV cache 的容量。
 
 ### 1.8 量化基础 / Quantization Fundamentals
 

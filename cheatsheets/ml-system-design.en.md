@@ -358,10 +358,99 @@ Operations like LayerNorm and Dropout that carry no parameters but occupy activa
 **Practical Guidance:**
 - Single-node 8 GPUs: DP/ZeRO-2 + TP (NVLink is fast)
 - Multi-node: DP/ZeRO-3 + PP (low cross-node bandwidth) + TP (within node)
-- Very long contexts: add SP (Ring Attention)
 
----
+### 1.6b Disaggregated Serving — DistServe & Mooncake
 
+Traditional LLM serving colocates prefill and decode on the **same GPU** (e.g., vLLM), but the two phases have fundamentally different resource needs: prefill is **compute-bound** (benefits from intra-op parallelism), while decode is **memory-bandwidth-bound** (benefits from larger batches). Colocation causes **mutual interference**—compute-heavy prefill delays decode steps (inflating TPOT), and decode batches inflate prefill latency (TTFT)—and forces a compromise parallelism strategy.
+
+**DistServe (Zhong et al., OSDI 2024, arXiv:2401.09670)** first formally argued for **disaggregating prefill and decode onto different GPUs**: prefill instances and decode instances independently configure their parallelism strategies, with KV cache transferred via intra-node NVLINK (KV cache transfer <0.1% of total latency on OPT-175B ShareGPT, depending on placement and interconnect).
+
+**Core gains:**
+
+| Metric | vs SOTA (vLLM etc.) |
+|--------|---------------------|
+| Max request rate (goodput) | Up to **7.4×** (vs DeepSpeed-MII); vs vLLM $2.0$–$5.7\times$ per task |
+| SLO compliance | >90% of requests within latency constraints |
+| Single-GPU goodput (13B example) | ~3.3 rps/GPU (vs ~1.6, synthetic workload illustration) |
+
+**Mooncake (Qin et al., Moonshot AI / Kimi, arXiv:2407.00079)** engineers the disaggregation idea into a production system while introducing a **KVCache-centric architecture**:
+- **KVCache pool**: leverages **underutilized CPU DRAM + SSD** across the GPU cluster to form a shared KV cache pool, with an RDMA-based (GPUDirect) transfer component called **Messenger** (vLLM integration adds TCP/NVMe-of support)
+- **Conductor global scheduler**: schedules requests based on KV cache reuse potential + node load + SLO constraints; uses **prediction-based early rejection** under overload
+- **Chunked Pipeline Parallelism (CPP)**: distributes long-context prefill across multiple GPUs by chunking input tokens, layer-wise streaming of incremental KV cache to overlap transfer with computation
+
+**Key numbers:** Kimi replayed real-workload load tests: **~75% more requests** handled under SLO; simulated long-context settings: **50–525% throughput improvement** (depending on context length). Mooncake Transfer Engine is open-source and integrated into vLLM (PR #10884).
+
+> 💡 **DistServe vs Mooncake**: DistServe provides the theoretical argument (OSDI paper), Mooncake proves engineering viability (Kimi at 10K+ concurrency). Shared conclusion: **for SLO-constrained and long-context serving, prefill/decode disaggregation with per-phase parallelism + KV cache transfer shows strong benefits; it is not a universal rule but is a major direction in the serving frontier.**
+
+### 1.6c Expert Parallelism (EP) & All-to-All
+
+Mixture-of-Experts (MoE) models (e.g., Mixtral 8×7B, DeepSeek-V3) split FFN layers into multiple experts, activating only top-k per token (e.g., top-2). This requires **Expert Parallelism (EP)**: distributing experts across GPUs, with tokens routed to the correct expert's GPU via **all-to-all communication**.
+
+**EP's core bottleneck — All-to-All communication:**
+
+In a preliminary DeepSpeed-MoE inference experiment serving DeepSeek-V2-236B on 8 GPUs (reported by the Speculative MoE paper), all-to-all accounts for **~59%** of expert-layer latency and **~47%** of total model forward-pass latency. EP's communication cost depends on routed-token volume, hidden size, top-k, dtype, and interconnect; increasing EP degree adds communication participants and fragmentation risk, requiring careful tradeoff with DP and TP.
+
+**Optimization directions:**
+
+| System / Method | Setting | Approach | Effect |
+|-----------------|---------|----------|--------|
+| **Parm (IEEE INFOCOM 2024)** | Training | Dedicated communication schedules: eliminate redundant comm + overlap intra/inter-node | 1.13–5.77× vs DeepSpeed-MoE |
+| **MoNTA (arXiv:2411.00662)** | Training | Network-topology-aware parallel strategy selection | All-to-All 8× speedup, 13% end-to-end latency improvement |
+| **ScheMoE (2024)** | Training | Generic scheduling framework + optimized all-to-all collectives + data compression | 9–30% vs Tutel/Faster-MoE |
+| **Speculative MoE (arXiv:2503.04398)** | Inference | Speculative token routing: predict token-expert assignment to reduce communication | 1.58–6.54× throughput vs DeepSpeed-MoE |
+
+**EP + TP placement — the "8-card TP+EP" tradeoff:**
+- Intra-node NVLink bandwidth is high (900 GB/s), all-to-all overhead is relatively low → place EP within node
+- Cross-node bandwidth is low (InfiniBand / RoCE), all-to-all overhead is high → prefer DP/PP over cross-node EP
+- In practice, EP and TP are often combined: TP shards dense-layer matmuls, EP distributes MoE experts
+
+> ⚠️ **EP is not "free" parallelism**: increasing the EP degree reduces per-GPU memory pressure but **adds more all-to-all participants** (every all-to-all requires all EP ranks). Communication overhead grows with EP degree—trade off carefully against DP and TP.
+
+### 1.6d FSDP2 vs ZeRO — Parameter Sharding Strategies Compared
+
+ZeRO (DeepSpeed, Rajbhandari et al., arXiv:1910.02054) and FSDP (PyTorch) both reduce per-GPU memory via **parameter / gradient / optimizer-state sharding**, but PyTorch FSDP2 makes fundamental architectural improvements.
+
+**FSDP2's core change — per-parameter DTensor sharding:**
+
+| Dimension | FSDP1 | **FSDP2** |
+|-----------|-------|-----------|
+| Parameter representation | FlatParameter (multiple params flattened into one monolithic tensor) | DTensor per-parameter sharding |
+| FQN | Distorted by flattening | **Preserved unchanged** |
+| State dict | Requires FULL/SHARDED/LOCAL API | Default sharded DTensor; full requires explicit materialization |
+| Topology | ProcessGroup | **DeviceMesh / DTensor** |
+
+**`reshard_after_forward` — ZeRO equivalence mapping:**
+
+| `reshard_after_forward` | ZeRO equivalent | Behavior |
+|------------------------|----------------|----------|
+| `True` | **ZeRO-3** (FULL_SHARD) | Reshard params immediately after forward; re-all-gather in backward |
+| `False` | **ZeRO-2** (SHARD_GRAD_OP) | Keep unsharded params after forward; no re-communication in backward |
+| `int` (e.g., 8) | **ZeRO++ / HSDP** | All-gather within smaller world size; continue sharding across groups |
+
+**Per-GPU memory by ZeRO stage (mixed-precision Adam, following §1.6's $16\Phi$ convention — params $2\Phi$ + grads $2\Phi$ + optimizer states $12\Phi$):**
+
+| Stage | Params | Grads | Optimizer States | Total Memory |
+|-------|--------|-------|-----------------|--------------|
+| DDP (baseline) | $2\Phi$ | $2\Phi$ | $12\Phi$ | $16\Phi$ |
+| ZeRO-1 | $2\Phi$ | $2\Phi$ | $12\Phi/P$ | $4\Phi + 12\Phi/P$ |
+| ZeRO-2 | $2\Phi$ | $2\Phi/P$ | $12\Phi/P$ | $2\Phi + 14\Phi/P$ |
+| ZeRO-3 / FSDP FULL_SHARD | $2\Phi/P$ | $2\Phi/P$ | $12\Phi/P$ | $16\Phi/P$ |
+
+**FSDP2 communication optimization — implicit pre-/post-hook prefetching:**
+Forward pre-hook → all-gather params → compute → post-forward (optional reshard); backward pre-hook → re-all-gather if needed → backward compute → reduce-scatter grads. FSDP2 overlaps communication with computation via implicit prefetching, achieving **~1.5% higher throughput than FSDP1** on Llama2-7B training across 128 A100s.
+
+**Selection guide:**
+
+| Scenario | Recommendation | Reason |
+|----------|---------------|--------|
+| Model fits on single GPU | DDP | Zero communication overhead |
+| Params fit, optimizer states don't | ZeRO-1 | Only shard opt states |
+| Mid-size SFT / LoRA | ZeRO-2 / FSDP `SHARD_GRAD_OP` | ZeRO-3's extra all-gather isn't worth it |
+| 70B+ full-param training | ZeRO-3 / FSDP `FULL_SHARD` | Parameters must be sharded |
+| PyTorch-native pipeline | **FSDP2** (`fully_shard`) | Deep DTensor/DeviceMesh/DCP integration |
+| HuggingFace ecosystem | DeepSpeed ZeRO | Mature, rich config, extensive docs |
+
+> ❌ **Pitfall**: "ZeRO-3 saves the most memory = fastest" is wrong. If ZeRO-2 already fits, it typically yields higher throughput than ZeRO-3—because ZeRO-3 requires parameter all-gather on every forward+backward pass, with communication volume ~1.5× DP. **Choose the shallowest sharding level that fits, not the deepest.**
 ### 1.7 KV Cache Memory Analysis
 
 Each layer needs to cache $K$ and $V$ for every token:
@@ -401,8 +490,34 @@ Performance (H100 SXM5):
 
 Backward: ~1.5–1.75× vs FA2. FA3 is available via the Dao-AILab `flash-attn` library; HuggingFace supports `flash_attention_3` as an optional attention backend in recent versions. PyTorch SDPA currently uses FA2 as its Flash backend (FA3 integration is future work).
 
-> 💡 **The FA2→FA3 lesson**: It's not new math—it's **hardware-software co-design** that turns Hopper's asynchronous execution model (TMA + WGMMA + setmaxnreg) into algorithmic advantage. Rewriting CUDA code for a hardware generation, lifting utilization from 35%→85%, can deliver more gain than many "new algorithms."
+### 1.7c RadixAttention — Prefix-Aware KV Cache Reuse
 
+**SGLang (Zheng et al., NeurIPS 2024, arXiv:2312.07104)**'s core innovation **RadixAttention** is an **automatic KV cache reuse** mechanism—organizing KV caches in a **radix tree** to enable zero-computation reuse of prefixes at any granularity.
+
+**Radix tree structure:**
+- Each edge represents a sequence of tokens, each node stores the corresponding KV cache tensor
+- On a new request, the runtime traverses the tree to find the **longest matching prefix**—whose KV cache can be reused directly without recomputation (e.g., system prompts, few-shot examples, multi-turn chat history)
+- When two requests share a prefix but diverge at some point, the tree **automatically splits nodes**, enabling fine-grained sharing
+- Uses **LRU (Least Recently Used)** eviction—when GPU memory is full, the least recently accessed branches are pruned
+
+**Cache-aware scheduling:**
+SGLang sorts requests by matched prefix length (longest shared prefix first), equivalent to DFS traversal order on the radix tree. Ablation experiments show this policy performs best among tested scheduling strategies; the paper notes the implementation is simplified and may be suboptimal when waiting requests share prefixes not yet inserted into the tree.
+
+**Performance:**
+
+| Metric | Value |
+|--------|-------|
+| Throughput vs vLLM/Guidance | Up to **6.4×** |
+| Latency reduction | Up to **3.7×** |
+| Chatbot Arena production cache hit rate | **52–74%** |
+| Overhead with no reusable content | <0.3% |
+
+**vs vLLM Prefix Caching:**
+vLLM uses a **hash-based block-level** approach—each KV block's hash = hash(tokens + parent block hash), suitable for simple cases (identical system prompts). The SGLang paper compares against vLLM v0.2.2 and the prefix caching support available at the time; the radix tree naturally represents fine-grained branching prefixes and cache-aware scheduling. Both systems' latest versions have cross-pollinated—vLLM has since extended its prefix caching capabilities, and SGLang is open-source.
+
+> 💡 **Essence**: PagedAttention solves KV cache **memory allocation** (no waste on padding/fragmentation); RadixAttention solves KV cache **reuse** (no recomputation of previously seen prefixes). The two are orthogonal and complementary—vLLM and SGLang's latest versions have integrated each other's techniques.
+
+**Engineering evolution**: SGLang later introduced **HiCache** (post-paper feature)—extending the radix tree into a **three-level cache hierarchy**: GPU (L1) → CPU Host Memory (L2) → Distributed Storage (L3), further expanding the capacity of reusable KV caches.
 ### 1.8 Quantization Fundamentals
 
 **Symmetric Quantization:**
