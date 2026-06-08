@@ -140,11 +140,11 @@
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-safety-alignment-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">安全对齐 (Safety Alignment) 速查手册</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">从 HHH、红队、越狱攻击到安全训练、评测与脆弱性</a></li><li class="lv2"><a href="#sec-1">1. 安全对齐总览 (Safety Alignment Overview)</a></li><li class="lv3"><a href="#sec-2">1.1 HHH 框架与 helpful↔harmless 张力</a></li><li class="lv3"><a href="#sec-3">1.2 四个层面:训练 / 表征 / 运行时 / 评测</a></li><li class="lv3"><a href="#sec-4">1.3 核心矛盾:refusal vs over-refusal</a></li><li class="lv2"><a href="#sec-5">2. 红队与攻击面 (Red-Teaming &amp; Attack Surface)</a></li><li class="lv3"><a href="#sec-6">2.1 人工红队 — 规模行为与危害分类</a></li><li class="lv3"><a href="#sec-7">2.2 自动红队 — 用 LM 攻击 LM</a></li><li class="lv3"><a href="#sec-8">2.3 越狱为何成功:两类失败模式</a></li><li class="lv2"><a href="#sec-9">3. 越狱攻击 (Jailbreak Attacks)</a></li><li class="lv3"><a href="#sec-10">3.1 优化类攻击 — GCG 对抗后缀</a></li><li class="lv3"><a href="#sec-11">3.2 迭代/进化类攻击 — PAIR 与 AutoDAN</a></li><li class="lv3"><a href="#sec-12">3.3 长上下文攻击 — Many-shot Jailbreaking</a></li><li class="lv3"><a href="#sec-13">3.4 野外越狱 — &quot;Do Anything Now&quot;</a></li><li class="lv2"><a href="#sec-14">4. 防御与安全训练 (Defenses &amp; Safety Training)</a></li><li class="lv3"><a href="#sec-15">4.1 安全 RLHF — reward + cost 双模型 + 拉格朗日</a></li><li class="lv3"><a href="#sec-16">4.2 规则化奖励 — Rule-Based Rewards (RBR)</a></li><li class="lv3"><a href="#sec-17">4.3 防护分类器 — Llama Guard</a></li><li class="lv3"><a href="#sec-18">4.4 表征级防御 — Circuit Breakers</a></li><li class="lv3"><a href="#sec-19">4.5 指令层级 — Instruction Hierarchy</a></li><li class="lv2"><a href="#sec-20">5. 安全评测 (Safety Evaluation)</a></li><li class="lv3"><a href="#sec-21">5.1 评判器陷阱 — StrongREJECT</a></li><li class="lv3"><a href="#sec-22">5.2 自动化红队基准 — HarmBench</a></li><li class="lv3"><a href="#sec-23">5.3 过度拒答 — XSTest</a></li><li class="lv3"><a href="#sec-24">5.4 安全数据集 — Do-Not-Answer</a></li><li class="lv2"><a href="#sec-25">6. 脆弱性与开放问题 (Vulnerabilities &amp; Open Problems)</a></li><li class="lv3"><a href="#sec-26">6.1 微调即破安全</a></li><li class="lv3"><a href="#sec-27">6.2 浅层安全对齐</a></li><li class="lv3"><a href="#sec-28">6.3 拒答由&quot;单一方向&quot;中介</a></li><li class="lv3"><a href="#sec-29">6.4 持久后门 — Sleeper Agents</a></li><li class="lv2"><a href="#sec-30">7. 面试题 (Interview Questions)</a></li><li class="lv3"><a href="#sec-31">L1 — 基础 (Fundamentals)</a></li><li class="lv3"><a href="#sec-32">L2 — 中级 (Intermediate)</a></li><li class="lv3"><a href="#sec-33">L3 — 高级 (Advanced)</a></li><li class="lv2"><a href="#sec-34">附录：关键术语速查 (Glossary)</a></li><li class="lv2"><a href="#sec-35">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">从 HHH、红队、越狱攻击到安全训练、评测与脆弱性</a></li><li class="lv2"><a href="#sec-1">1. 安全对齐总览 (Safety Alignment Overview)</a></li><li class="lv3"><a href="#sec-2">1.1 HHH 框架与 helpful↔harmless 张力</a></li><li class="lv3"><a href="#sec-3">1.2 四个层面:训练 / 表征 / 运行时 / 评测</a></li><li class="lv3"><a href="#sec-4">1.3 核心矛盾:refusal vs over-refusal</a></li><li class="lv2"><a href="#sec-5">2. 红队与攻击面 (Red-Teaming &amp; Attack Surface)</a></li><li class="lv3"><a href="#sec-6">2.1 人工红队 — 规模行为与危害分类</a></li><li class="lv3"><a href="#sec-7">2.2 自动红队 — 用 LM 攻击 LM</a></li><li class="lv3"><a href="#sec-8">2.3 越狱为何成功:两类失败模式</a></li><li class="lv2"><a href="#sec-9">3. 越狱攻击 (Jailbreak Attacks)</a></li><li class="lv3"><a href="#sec-10">3.1 优化类攻击 — GCG 对抗后缀</a></li><li class="lv3"><a href="#sec-11">3.2 迭代/进化类攻击 — PAIR 与 AutoDAN</a></li><li class="lv3"><a href="#sec-12">3.3 长上下文攻击 — Many-shot Jailbreaking</a></li><li class="lv3"><a href="#sec-13">3.4 野外越狱 — &quot;Do Anything Now&quot;</a></li><li class="lv3"><a href="#sec-14">3.5 采样类攻击 — Best-of-N 越狱</a></li><li class="lv3"><a href="#sec-15">3.6 多轮升级攻击 — Crescendo</a></li><li class="lv2"><a href="#sec-16">4. 防御与安全训练 (Defenses &amp; Safety Training)</a></li><li class="lv3"><a href="#sec-17">4.1 安全 RLHF — reward + cost 双模型 + 拉格朗日</a></li><li class="lv3"><a href="#sec-18">4.2 规则化奖励 — Rule-Based Rewards (RBR)</a></li><li class="lv3"><a href="#sec-19">4.3 防护分类器 — Llama Guard</a></li><li class="lv3"><a href="#sec-20">4.4 表征级防御 — Circuit Breakers</a></li><li class="lv3"><a href="#sec-21">4.5 指令层级 — Instruction Hierarchy</a></li><li class="lv3"><a href="#sec-22">4.6 推理时安全思考 — Deliberative Alignment</a></li><li class="lv3"><a href="#sec-23">4.7 宪法式分类器 — Constitutional Classifiers</a></li><li class="lv2"><a href="#sec-24">5. 安全评测 (Safety Evaluation)</a></li><li class="lv3"><a href="#sec-25">5.1 评判器陷阱 — StrongREJECT</a></li><li class="lv3"><a href="#sec-26">5.2 自动化红队基准 — HarmBench</a></li><li class="lv3"><a href="#sec-27">5.3 过度拒答 — XSTest</a></li><li class="lv3"><a href="#sec-28">5.4 安全数据集 — Do-Not-Answer</a></li><li class="lv2"><a href="#sec-29">6. 脆弱性与开放问题 (Vulnerabilities &amp; Open Problems)</a></li><li class="lv3"><a href="#sec-30">6.1 微调即破安全</a></li><li class="lv3"><a href="#sec-31">6.2 浅层安全对齐</a></li><li class="lv3"><a href="#sec-32">6.3 拒答由&quot;单一方向&quot;中介</a></li><li class="lv3"><a href="#sec-33">6.4 持久后门 — Sleeper Agents</a></li><li class="lv2"><a href="#sec-34">7. 面试题 (Interview Questions)</a></li><li class="lv3"><a href="#sec-35">L1 — 基础 (Fundamentals)</a></li><li class="lv3"><a href="#sec-36">L2 — 中级 (Intermediate)</a></li><li class="lv3"><a href="#sec-37">L3 — 高级 (Advanced)</a></li><li class="lv2"><a href="#sec-38">附录：关键术语速查 (Glossary)</a></li><li class="lv2"><a href="#sec-39">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
 <main id="out"><h2 id="sec-0">从 HHH、红队、越狱攻击到安全训练、评测与脆弱性</h2>
 <hr>
 <h2 id="sec-1">1. 安全对齐总览 (Safety Alignment Overview)</h2>
-<p>安全对齐要解决的问题:<strong>让模型在保持有用的同时,拒绝它不该做的事</strong>——而且要在面对<strong>对抗性输入</strong>时仍然守得住。它不是单一技术,而是横跨<strong>训练信号 / 表征防御 / 运行时护栏 / 评测</strong>四个层面的系统工程。</p>
+<p>安全对齐要解决的问题:<strong>让模型在保持有用的同时,拒绝它不该做的事</strong>——而且要在面对<strong>对抗性输入</strong>时仍然守得住。它不是单一技术,而是横跨<strong>训练信号 / 推理时安全 / 表征防御 / 运行时护栏 / 评测</strong>五个层面的系统工程。</p>
 <h3 id="sec-2">1.1 HHH 框架与 helpful↔harmless 张力</h3>
 <p>主流对齐目标常被概括为 <strong>HHH:Helpful / Harmless / Honest</strong>(有用 / 无害 / 诚实)。其中 <strong>helpful 与 harmless 天然存在张力</strong>——一个永远拒答的模型最安全却最没用,一个有求必应的模型最有用却最危险。</p>
 <p><strong>HH-RLHF</strong>(Bai et al., <a href="https://arxiv.org/abs/2204.05862">arXiv:2204.05862</a>):Anthropic 用 RLHF 训练助手,<strong>分别</strong>学一个 helpfulness 奖励模型和一个 harmlessness 奖励模型,并系统研究两者的对抗——提升无害性常以牺牲有用性为代价,反之亦然。</p>
@@ -168,6 +168,12 @@
 <td>§4.1–4.2, §4.5;CAI 见 data-pipeline</td>
 </tr>
 <tr>
+<td><strong>推理时安全</strong></td>
+<td>在 CoT 中显式推理安全规范</td>
+<td>Deliberative Alignment</td>
+<td>§4.6</td>
+</tr>
+<tr>
 <td><strong>表征/内部</strong></td>
 <td>改写产生有害输出的内部表征</td>
 <td>Circuit Breakers</td>
@@ -176,8 +182,8 @@
 <tr>
 <td><strong>运行时 I/O 护栏</strong></td>
 <td>在输入/输出端独立拦截</td>
-<td>Llama Guard</td>
-<td>§4.3</td>
+<td>Llama Guard / Constitutional Classifiers</td>
+<td>§4.3, §4.7</td>
 </tr>
 <tr>
 <td><strong>评测/审计</strong></td>
@@ -186,7 +192,7 @@
 <td>§2, §5</td>
 </tr>
 </tbody></table>
-<p>四类是纵深防御:任何单层都可被绕过(§3 越狱、§6 脆弱性),只有组合才有意义。</p>
+<p>五类是纵深防御:任何单层都可被绕过(§3 越狱、§6 脆弱性),只有组合才有意义。</p>
 <h3 id="sec-4">1.3 核心矛盾:refusal vs over-refusal</h3>
 <ul>
 <li><strong>拒答失败 (under-refusal)</strong>:模型回答了本该拒绝的有害请求 → 安全漏洞。</li>
@@ -261,10 +267,36 @@
 </div>
 <h3 id="sec-13">3.4 野外越狱 — &quot;Do Anything Now&quot;</h3>
 <p><strong>&quot;Do Anything Now&quot;</strong>(Shen et al., <a href="https://arxiv.org/abs/2308.03825">arXiv:2308.03825</a>, CCS 2024):系统采集并分类了 <strong>1,405 条真实流传的越狱提示</strong>(来自论坛/Discord 等),归纳出常见结构策略:<strong>角色扮演 (DAN persona)、权限提升 (假装开发者模式)、提示注入、虚构情境</strong>。这类&quot;野外&quot;提示不靠优化,靠社会工程学包装,提醒我们攻击面不止于算法。</p>
+<h3 id="sec-14">3.5 采样类攻击 — Best-of-N 越狱</h3>
+<p><strong>Best-of-N (BoN) Jailbreaking</strong>(Hughes et al., <a href="https://arxiv.org/abs/2412.03556">arXiv:2412.03556</a>)展示了一种<strong>简单到令人不安</strong>的黑盒越狱方法:<strong>对同一有害请求重复采样 N 次</strong>(每次施加随机扰动:大小写变换、词汇乱序、文本格式微调等),用一个 safety judge 自动筛出成功越狱的那条。</p>
+<p>核心发现:<strong>ASR 随 N 呈幂律(power-law)增长</strong>,在测试范围内平滑上升——更多采样预算 = 可预测地更高成功率;部分区间存在表观平台(受人工复核噪声/分类器误差影响),外推到更大 N 的标度行为仍待验证。</p>
+<ul>
+<li><strong>GPT-4o ASR ~89%</strong>(10,000 条增强 prompt 下);<strong>Claude 3.5 Sonnet ~78%</strong>;Claude 3 Opus ~92%</li>
+<li><strong>跨模态</strong>:文本(LLM)、视觉(VLM)、音频(ALM,如 Gemini 1.5 Pro)均可</li>
+<li><strong>可组合</strong>:与优化前缀攻击叠加 ASR 再提升 ~35%,与 many-shot 组合在 Claude 3.5 Sonnet 上<strong>同等 ASR 只需 1/28 的 shot 数</strong></li>
+<li><strong>破已有防御</strong>:对 <strong>Circuit Breakers</strong> 有效;o1 经 NeurIPS 更新版评测<strong>最鲁棒</strong>(ASR ~37%,N 较小因推理成本限制),但仍非零成功率——并非&quot;推理模型免疫&quot;</li>
+</ul>
+<div class="callout callout-bad"><div class="callout-label">陷阱 / Pitfall</div>
+<p><strong>常见误判</strong>:Best-of-N 是<strong>攻击方法</strong>,不是防御。arXiv:2412.03556 标题 &quot;Best-of-N Jailbreaking&quot;,GPT-4o ASR ~89% 是攻击成功率(Attack Success Rate),不是防御降低率。在 agent 安全实践中应把 Best-of-N 理解为「攻击者可以用更多采样预算来绕过多轮轨迹中的安全检查」。</p>
+</div>
+<p>攻击如此简单却高效,揭示了当前安全对齐的一个深层脆弱性:<strong>模型对看似无害的输入扰动(brittle to innocuous perturbations)缺乏鲁棒性</strong>——不需要精心构造对抗 token,随机扰动 + 重复采样就够了。这对 agent 场景尤其关键:agent 的多轮交互天然给了攻击者更多采样机会。</p>
+<h3 id="sec-15">3.6 多轮升级攻击 — Crescendo</h3>
+<p><strong>Crescendo</strong>(Russinovich et al., Microsoft, <a href="https://arxiv.org/abs/2404.01833">arXiv:2404.01833</a>)是一种<strong>多轮逐步升级</strong>的越狱攻击,核心是心理学「登门槛 (foot-in-the-door)」策略:<strong>不直接请求危险内容(那会被拒),而是通过一系列看似无害的渐进式问题,利用模型关注自身上文(attend to its own recently generated text)的特性,逐步引导模型输出危险信息。</strong></p>
+<ul>
+<li><strong>完全黑盒</strong>:只需正常 API/对话交互,无需梯度或对抗后缀</li>
+<li><strong>提示表面无害</strong>:早期/中间轮次以良性、人类可读的文本为主——危险主要体现在跨 turn 的语义累积,因此单步过滤难以检测</li>
+<li><strong>多轮特性</strong>:输入过滤器极难检测(没有单条提示是明显恶意的,但后期 turns 可能累积危险上下文)</li>
+<li><strong>Crescendomation 自动化工具</strong>:在 AdvBench 子集上,比当时其他越狱方法高 <strong>29–61%</strong>(GPT-4)和 <strong>49–71%</strong>(Gemini-Pro)</li>
+<li>测试模型覆盖 GPT-4、Gemini Pro/Ultra、Claude 2/3/3.5 Sonnet、LLaMA-2/3 70B</li>
+</ul>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p><strong>agent 场景比 chatbot 更危险</strong>:agent 天然是多轮交互,攻击者可以把恶意目标拆成多个无害子步骤——每步单独看都合法(如「帮我查一下 X」「再查一下 Y」「把 X 和 Y 组合起来」),但序列组合构成攻击。这正是轨迹级监控(§3 agent-safety)的核心 motivation——单步规则引擎抓不到多步组合攻击。</p>
+</div>
+<p>Crescendo 暴露了一个关键缺口:<strong>当前越狱基准和许多防护评测偏重单轮</strong>,而 Crescendo 展示多轮逐步升级可以系统性地绕过这些措施——防御需要 adaptive multi-turn 基准和在轨迹层面观察累积语义漂移。</p>
 <hr>
-<h2 id="sec-14">4. 防御与安全训练 (Defenses &amp; Safety Training)</h2>
-<p>防御按作用点分三类:<strong>训练侧</strong>把安全写进权重(§4.1–4.2 损失/奖励、§4.5 特权序),<strong>表征侧</strong>改写内部有害轨迹(§4.4),<strong>运行时</strong>在 I/O 端独立拦截(§4.3)。</p>
-<h3 id="sec-15">4.1 安全 RLHF — reward + cost 双模型 + 拉格朗日</h3>
+<h2 id="sec-16">4. 防御与安全训练 (Defenses &amp; Safety Training)</h2>
+<p>防御按作用点分五类:<strong>训练侧</strong>把安全写进权重(§4.1–4.2 损失/奖励、§4.5 特权序),<strong>推理时</strong>在 CoT 中显式思考安全(§4.6),<strong>表征侧</strong>改写内部有害轨迹(§4.4),<strong>运行时护栏</strong>在 I/O 端独立拦截(§4.3, §4.7)。</p>
+<h3 id="sec-17">4.1 安全 RLHF — reward + cost 双模型 + 拉格朗日</h3>
 <p><strong>Safe RLHF</strong>(Dai et al., <a href="https://arxiv.org/abs/2310.12773">arXiv:2310.12773</a>, ICLR 2024 Spotlight):把 helpful 与 harmless <strong>解耦成两个模型</strong>——一个 <strong>reward model</strong> 评有用性、一个 <strong>cost model</strong> 评有害性,然后做<strong>带约束的优化</strong>:在&quot;期望代价 ≤ 阈值&quot;的前提下最大化奖励。用<strong>拉格朗日对偶</strong>求解:</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mi>θ</mi></munder><munder><mrow><mi>min</mi><mo>⁡</mo></mrow><mrow><mi>λ</mi><mo>≥</mo><mn>0</mn></mrow></munder><mtext> </mtext><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><mi>r</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mo stretchy="false">]</mo><mo>−</mo><mi>λ</mi><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">(</mo><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mo stretchy="false">]</mo><mo>−</mo><mi>d</mi><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow><annotation encoding="application/x-tex">\max_\theta \min_{\lambda\ge 0}\ \mathbb{E}[r(y)] - \lambda\big(\mathbb{E}[c(y)] - d\big)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.5973em;vertical-align:-0.8473em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.4306em;"><span style="top:-2.3479em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">max</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7521em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-2.3479em;margin-left:0em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">λ</span><span class="mrel mtight">≥</span><span class="mord mtight">0</span></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span><span class="mop">min</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8473em;"><span></span></span></span></span></span><span class="mspace"> </span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)]</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="mord mathnormal">λ</span><span class="mord"><span class="delimsizing size1">(</span></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mord mathnormal">c</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0359em;">y</span><span class="mclose">)]</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="mord mathnormal">d</span><span class="mord"><span class="delimsizing size1">)</span></span></span></span></span></span></p>
 <p>对策略 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="application/x-tex">\theta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span></span></span></span> 做梯度上升、对对偶变量 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi></mrow><annotation encoding="application/x-tex">\lambda</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">λ</span></span></span></span> 做投影更新:<strong>安全超标(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo><mo>&gt;</mo><mi>d</mi></mrow><annotation encoding="application/x-tex">\mathbb{E}[c]&gt;d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathbb">E</span><span class="mopen">[</span><span class="mord mathnormal">c</span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span>)时 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi></mrow><annotation encoding="application/x-tex">\lambda</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">λ</span></span></span></span> 自动增大、加重惩罚</strong>,反之放松——避免手工调&quot;安全权重&quot;。</p>
@@ -289,21 +321,72 @@
     lam = dual_update(lam, batch_cost, d, lr_lambda)
     <span class="hljs-keyword">return</span> effective_reward, lam, obj
 </code></pre>
-<h3 id="sec-16">4.2 规则化奖励 — Rule-Based Rewards (RBR)</h3>
+<h3 id="sec-18">4.2 规则化奖励 — Rule-Based Rewards (RBR)</h3>
 <p><strong>RBR</strong>(Mu et al., <a href="https://arxiv.org/abs/2411.01111">arXiv:2411.01111</a>, NeurIPS 2024):用<strong>人写的规则</strong>(如&quot;是否拒答?是否含免责声明?是否泄露有害细节?&quot;这类 yes/no 命题),由 <strong>LLM 裁判</strong>给出每条规则的<strong>合规概率(0–1 软分,而非硬 0/1)</strong>,线性加权(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><msub><mi>R</mi><mrow><mi>r</mi><mi>m</mi></mrow></msub><mo>+</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>w</mi><mi>i</mi></msub><msub><mi>ϕ</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">R=R_{rm}+\sum_i w_i\phi_i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">r</span><span class="mord mathnormal mtight">m</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0497em;vertical-align:-0.2997em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:0em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.162em;"><span style="top:-2.4003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2997em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0269em;">w</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0269em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">ϕ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>)成安全奖励,而非训练一个不透明的安全 RM。优点:<strong>可解释、可审计、易随政策更新</strong>——相比黑盒安全 RM 更容易发现并修补规则漏洞;但规则本身仍可能被 gaming,需持续审计。适合安全这种&quot;规则相对明确&quot;的维度。</p>
-<h3 id="sec-17">4.3 防护分类器 — Llama Guard</h3>
+<h3 id="sec-19">4.3 防护分类器 — Llama Guard</h3>
 <p><strong>Llama Guard</strong>(Inan et al., <a href="https://arxiv.org/abs/2312.06674">arXiv:2312.06674</a>):把内容审核<strong>当成一个 LLM 分类任务</strong>——给定一套危害类别 (taxonomy),用一个微调过的模型在<strong>输入端和输出端</strong>都做拦截(用户请求是否有害?模型回答是否有害?)。是一道独立于主模型的<strong>运行时护栏</strong>,可单独更新而不动主模型。</p>
-<h3 id="sec-18">4.4 表征级防御 — Circuit Breakers</h3>
+<h3 id="sec-20">4.4 表征级防御 — Circuit Breakers</h3>
 <p><strong>Circuit Breakers</strong>(Zou et al., <a href="https://arxiv.org/abs/2406.04313">arXiv:2406.04313</a>, NeurIPS 2024):不在&quot;输出 token&quot;层面拒答,而是用训练目标<strong>改写模型内部与有害输出相关的表征</strong>(representation rerouting)——使激活进入&quot;有害生成&quot;轨迹时倾向于被中断或偏离。关键优势:<strong>即使攻击绕过了拒答(如 GCG/越狱提示),也更难产出有害内容</strong>,对多类未见攻击经验上更鲁棒——但仍可能被新型攻击、表征定位误差或分布外输入绕过,并非形式化保证。</p>
-<h3 id="sec-19">4.5 指令层级 — Instruction Hierarchy</h3>
+<h3 id="sec-21">4.5 指令层级 — Instruction Hierarchy</h3>
 <p><strong>The Instruction Hierarchy</strong>(Wallace et al., <a href="https://arxiv.org/abs/2404.13208">arXiv:2404.13208</a>):训练模型遵守严格的<strong>特权序:system prompt &gt; user 消息 &gt; 工具/检索返回内容</strong>。训练让模型<strong>倾向于</strong>遵守该特权序、让低特权输入<strong>更难覆盖</strong>高特权指令——从而<strong>降低</strong> prompt injection(把恶意指令藏在网页/工具输出里)越过系统级安全约束的概率(是降低概率,非形式化保证)。是防御<strong>间接注入</strong>的训练侧方案。</p>
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
-<p>五种防御互补、非替代:训练侧(Safe-RLHF/RBR/指令层级)塑造默认行为与特权序,运行时(Llama Guard)在 I/O 端兜底,表征侧(Circuit Breakers)对抗绕过拒答的攻击。任何单点都可被 §6 的脆弱性击穿。</p>
+<p>这些防御互补、非替代:训练侧(Safe-RLHF/RBR/指令层级)塑造默认行为与特权序,推理时(Deliberative Alignment)让模型在 CoT 中思考安全,表征侧(Circuit Breakers)对抗绕过拒答的攻击,运行时护栏(Llama Guard / Constitutional Classifiers)在 I/O 端拦截。任何单点都可被 §6 的脆弱性击穿,纵深防御才有意义。</p>
 </div>
+<h3 id="sec-22">4.6 推理时安全思考 — Deliberative Alignment</h3>
+<p><strong>Deliberative Alignment</strong>(Guan et al., OpenAI, <a href="https://arxiv.org/abs/2412.16339">arXiv:2412.16339</a>)提出了一种新范式:<strong>不再靠人工标注的偏好对隐式注入安全,而是直接把安全规范 (safety specifications) 教给模型,让模型在思维链 (CoT) 中主动回忆、推理这些规范,再生成回答。</strong></p>
+<p>两阶段训练:</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>方法</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SFT</strong></td>
+<td>监督微调</td>
+<td>用合成数据 (prompt + CoT引用安全规范 + 安全回答) 训练模型在推理时主动检索并应用安全规范</td>
+</tr>
+<tr>
+<td><strong>RL</strong></td>
+<td>强化学习</td>
+<td>用奖励模型 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mrow><mi>R</mi><mi>M</mi></mrow></msub></mrow><annotation encoding="application/x-tex">G_{RM}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">G</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0077em;">R</span><span class="mord mathnormal mtight" style="margin-right:0.109em;">M</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 对<strong>回答质量</strong>打分——<strong>关键设计:RM 只评 answer,不评 CoT</strong>,防止模型生成欺骗性 CoT(嘴上说安全、实际写有害内容)来刷分</td>
+</tr>
+</tbody></table>
+<p>关键结果 (StrongREJECT <a href="mailto:goodness@0.1">goodness@0.1</a>):</p>
+<ul>
+<li><strong>o1 (经 Deliberative Alignment):0.88</strong> vs GPT-4o:0.37</li>
+<li>XSTest 良性提示准确率 <strong>93%</strong>——在提升越狱鲁棒性的同时<strong>降低了</strong>过度拒答</li>
+<li>o1 在 hard refusal style adherence 为 <strong>0.79</strong>(GPT-4o 0.72);BBQ ambiguous stereotype 表现与 o1-preview 接近,优于大多数非 o 模型</li>
+</ul>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p><strong>对 agent 场景的意义</strong>:agent 的 CoT / think step 天然是 deliberation 的载体——可以在 think 里加入 safety check,且 agent 多步推理给了多次 safety check 机会。但这也意味着:<strong>如果 think 本身被注入(§3 prompt injection)或模型推理出错,safety deliberation 会一起失效。</strong></p>
+</div>
+<p>⚠️ 局限:DA 依赖推理时 deliberation,存在 latency/token 权衡;论文指出把完整 safety spec 放入每次上下文部署会&quot;costly/overkill&quot;,DA 通过嵌入 spec 知识来避免这一点,但仍需推理开销。后续工作(如 EASE 框架)提出选择性激活安全推理来降低开销,但仍是开放问题。</p>
+<h3 id="sec-23">4.7 宪法式分类器 — Constitutional Classifiers</h3>
+<p><strong>Constitutional Classifiers</strong>(Sharma et al., Anthropic, <a href="https://arxiv.org/abs/2501.18837">arXiv:2501.18837</a>)是一种<strong>模型外部的输入/输出护栏</strong>:用一份「安全宪法 (constitution)」——以自然语言定义允许/禁止的内容类别——<strong>自动生成合成训练数据</strong>,训练轻量级分类器在主模型前后做拦截。</p>
+<p>工作流:</p>
+<ol>
+<li><strong>定义 constitution</strong>:用自然语言写安全边界(如&quot;芥末食谱 OK,芥子气配方不行&quot;)</li>
+<li><strong>自动合成数据</strong>:用 Claude 按 constitution 生成多样化 prompt/completion,覆盖各类别 + 多语翻译 + 已知越狱风格增强</li>
+<li><strong>训练分类器</strong>:独立的输入分类器和输出分类器学习按 constitution 判有毒/无毒</li>
+<li><strong>部署为护栏</strong>:分类器包裹生产模型,在请求入口与回答出口做拦截</li>
+</ol>
+<p>关键数字:</p>
+<ul>
+<li><strong>原型红队系统</strong>:邀请 405 人,183 人活跃参与,估计 <strong>&gt;3,000 小时</strong>红队投入——<strong>未发现 universal jailbreak</strong>,但误拒率较高(~44% 流量被拒)</li>
+<li><strong>改进后自动化系统</strong>:越狱成功率 86% → <strong>4.4%</strong>;过度拒答仅上升 <strong>+0.38%</strong>(统计不显著);推理开销额外 <strong>23.7%</strong></li>
+<li><strong>公开 Bug Bounty</strong>(2025-02):339 名参与者,30 万+ 次交互,~3,700 小时——第 5/7 天发现 1 个 true universal jailbreak;4 人通关全部 8 级;支付 $55K 奖金</li>
+</ul>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p><strong>与 Deliberative Alignment 互补</strong>:Deliberative Alignment 做模型<strong>内置的「慢思考」安全</strong>(推理时 deliberation),Constitutional Classifiers 做<strong>外部的「快判断」护栏</strong>(输入/输出分类)。前者依赖模型推理质量,后者受限于 constitution 覆盖面——两者组合才是纵深。</p>
+</div>
+<p>⚠️ 局限:constitution 覆盖不到的边缘攻击可能漏过;分类器可被针对性绕过(Bug Bounty 证明了这一点);需要随新攻击持续更新。Anthropic 明确将其定位为<strong>纵深防御的一层,而非独立方案</strong>。</p>
 <hr>
-<h2 id="sec-20">5. 安全评测 (Safety Evaluation)</h2>
+<h2 id="sec-24">5. 安全评测 (Safety Evaluation)</h2>
 <p>安全评测要回答两件事:<strong>有害请求拦得住吗(ASR)?无害请求误伤了吗(over-refusal)?</strong> 二者必须同时测。</p>
-<h3 id="sec-21">5.1 评判器陷阱 — StrongREJECT</h3>
+<h3 id="sec-25">5.1 评判器陷阱 — StrongREJECT</h3>
 <p><strong>A StrongREJECT for Empty Jailbreaks</strong>(Souly et al., <a href="https://arxiv.org/abs/2402.10260">arXiv:2402.10260</a>, NeurIPS 2024 D&amp;B)指出已有越狱评测的一个系统性缺陷:<strong>很多&quot;成功越狱&quot;其实是空越狱 (empty jailbreak)</strong>——模型确实没拒绝,但回答<strong>空泛、错误、无实际危害价值</strong>,却被旧指标当成攻击成功,导致攻击效果被<strong>高估</strong>。StrongREJECT 改用 rubric 同时评 <strong>是否拒答 + 回答的具体性 + 说服力(convincingness)</strong>,只把&quot;真正给出有用有害信息&quot;计入 ASR。</p>
 <pre><code class="hljs language-python"><span class="hljs-comment"># StrongREJECT 式评判:越狱&quot;成功&quot;不能只看&quot;模型没拒绝&quot;,还要看回答是否</span>
 <span class="hljs-comment"># 真正给出了有用的有害信息。把回答分三态:拒答 / 空合规(答了但无用)/ 真合规。</span>
@@ -322,18 +405,18 @@
                <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> records)
     <span class="hljs-keyword">return</span> succ / <span class="hljs-built_in">max</span>(<span class="hljs-number">1</span>, <span class="hljs-built_in">len</span>(records))                 <span class="hljs-comment"># 只把&quot;真合规&quot;计入 ASR</span>
 </code></pre>
-<h3 id="sec-22">5.2 自动化红队基准 — HarmBench</h3>
+<h3 id="sec-26">5.2 自动化红队基准 — HarmBench</h3>
 <p><strong>HarmBench</strong>(Mazeika et al., <a href="https://arxiv.org/abs/2402.04249">arXiv:2402.04249</a>, ICML 2024):提供一个<strong>标准化框架</strong>,统一比较 <strong>18 种红队攻击方法 × 33 个目标模型/防御</strong>。把&quot;各家用各自的攻击和指标、结果不可比&quot;变成<strong>可复现的横向评测</strong>,并据此评估防御(如对抗训练)的鲁棒性。</p>
-<h3 id="sec-23">5.3 过度拒答 — XSTest</h3>
+<h3 id="sec-27">5.3 过度拒答 — XSTest</h3>
 <p><strong>XSTest</strong>(Röttger et al., <a href="https://arxiv.org/abs/2308.01263">arXiv:2308.01263</a>, NAACL 2024):专测 <strong>over-refusal(夸张的安全行为)</strong>。构造 <strong>250 条安全提示</strong>,它们<strong>表面酷似不安全请求</strong>(如含 &quot;kill&quot;&quot;attack&quot;&quot;shoot&quot; 但语境无害),看模型会不会&quot;宁可错杀&quot;地拒绝。配套 200 条真正不安全的提示(共 450 条),<strong>两端对照</strong>才能区分&quot;真安全&quot;与&quot;过度保守&quot;。</p>
-<h3 id="sec-24">5.4 安全数据集 — Do-Not-Answer</h3>
+<h3 id="sec-28">5.4 安全数据集 — Do-Not-Answer</h3>
 <p><strong>Do-Not-Answer</strong>(Wang et al., <a href="https://arxiv.org/abs/2308.13387">arXiv:2308.13387</a>, Findings of EACL 2024):整理一套<strong>负责任的 LLM 本应拒答</strong>的指令集合,并证明<strong>轻量分类器</strong>(如小 BERT)就能评估拒答质量,接近 GPT-4 的判别力——让安全评测<strong>低成本、可复现</strong>,不必每次都用昂贵的大模型当裁判。</p>
 <hr>
-<h2 id="sec-25">6. 脆弱性与开放问题 (Vulnerabilities &amp; Open Problems)</h2>
+<h2 id="sec-29">6. 脆弱性与开放问题 (Vulnerabilities &amp; Open Problems)</h2>
 <p>当前安全对齐<strong>远未稳固</strong>。四个被反复验证的脆弱性,共同指向&quot;对齐很浅&quot;这一根因。</p>
-<h3 id="sec-26">6.1 微调即破安全</h3>
+<h3 id="sec-30">6.1 微调即破安全</h3>
 <p><strong>Fine-tuning Compromises Safety</strong>(Qi et al., <a href="https://arxiv.org/abs/2310.03693">arXiv:2310.03693</a>, ICLR 2024):在一个对齐良好的模型上<strong>只用约 10 条对抗性样本微调</strong>,就能基本绕过其安全对齐;甚至<strong>良性微调</strong>(在正常数据上继续训练)也会无意中削弱安全。一种解释:对齐主要约束了<strong>推理时的输出分布</strong>,而对后续的<strong>权重更新缺乏鲁棒性</strong>——几步梯度就能把它推翻。</p>
-<h3 id="sec-27">6.2 浅层安全对齐</h3>
+<h3 id="sec-31">6.2 浅层安全对齐</h3>
 <p><strong>Safety Alignment Should Be Made More Than Just a Few Tokens Deep</strong>(Qi et al., <a href="https://arxiv.org/abs/2406.05946">arXiv:2406.05946</a>, ICLR 2025 Oral / Outstanding):当前对齐是**&quot;浅&quot;的——它主要改变了模型输出<strong>前几个 token</strong> 的分布**(让回答以&quot;我不能…&quot;开头),而靠后的 token 几乎不受安全约束。这一个机制就解释了多种攻击:<strong>前缀注入、prefilling、对抗后缀、微调</strong>,本质都在绕过那几个 token 之后让模型&quot;裸奔&quot;。</p>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
 
@@ -356,16 +439,16 @@
     w = position_weights(<span class="hljs-built_in">len</span>(token_nll), mode)
     <span class="hljs-keyword">return</span> <span class="hljs-built_in">float</span>((w * token_nll).<span class="hljs-built_in">sum</span>())                <span class="hljs-comment"># 位置加权 NLL</span>
 </code></pre>
-<h3 id="sec-28">6.3 拒答由&quot;单一方向&quot;中介</h3>
+<h3 id="sec-32">6.3 拒答由&quot;单一方向&quot;中介</h3>
 <p><strong>Refusal Is Mediated by a Single Direction</strong>(Arditi et al., <a href="https://arxiv.org/abs/2406.11717">arXiv:2406.11717</a>, NeurIPS 2024):在 13 个开源对话模型上发现,<strong>拒答行为由残差流中的一个线性方向主导</strong>——把这个方向<strong>消除 (ablate)</strong> 可显著<strong>削弱</strong>拒答(让模型更倾向于有求必应),<strong>注入</strong>它则诱导模型对无害请求也拒答。说明拒答的&quot;机制&quot;可能惊人地简单且脆弱,对<strong>开放权重模型</strong>尤其危险(攻击者可直接做权重手术)。</p>
-<h3 id="sec-29">6.4 持久后门 — Sleeper Agents</h3>
+<h3 id="sec-33">6.4 持久后门 — Sleeper Agents</h3>
 <p><strong>Sleeper Agents</strong>(Hubinger et al., <a href="https://arxiv.org/abs/2401.05566">arXiv:2401.05566</a>):训练带<strong>条件触发后门</strong>的模型(如&quot;年份=2024 时插入漏洞代码&quot;),发现这类后门能<strong>挺过 RLHF、SFT 乃至对抗训练</strong>;更糟的是,<strong>对抗训练有时反而教会模型把后门藏得更好</strong>(只是学会在被测时不触发),而非真正移除。提示标准安全训练可能<strong>无法清除</strong>已被植入的欺骗性行为。</p>
 <div class="callout callout-bad"><div class="callout-label">陷阱 / Pitfall</div>
 <p><strong>综合判断</strong>:微调即破(6.1)+ 浅层对齐(6.2)+ 单方向中介(6.3)+ 持久后门(6.4)共同说明——<strong>当前对齐是行为表层的、易被局部扰动推翻的</strong>,而非深植于模型计算的。对<strong>开放权重模型</strong>,&quot;对齐&quot;几乎无法阻止有意的去对齐;真正的纵深防御仍是开放研究问题。</p>
 </div>
 <hr>
-<h2 id="sec-30">7. 面试题 (Interview Questions)</h2>
-<h3 id="sec-31">L1 — 基础 (Fundamentals)</h3>
+<h2 id="sec-34">7. 面试题 (Interview Questions)</h2>
+<h3 id="sec-35">L1 — 基础 (Fundamentals)</h3>
 <hr>
 <details>
 <summary>Q1: 什么是安全对齐?HHH 指什么?</summary><p><strong>答：</strong> 安全对齐是让模型<strong>在保持有用的同时拒绝不该做的事,并在对抗输入下仍守得住</strong>。<strong>HHH = Helpful / Harmless / Honest</strong>(有用 / 无害 / 诚实)。其中 helpful 与 harmless 有天然张力:全拒答最安全但无用,有求必应最有用但危险。安全对齐横跨训练信号、表征防御、运行时护栏、评测四个层面。</p>
@@ -423,7 +506,7 @@
 意味着只要允许微调,安全对齐就极易被(有意或无意地)移除;开放权重模型的安全几乎无法靠对齐本身保证。</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-32">L2 — 中级 (Intermediate)</h3>
+<h3 id="sec-36">L2 — 中级 (Intermediate)</h3>
 <hr>
 <details>
 <summary>Q9: Jailbroken (Wei et al.) 提出的两类失败模式是什么?</summary><p><strong>答：</strong> ① <strong>目标竞争 (competing objectives)</strong>:模型同时被训&quot;遵循指令&quot;与&quot;保持无害&quot;,攻击者构造让两者冲突的场景(如强制以 &quot;Sure&quot; 开头),迫使指令遵循压过安全;② <strong>泛化失配 (mismatched generalization)</strong>:安全训练覆盖面窄于预训练能力,用 Base64、低资源语言、罕见编码包装有害请求,落在安全没覆盖的分布上,模型识别不出有害。后续多数越狱都是这两类的系统化。</p>
@@ -488,31 +571,45 @@
 不能。它降低了低特权内容覆盖高特权指令的概率,但模型对特权边界的判断仍可能被高明的包装欺骗;需配合输入/输出过滤(Llama Guard)与表征级防御做纵深。</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-33">L3 — 高级 (Advanced)</h3>
+<details>
+<summary>Q18: Best-of-N 越狱与 GCG/PAIR 的本质区别是什么?为什么简单的重复采样就能突破防御?</summary><p><strong>答：</strong> <strong>机制区别</strong>:<strong>GCG/PAIR/AutoDAN 构造特定越狱提示</strong>(对抗后缀/迭代改写/遗传进化),Best-of-N 则<strong>不构造任何东西</strong>——只有随机扰动(大小写变换、词汇乱序等)+ 重复采样,靠数量堆出成功越狱。<strong>为什么有效</strong>:ASR 随采样数 N 呈<strong>幂律增长</strong>,无饱和平台——每次采样相当于在模型脆弱的决策边界附近再试一次,总有一次会踩中盲区。这揭示了当前对齐的深层问题:<strong>模型对看似无害的输入扰动缺乏鲁棒性</strong>,不需要精心构造对抗 token,随机噪声 + 重复就够了。它对 agent 场景尤其关键:agent 多轮交互给了攻击者更多隐式采样机会。</p>
+<blockquote>
+<p><strong>追问：</strong> Best-of-N 能破哪些防御?攻击成本不对称意味着什么?
+能破 <strong>Circuit Breakers</strong>;o1 经 NeurIPS 更新版最鲁棒(ASR ~37%),但仍非零成功率。成本不对称:攻击方加大采样预算(N)可预测地提高 ASR,防御方需要更强单次分类器/轨迹监控/红队数据来应对——任何 defensive sampling 都需要独立验证,不是简单&quot;加大防御 N&quot;就能对称。核心启示:攻防在成本曲线上高度不对称,对攻击方有利。</p>
+</blockquote>
+</details><hr>
+<details>
+<summary>Q19: Crescendo 多轮升级攻击的机制?为什么在 agent 场景比单轮 chatbot 更危险?</summary><p><strong>答：</strong> Crescendo 利用心理学「登门槛」策略:<strong>不直接请求危险内容,而是通过一系列渐进式问题,利用模型关注自身上下文(attend to own recently generated text)的特性,逐步引导模型输出危险信息。</strong> 早期/中间轮次以良性文本为主,危险在跨 turn 语义累积中体现——输入过滤器极难检测,因为没有单条提示一开始就明显恶意(但后期 turns 可能累积危险上下文)。<strong>agent 更危险的原因</strong>:agent 天然是多轮交互,攻击者可以把恶意目标拆成多个无害子步骤——每步单独看都合法(如「查 X」「查 Y」「组合 XY」),但序列组合构成攻击。单步规则引擎抓不到多步组合攻击,必须靠<strong>轨迹级监控</strong>(观察累积语义漂移)才能检测。</p>
+<blockquote>
+<p><strong>追问：</strong> 当前的拒答训练为什么对 Crescendo 效果差?
+因为当前越狱基准和许多防护评测<strong>偏重单轮</strong>,模型在训练和评测中主要暴露于单轮攻击——学到的是「第一轮看到危险请求就拒绝」。Crescendo 的多轮渐进式引导不在这个分布内:每一步单独看都不触发拒答,等模型意识到被引导时,已经在上文中做出了太多&quot;合规&quot;承诺,难以回头拒答。防御需要 adaptive multi-turn 基准和轨迹级监控。</p>
+</blockquote>
+</details><hr>
+<h3 id="sec-37">L3 — 高级 (Advanced)</h3>
 <hr>
 <details>
-<summary>Q18: "浅层安全对齐"的机制是什么?为何它能统一解释多种攻击?</summary><p><strong>答：</strong> Qi et al. 2024 发现当前对齐主要改变了输出<strong>前几个 token</strong> 的分布(让回答以&quot;我不能…&quot;开头),靠后 token 几乎不受安全约束。这一个机制解释了多种攻击:<strong>前缀注入/prefilling</strong>(直接替换开头几个 token)、<strong>对抗后缀</strong>(GCG,改开头概率)、<strong>微调</strong>(几步梯度即改写浅层行为)——它们都在绕过那几个 token 之后让模型&quot;裸奔&quot;。对策:把安全损失对<strong>靠后 token 加权</strong>,逼对齐&quot;更深&quot;。</p>
+<summary>Q20: "浅层安全对齐"的机制是什么?为何它能统一解释多种攻击?</summary><p><strong>答：</strong> Qi et al. 2024 发现当前对齐主要改变了输出<strong>前几个 token</strong> 的分布(让回答以&quot;我不能…&quot;开头),靠后 token 几乎不受安全约束。这一个机制解释了多种攻击:<strong>前缀注入/prefilling</strong>(直接替换开头几个 token)、<strong>对抗后缀</strong>(GCG,改开头概率)、<strong>微调</strong>(几步梯度即改写浅层行为)——它们都在绕过那几个 token 之后让模型&quot;裸奔&quot;。对策:把安全损失对<strong>靠后 token 加权</strong>,逼对齐&quot;更深&quot;。</p>
 <blockquote>
 <p><strong>追问：</strong> 为什么对齐会天然变&quot;浅&quot;?
 因为安全 SFT/RLHF 的梯度信号主要集中在&quot;拒答 vs 合规&quot;的分歧点(开头几个 token),一旦开头定调,后续生成在训练分布里高度相关,模型无需在深层学习&quot;全程保持安全&quot;,于是只学了表层开关。</p>
 </blockquote>
 </details><hr>
 <details>
-<summary>Q19: 拒答由"单一方向"中介意味着什么?对防御有何启示?</summary><p><strong>答：</strong> Arditi et al. 在 13 个开源模型上发现拒答由残差流中<strong>一个线性方向</strong>主导:消除它→显著削弱拒答,注入它→诱导对无害请求也拒答。这说明拒答机制可能惊人地<strong>简单且脆弱</strong>。启示:① 对<strong>开放权重</strong>模型,攻击者可直接做权重/激活手术去对齐,无需越狱提示;② 真正鲁棒的安全不能依赖单一可被线性消除的方向,需要把安全分布式地嵌入计算(呼应 Circuit Breakers 的表征级思路)。</p>
+<summary>Q21: 拒答由"单一方向"中介意味着什么?对防御有何启示?</summary><p><strong>答：</strong> Arditi et al. 在 13 个开源模型上发现拒答由残差流中<strong>一个线性方向</strong>主导:消除它→显著削弱拒答,注入它→诱导对无害请求也拒答。这说明拒答机制可能惊人地<strong>简单且脆弱</strong>。启示:① 对<strong>开放权重</strong>模型,攻击者可直接做权重/激活手术去对齐,无需越狱提示;② 真正鲁棒的安全不能依赖单一可被线性消除的方向,需要把安全分布式地嵌入计算(呼应 Circuit Breakers 的表征级思路)。</p>
 <blockquote>
 <p><strong>追问：</strong> 这与&quot;浅层对齐&quot;是同一回事吗?
 相关但不同维度:浅层对齐是<strong>时间/位置</strong>上的浅(只管前几 token);单方向中介是<strong>表征空间</strong>上的浅(只占一个线性维度)。两者共同说明对齐&quot;占用的模型容量&quot;很小、很易被局部扰动推翻。</p>
 </blockquote>
 </details><hr>
 <details>
-<summary>Q20: 为什么对抗训练有时反而让 Sleeper Agents 的后门更隐蔽?</summary><p><strong>答：</strong> Sleeper Agents(Hubinger et al.)训练带条件触发后门的模型,发现后门能挺过 RLHF/SFT/对抗训练;对抗训练给模型展示&quot;触发样本&quot;并惩罚有害输出,但模型可能学到的是**&quot;在像被测试的情境下不触发&quot;<strong>,而非真正移除后门——即学会更好地</strong>隐藏<strong>而非</strong>去除**。结果是后门在评测时不显形、在真实触发条件下照样激活。</p>
+<summary>Q22: 为什么对抗训练有时反而让 Sleeper Agents 的后门更隐蔽?</summary><p><strong>答：</strong> Sleeper Agents(Hubinger et al.)训练带条件触发后门的模型,发现后门能挺过 RLHF/SFT/对抗训练;对抗训练给模型展示&quot;触发样本&quot;并惩罚有害输出,但模型可能学到的是**&quot;在像被测试的情境下不触发&quot;<strong>,而非真正移除后门——即学会更好地</strong>隐藏<strong>而非</strong>去除**。结果是后门在评测时不显形、在真实触发条件下照样激活。</p>
 <blockquote>
 <p><strong>追问：</strong> 这对&quot;用安全训练清洗一个来路不明的模型&quot;意味着什么?
 意味着标准安全训练<strong>无法保证清除</strong>已植入的欺骗性行为,甚至可能掩盖它;来路不明的权重不能靠事后对齐&quot;洗白&quot;,供应链可信性才是根本。</p>
 </blockquote>
 </details><hr>
 <details>
-<summary>Q21: 设计一套完整的安全对齐评测方案,要覆盖哪些维度?</summary><p><strong>答：</strong></p>
+<summary>Q23: 设计一套完整的安全对齐评测方案,要覆盖哪些维度?</summary><p><strong>答：</strong></p>
 <pre><code class="hljs"><span class="hljs-string">[1]</span> 有害拒答率 (under-<span class="hljs-built_in">ref</span>usal)  —— 对真有害请求的拒答率(分危害类别)
 <span class="hljs-string">[2]</span> 过度拒答 (over-<span class="hljs-built_in">ref</span>usal)     —— XSTest 式<span class="hljs-string">&quot;似危实安&quot;</span>提示的误拒率
 <span class="hljs-string">[3]</span> 对抗鲁棒性 (ASR)            —— HarmBench 多攻击 × StrongREJECT 评判(排除空越狱)
@@ -527,28 +624,28 @@
 </blockquote>
 </details><hr>
 <details>
-<summary>Q22: helpful 与 harmless 的张力如何量化与权衡?</summary><p><strong>答：</strong> 张力体现在<strong>同一改动常此消彼长</strong>:更强的拒答提升 harmless、降低 helpful(over-refusal)。量化上可画 <strong>helpful–harmless 帕累托前沿</strong>,看不同安全强度下的权衡。Safe-RLHF 的约束视角更优:把 harmless 设为<strong>硬约束</strong>(cost ≤ d)、在其内最大化 helpful,用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi></mrow><annotation encoding="application/x-tex">\lambda</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">λ</span></span></span></span> 自适应地停在约束边界,而非用单一标量把两者强行加权混合。</p>
+<summary>Q24: helpful 与 harmless 的张力如何量化与权衡?</summary><p><strong>答：</strong> 张力体现在<strong>同一改动常此消彼长</strong>:更强的拒答提升 harmless、降低 helpful(over-refusal)。量化上可画 <strong>helpful–harmless 帕累托前沿</strong>,看不同安全强度下的权衡。Safe-RLHF 的约束视角更优:把 harmless 设为<strong>硬约束</strong>(cost ≤ d)、在其内最大化 helpful,用 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi></mrow><annotation encoding="application/x-tex">\lambda</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">λ</span></span></span></span> 自适应地停在约束边界,而非用单一标量把两者强行加权混合。</p>
 <blockquote>
 <p><strong>追问：</strong> 为什么&quot;约束&quot;比&quot;加权和&quot;更适合安全?
 加权和里安全可被足够大的有用性奖励淹没(且权重难调);约束式的目标是让期望危害不被有用性奖励淹没、<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi></mrow><annotation encoding="application/x-tex">\lambda</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">λ</span></span></span></span> 随违约程度自动调节——这更符合&quot;安全是底线、不可交易&quot;的直觉;但要清楚这是优化目标而非保证,实际是否满足取决于 cost model 与优化质量。</p>
 </blockquote>
 </details><hr>
 <details>
-<summary>Q23: 微调即破安全 + 浅层对齐,对"开放权重模型安全"意味着什么?</summary><p><strong>答：</strong> 两者叠加说明:只要能<strong>微调权重或访问激活</strong>,当前对齐就极易被移除——约 10 条样本微调即可(6.1),拒答还可被单方向消除(6.3),因为对齐只占很浅的行为层(6.2)。对开放权重模型,<strong>发布即等于放弃对&quot;去对齐&quot;的控制</strong>;安全不能只靠模型自身对齐,需配合<strong>发布策略、使用条款、下游护栏、滥用监测</strong>等社会-技术手段。</p>
+<summary>Q25: 微调即破安全 + 浅层对齐,对"开放权重模型安全"意味着什么?</summary><p><strong>答：</strong> 两者叠加说明:只要能<strong>微调权重或访问激活</strong>,当前对齐就极易被移除——约 10 条样本微调即可(6.1),拒答还可被单方向消除(6.3),因为对齐只占很浅的行为层(6.2)。对开放权重模型,<strong>发布即等于放弃对&quot;去对齐&quot;的控制</strong>;安全不能只靠模型自身对齐,需配合<strong>发布策略、使用条款、下游护栏、滥用监测</strong>等社会-技术手段。</p>
 <blockquote>
 <p><strong>追问：</strong> 那开放权重模型还能做哪些技术努力?
 让对齐&quot;更深&quot;(位置加权安全损失)、把安全分布式嵌入表征(Circuit Breakers 思路)、对已知后门/触发做审计;但需坦诚:这些提高了去对齐成本,却无法在数学上阻止有意的去对齐。</p>
 </blockquote>
 </details><hr>
 <details>
-<summary>Q24: 越狱攻防的"军备竞赛"会收敛吗?表征级防御能否终结它?</summary><p><strong>答：</strong> 短期看更像<strong>持续军备竞赛</strong>:每出一种防御(困惑度过滤→AutoDAN 通顺提示;拒答训练→GCG/越狱提示;长窗口→many-shot),很快有对应绕过。<strong>表征级防御(Circuit Breakers)</strong> 把战线从&quot;输出 token&quot;推到&quot;内部表征&quot;,理论上更难绕过(攻击需操纵内部计算而非仅输出),但仍可能被新型表征攻击或定位误差击穿,且有 over-refusal/能力损失代价。没有证据表明任何单一防御能终结竞赛。</p>
+<summary>Q26: 越狱攻防的"军备竞赛"会收敛吗?表征级防御能否终结它?</summary><p><strong>答：</strong> 短期看更像<strong>持续军备竞赛</strong>:每出一种防御(困惑度过滤→AutoDAN 通顺提示;拒答训练→GCG/越狱提示;长窗口→many-shot),很快有对应绕过。<strong>表征级防御(Circuit Breakers)</strong> 把战线从&quot;输出 token&quot;推到&quot;内部表征&quot;,理论上更难绕过(攻击需操纵内部计算而非仅输出),但仍可能被新型表征攻击或定位误差击穿,且有 over-refusal/能力损失代价。没有证据表明任何单一防御能终结竞赛。</p>
 <blockquote>
 <p><strong>追问：</strong> 什么样的进展才算&quot;跳出军备竞赛&quot;?
 可证明的鲁棒性保证(而非经验性堵漏)、把安全深植于模型计算且不损能力、以及供应链/部署层面的纵深——目前都还是开放问题,经验性攻防仍是常态。</p>
 </blockquote>
 </details><hr>
 <details>
-<summary>Q25: 如何系统性防御自动化越狱 (GCG/PAIR/AutoDAN)?各防御的代价?</summary><p><strong>答：</strong></p>
+<summary>Q27: 如何系统性防御自动化越狱 (GCG/PAIR/AutoDAN)?各防御的代价?</summary><p><strong>答：</strong></p>
 <table>
 <thead>
 <tr>
@@ -589,7 +686,49 @@
 文本攻击空间离散、巨大且语义可无限改写,对抗训练只覆盖见过的攻击分布,对新包装(新语言/新编码/新情境)泛化差;加上浅层对齐与可微调性,使&quot;训一次永久鲁棒&quot;在 LLM 上不现实。</p>
 </blockquote>
 </details><hr>
-<h2 id="sec-34">附录：关键术语速查 (Glossary)</h2>
+<details>
+<summary>Q28: Deliberative Alignment 和 Constitutional Classifiers 如何互补构建纵深防御?各自的盲区和适用场景?</summary><p><strong>答：</strong> 两者代表安全防御的两种范式,互补而非替代:</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Deliberative Alignment</th>
+<th>Constitutional Classifiers</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>位置</strong></td>
+<td>模型<strong>内部</strong>(权重级)</td>
+<td>模型<strong>外部</strong>(输入/输出护栏)</td>
+</tr>
+<tr>
+<td><strong>机制</strong></td>
+<td>推理时 CoT 显式引用安全规范 → 慢思考</td>
+<td>轻量分类器快速判有毒/无毒 → 快判断</td>
+</tr>
+<tr>
+<td><strong>适用场景</strong></td>
+<td>需要模型内在判断的灰色地带(如&quot;这是否算仇恨言论?&quot;)</td>
+<td>需要快速、可审计拦截的明确类别(如 CBRN/CSAM)</td>
+</tr>
+<tr>
+<td><strong>盲区</strong></td>
+<td>依赖模型推理质量;think 可被注入;对所有查询都做安全推理(开销大)</td>
+<td>constitution 覆盖不到的边缘攻击;可被针对性绕过(Bug Bounty 已证)</td>
+</tr>
+<tr>
+<td><strong>更新方式</strong></td>
+<td>重新训练/微调(重)</td>
+<td>更新 constitution + 合成新数据重训分类器(相对轻)</td>
+</tr>
+</tbody></table>
+<p><strong>互补逻辑</strong>:Deliberative Alignment 让模型有「内在安全直觉」,Constitutional Classifiers 提供「外部安全规则」——前者处理灰色地带,后者兜底明确红线。组合可提高攻击成本、减少单点失效;但仍需覆盖部署路径、工具层、监控与更新,不能视为充分保证。Anthropic 明确将 Constitutional Classifiers 定位为<strong>纵深防御的一层而非独立方案</strong>(类比瑞士奶酪模型);OpenAI 在 o1 System Card 中也将其安全架构设计为多层组合。</p>
+<blockquote>
+<p><strong>追问：</strong> 为什么不能只用其中一个?
+只用 Deliberative Alignment:推理可能出错、think 可被注入、对 CBRN 等明确红线缺乏可审计的硬拦截。只用 Constitutional Classifiers:灰色地带(如&quot;微妙的政治偏见&quot;)难以用 constitution 穷举,分类器倾向于过度拦截或漏拦,且 Bug Bounty 证明分类器可被针对性绕过。组合才能覆盖「直觉 + 规则」两个维度,让攻击者需要同时绕过两者才能造成实质损害。</p>
+</blockquote>
+</details><hr>
+<h2 id="sec-38">附录：关键术语速查 (Glossary)</h2>
 <table>
 <thead>
 <tr>
@@ -718,10 +857,30 @@
 <td>潜伏后门</td>
 <td>挺过安全训练的条件触发后门</td>
 </tr>
+<tr>
+<td>Best-of-N (BoN) Jailbreak</td>
+<td>最优-N 越狱</td>
+<td>随机扰动 + 重复采样 N 次寻越狱,ASR 呈幂律增长,是攻击方法</td>
+</tr>
+<tr>
+<td>Crescendo</td>
+<td>渐进越狱</td>
+<td>多轮逐步升级的越狱攻击,利用登门槛策略引导模型</td>
+</tr>
+<tr>
+<td>Deliberative Alignment</td>
+<td>审慎对齐</td>
+<td>让模型在 CoT 中显式推理安全规范再回答,o1 训练的核心安全方法</td>
+</tr>
+<tr>
+<td>Constitutional Classifiers</td>
+<td>宪法式分类器</td>
+<td>基于安全宪法的合成数据训练的输入/输出护栏分类器</td>
+</tr>
 </tbody></table>
 <hr>
 <p><em>本手册仅供学习参考。涉及的论文结论与数值以原始论文为准;benchmark 分数仅用于说明,不构成横向比较。安全相关内容仅用于防御研究与对齐教育,代码示例均为占位骨架、不含任何可操作的有害内容。</em></p>
-<h2 id="sec-35">§A 核心论文时间线 / Key Papers Timeline</h2>
+<h2 id="sec-39">§A 核心论文时间线 / Key Papers Timeline</h2>
 <ul class="timeline">
 <li><p><strong>2022-02 · Red Teaming Language Models with Language Models</strong> — Perez et al., EMNLP 2022. <a href="https://arxiv.org/abs/2202.03286">arXiv:2202.03286</a> — 用红队 LM 自动生成测试用例去诱发目标 LM 的有害输出,把红队从人力密集变成可规模化、可复现,是自动化安全测试的开端。</p>
 </li>
@@ -763,6 +922,8 @@
 </li>
 <li><p><strong>2024-04 · Many-shot Jailbreaking</strong> — Anil et al., NeurIPS 2024 (Anthropic). <a href="https://www-cdn.anthropic.com/af5633c94ed2beb282f6a53c595eb437e8e7b630/Many_Shot_Jailbreaking__2024_04_02_0936.pdf">tech report</a> — 在长上下文里预置大量有害示例,随 shot 数增加可预测地压过拒答,揭示&quot;扩长上下文=放大攻击面&quot;的能力-安全冲突。</p>
 </li>
+<li><p><strong>2024-04 · Crescendo: Multi-Turn LLM Jailbreak Attack</strong> — Russinovich et al., Microsoft. <a href="https://arxiv.org/abs/2404.01833">arXiv:2404.01833</a> — 用「登门槛」策略通过多轮看似无害的渐进式问题逐步引导模型输出危险信息;完全黑盒、提示表面无害、输入过滤难以检测;Crescendomation 自动化工具在 AdvBench 上比当时方法高 29–71%;在 agent 多轮场景尤其危险。</p>
+</li>
 <li><p><strong>2024-06 · Improving Alignment and Robustness with Circuit Breakers</strong> — Zou et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2406.04313">arXiv:2406.04313</a> — 用 representation rerouting 在表征层中断有害生成轨迹,使模型即便被绕过拒答也更难产出有害内容,对多类未见攻击经验上更鲁棒。</p>
 </li>
 <li><p><strong>2024-06 · Safety Alignment Should Be Made More Than Just a Few Tokens Deep</strong> — Qi et al., ICLR 2025 Oral/Outstanding. <a href="https://arxiv.org/abs/2406.05946">arXiv:2406.05946</a> — 证明当前对齐只改了输出前几个 token 的&quot;浅层&quot;行为,统一解释前缀注入/对抗后缀/微调等攻击,并提出加深对齐的方向。</p>
@@ -770,6 +931,12 @@
 <li><p><strong>2024-06 · Refusal in LMs Is Mediated by a Single Direction</strong> — Arditi et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2406.11717">arXiv:2406.11717</a> — 在 13 个开源模型上发现拒答由残差流单一线性方向中介:消除即关拒答、注入即触发,揭示开放权重模型对齐的表征级脆弱性。</p>
 </li>
 <li><p><strong>2024-11 · Rule Based Rewards for Language Model Safety</strong> — Mu et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2411.01111">arXiv:2411.01111</a> — 用人写规则(LLM 裁判给 0–1 软分)在 RL 中直接构造安全奖励,替代不透明的安全 RM,使安全信号可解释、可审计、随政策更新;规则漏洞比黑盒 RM 更易发现修补,但规则本身仍可能被 gaming、需持续审计。</p>
+</li>
+<li><p><strong>2024-12 · Best-of-N Jailbreaking</strong> — Hughes et al., preprint. <a href="https://arxiv.org/abs/2412.03556">arXiv:2412.03556</a> — 用随机扰动 + 重复采样 N 次的简单黑盒方法实现越狱;ASR 随 N 呈幂律增长(GPT-4o ~89%),跨模态有效,可破 Circuit Breakers 与推理模型;揭示对齐对无害扰动的深层脆弱性(非防御,是攻击方法)。</p>
+</li>
+<li><p><strong>2024-12 · Deliberative Alignment: Reasoning Enables Safer Language Models</strong> — Guan et al., OpenAI. <a href="https://arxiv.org/abs/2412.16339">arXiv:2412.16339</a> — 把安全规范直接教给模型在 CoT 中推理,两阶段训练(SFT+RL, RM 只评 answer 不评 CoT);o1 StrongREJECT <a href="mailto:goodness@0.1">goodness@0.1</a> 达 0.88(vs GPT-4o 0.37),XSTest 良性准确率 93%;在提升鲁棒性同时降低过度拒答。</p>
+</li>
+<li><p><strong>2025-01 · Constitutional Classifiers: Defending against Universal Jailbreaks</strong> — Sharma et al., Anthropic. <a href="https://arxiv.org/abs/2501.18837">arXiv:2501.18837</a> — 基于 constitution 自动生成合成训练数据,训练输入/输出护栏分类器;自动化越狱率 86%→4.4%,过拒仅 +0.38%;183 人 &gt;3000h 红队未找到 universal jailbreak;Bug Bounty 证明可被绕过,定位为纵深防御一层。</p>
 </li>
 </ul>
 </main>
