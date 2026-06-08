@@ -140,7 +140,7 @@
 <nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-ml-system-design.html">中文 ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">ML / LLM System Design — Cheat Sheet</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">Part 1 — Concepts &amp; Key Formulas</a></li><li class="lv3"><a href="#sec-1">1.1 Causal Language Modeling (CLM)</a></li><li class="lv3"><a href="#sec-2">1.2 Softmax &amp; Attention</a></li><li class="lv3"><a href="#sec-3">1.3 Position Encoding</a></li><li class="lv3"><a href="#sec-4">1.4 LoRA — Low-Rank Adaptation</a></li><li class="lv3"><a href="#sec-5">1.5 Reinforcement Learning from Human Feedback</a></li><li class="lv3"><a href="#sec-6">1.5b Distributed RLHF Architecture</a></li><li class="lv3"><a href="#sec-7">1.6 Distributed Training Parallelism</a></li><li class="lv3"><a href="#sec-8">1.7 KV Cache Memory Analysis</a></li><li class="lv3"><a href="#sec-9">1.8 Quantization Fundamentals</a></li><li class="lv3"><a href="#sec-10">1.9 Speculative Decoding</a></li><li class="lv3"><a href="#sec-11">1.10 7-Step ML System Design Framework</a></li><li class="lv2"><a href="#sec-12">Part 2 — From-Scratch Snippets</a></li><li class="lv3"><a href="#sec-13">2.1 Scaled Dot-Product Attention</a></li><li class="lv3"><a href="#sec-14">2.2 Causal Self-Attention Layer</a></li><li class="lv3"><a href="#sec-15">2.3 LoRA Layer</a></li><li class="lv3"><a href="#sec-16">2.4 Grouped-Query Attention (GQA)</a></li><li class="lv3"><a href="#sec-17">2.5 RoPE (Rotary Position Embedding)</a></li><li class="lv3"><a href="#sec-18">2.6 DPO Loss</a></li><li class="lv3"><a href="#sec-19">2.7 KV Cache Wrapper (Minimal)</a></li><li class="lv3"><a href="#sec-20">2.8 Symmetric INT8 Quantize / Dequantize</a></li><li class="lv3"><a href="#sec-21">2.9 Tensor-Parallel Linear (Column / Row)</a></li><li class="lv2"><a href="#sec-22">Part 3 — Interview Questions</a></li><li class="lv3"><a href="#sec-23">L1 — Basic</a></li><li class="lv3"><a href="#sec-24">L2 — Intermediate</a></li><li class="lv3"><a href="#sec-25">L3 — Deep</a></li><li class="lv2"><a href="#sec-26">Appendix: Key Term Glossary</a></li><li class="lv2"><a href="#sec-27">Extended L3</a></li><li class="lv2"><a href="#sec-28">§A Key Papers Timeline</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">Part 1 — Concepts &amp; Key Formulas</a></li><li class="lv3"><a href="#sec-1">1.1 Causal Language Modeling (CLM)</a></li><li class="lv3"><a href="#sec-2">1.2 Softmax &amp; Attention</a></li><li class="lv3"><a href="#sec-3">1.3 Position Encoding</a></li><li class="lv3"><a href="#sec-4">1.4 LoRA — Low-Rank Adaptation</a></li><li class="lv3"><a href="#sec-5">1.5 Reinforcement Learning from Human Feedback</a></li><li class="lv3"><a href="#sec-6">1.5b Distributed RLHF Architecture</a></li><li class="lv3"><a href="#sec-7">1.6 Distributed Training Parallelism</a></li><li class="lv3"><a href="#sec-8">1.7 KV Cache Memory Analysis</a></li><li class="lv3"><a href="#sec-9">1.7b FlashAttention — FA2 to FA3</a></li><li class="lv3"><a href="#sec-10">1.8 Quantization Fundamentals</a></li><li class="lv3"><a href="#sec-11">1.8b FP8 Training &amp; Transformer Engine</a></li><li class="lv3"><a href="#sec-12">1.8c Marlin INT4 Kernel</a></li><li class="lv3"><a href="#sec-13">1.8d Quantization Granularity Comparison</a></li><li class="lv3"><a href="#sec-14">1.9 Speculative Decoding</a></li><li class="lv3"><a href="#sec-15">1.9b Chunked Prefill</a></li><li class="lv3"><a href="#sec-16">1.10 7-Step ML System Design Framework</a></li><li class="lv2"><a href="#sec-17">Part 2 — From-Scratch Snippets</a></li><li class="lv3"><a href="#sec-18">2.1 Scaled Dot-Product Attention</a></li><li class="lv3"><a href="#sec-19">2.2 Causal Self-Attention Layer</a></li><li class="lv3"><a href="#sec-20">2.3 LoRA Layer</a></li><li class="lv3"><a href="#sec-21">2.4 Grouped-Query Attention (GQA)</a></li><li class="lv3"><a href="#sec-22">2.5 RoPE (Rotary Position Embedding)</a></li><li class="lv3"><a href="#sec-23">2.6 DPO Loss</a></li><li class="lv3"><a href="#sec-24">2.7 KV Cache Wrapper (Minimal)</a></li><li class="lv3"><a href="#sec-25">2.8 Symmetric INT8 Quantize / Dequantize</a></li><li class="lv3"><a href="#sec-26">2.9 Tensor-Parallel Linear (Column / Row)</a></li><li class="lv2"><a href="#sec-27">Part 3 — Interview Questions</a></li><li class="lv3"><a href="#sec-28">L1 — Basic</a></li><li class="lv3"><a href="#sec-29">L2 — Intermediate</a></li><li class="lv3"><a href="#sec-30">L3 — Deep</a></li><li class="lv2"><a href="#sec-31">Appendix: Key Term Glossary</a></li><li class="lv2"><a href="#sec-32">Extended L3</a></li><li class="lv2"><a href="#sec-33">§A Key Papers Timeline</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>For LLM research intern preparation
 Public edition · No proprietary results included</p>
@@ -590,8 +590,55 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li>With FP16, bytes_per_param = 2</li>
 </ul>
 <p><strong>PagedAttention (vLLM):</strong> KV cache is divided into fixed-size pages (e.g., 16 tokens/page), allocated on demand, eliminating memory fragmentation and supporting more concurrent requests.</p>
-<hr>
-<h3 id="sec-9">1.8 Quantization Fundamentals</h3>
+<h3 id="sec-9">1.7b FlashAttention — FA2 to FA3</h3>
+<p>FlashAttention is the mainstream general-purpose CUDA attention backend, preferred by PyTorch SDPA / vLLM / HuggingFace when conditions allow. Core idea: <strong>avoid materializing the full <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">N\times N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> attention matrix</strong> by using tiling + online softmax recomputation, reducing memory from <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>N</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(N^2)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> to <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>N</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(N)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mclose">)</span></span></span></span>.</p>
+<p><strong>FA2 (Dao, ICLR 2024, arXiv:2307.08691):</strong></p>
+<ul>
+<li>Significant speedup on A100 forward+backward (FP16/BF16, ~1.3–3× vs standard PyTorch attention)</li>
+<li>Core optimizations: reduce non-matmul FLOPs (online rescaling + causal mask skip), parallelize over sequence length, repartition work across warps; <strong>backward replaces writing intermediate matrices with recomputation</strong> (memory-bound → compute-bound)</li>
+<li>A100 utilization 50–73% (depending on sequence length and head dim), significantly higher than standard attention</li>
+<li>Main limitation: H100 utilization only ~35% (vs 80–90% for GEMM), because FA2 uses a <strong>synchronous execution model</strong>, not exploiting Hopper&#39;s asynchronous Tensor Cores (WGMMA) and Tensor Memory Accelerator (TMA)</li>
+</ul>
+<p><strong>FA3 (Shah et al., NeurIPS 2024, arXiv:2407.08608):</strong> Redesigned from a hardware-software co-design perspective targeting H100, with three core techniques:</p>
+<ol>
+<li><strong>Producer-consumer asynchrony (warp specialization):</strong> Warps are split into producers (use TMA to asynchronously move Q/K/V tiles from HBM→SMEM) and consumers (use WGMMA on Tensor Cores for GEMM + softmax), with a pingpong SMEM buffer overlapping data movement and computation. Hopper&#39;s <code>setmaxnreg</code> gives consumer warps more registers (MMA needs a large register file), while producers need only 1 thread to drive TMA</li>
+<li><strong>GEMM-softmax interleaving (2-stage pipelining):</strong> The non-GEMM operations in softmax (exp·mul-add·row-max) have low throughput; FA3 reorders computation so that WGMMA <strong>asynchronously launches</strong> the next block of the score matrix <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi></mrow><annotation encoding="application/x-tex">S</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">S</span></span></span></span> while softmax executes on the current block, <strong>hiding softmax latency under GEMM</strong>—Tensor Cores are almost never idle</li>
+<li><strong>FP8 + block quantization + incoherent processing:</strong> Hopper FP8 Tensor Core throughput is 2× FP16. For accuracy: per-block scaling replaces per-tensor scaling + incoherent processing handles outliers, achieving <strong>2.6× lower numerical error</strong> than standard per-tensor FP8</li>
+</ol>
+<p>Performance (H100 SXM5):</p>
+<table>
+<thead>
+<tr>
+<th>Precision</th>
+<th>Throughput</th>
+<th>Utilization</th>
+<th>vs FA2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>FP16</td>
+<td>740 TFLOPs/s</td>
+<td>75%</td>
+<td>1.5–2.0×</td>
+</tr>
+<tr>
+<td>BF16 (NeurIPS updated)</td>
+<td>840 TFLOPs/s</td>
+<td>85%</td>
+<td>1.5–2.0×</td>
+</tr>
+<tr>
+<td>FP8</td>
+<td>1.3 PFLOPs/s</td>
+<td>—</td>
+<td>~2× (vs FP16)</td>
+</tr>
+</tbody></table>
+<p>Backward: ~1.5–1.75× vs FA2. FA3 is available via the Dao-AILab <code>flash-attn</code> library; HuggingFace supports <code>flash_attention_3</code> as an optional attention backend in recent versions. PyTorch SDPA currently uses FA2 as its Flash backend (FA3 integration is future work).</p>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p><strong>The FA2→FA3 lesson</strong>: It&#39;s not new math—it&#39;s <strong>hardware-software co-design</strong> that turns Hopper&#39;s asynchronous execution model (TMA + WGMMA + setmaxnreg) into algorithmic advantage. Rewriting CUDA code for a hardware generation, lifting utilization from 35%→85%, can deliver more gain than many &quot;new algorithms.&quot;</p>
+</div>
+<h3 id="sec-10">1.8 Quantization Fundamentals</h3>
 <p><strong>Symmetric Quantization:</strong></p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>x</mi><mi>q</mi></msub><mo>=</mo><mtext>round</mtext><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><mfrac><mi>x</mi><mi>s</mi></mfrac><mo fence="true">)</mo></mrow><mo separator="true">,</mo><mspace width="1em"/><mi>s</mi><mo>=</mo><mfrac><mrow><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi mathvariant="normal">∣</mi><mi>x</mi><mi mathvariant="normal">∣</mi><mo stretchy="false">)</mo></mrow><mrow><msup><mn>2</mn><mrow><mi>b</mi><mo>−</mo><mn>1</mn></mrow></msup><mo>−</mo><mn>1</mn></mrow></mfrac></mrow><annotation encoding="application/x-tex">x_q = \text{round}\!\left(\frac{x}{s}\right), \quad s = \frac{\max(|x|)}{2^{b-1} - 1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">q</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.836em;vertical-align:-0.686em;"></span><span class="mord text"><span class="mord">round</span></span><span class="mspace" style="margin-right:-0.1667em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size2">(</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.1076em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">s</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">x</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size2">)</span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1963em;vertical-align:-0.7693em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7751em;"><span style="top:-2.989em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">1</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mop">max</span><span class="mopen">(</span><span class="mord">∣</span><span class="mord mathnormal">x</span><span class="mord">∣</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
 <p><strong>Asymmetric Quantization:</strong></p>
@@ -614,8 +661,173 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </ul>
 <p><strong>FP8 (Hopper/H100):</strong> E4M3 (4 exponent, 3 mantissa, range ±448) for forward weights/activations; E5M2 (5 exponent, 2 mantissa, larger range ±57344) for gradients. Vs <strong>asymmetric INT8</strong>: drops the <strong>zero-point</strong> calibration (still needs per-tensor amax scaling), and the float format is more robust to outliers.</p>
 <p><strong>KV-cache quantization:</strong> at long context the KV cache dominates memory. K has per-channel outliers → quantize per-channel; V is smoother → per-token (e.g., KIVI, arXiv:2402.02750). int8/int4/fp8 cut KV memory 2–4×; int8/fp8 with negligible loss on most tasks, while int4 is task-sensitive (long-context retrieval especially).</p>
-<hr>
-<h3 id="sec-10">1.9 Speculative Decoding</h3>
+<h3 id="sec-11">1.8b FP8 Training &amp; Transformer Engine</h3>
+<p>The H100 introduces native FP8 Tensor Cores (2× throughput vs FP16), paired with <strong>NVIDIA Transformer Engine (TE)</strong> to dynamically manage FP8 precision during training.</p>
+<p><strong>Two FP8 sub-formats:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Exponent·Mantissa</th>
+<th>Range</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>E4M3</strong></td>
+<td>4 exp + 3 mantissa</td>
+<td>±448</td>
+<td>Forward weights/activations (precision-priority)</td>
+</tr>
+<tr>
+<td><strong>E5M2</strong></td>
+<td>5 exp + 2 mantissa</td>
+<td>±57,344</td>
+<td>Backward gradients (dynamic-range-priority)</td>
+</tr>
+</tbody></table>
+<p>TE&#39;s <code>HYBRID</code> mode: forward E4M3 + backward E5M2, the recommended configuration.</p>
+<p><strong>Delayed Scaling recipe (core mechanism):</strong></p>
+<p>Unlike FP16 training&#39;s single global loss scale, FP8&#39;s dynamic range is too small, requiring <strong>per-tensor independent scaling factors</strong>. TE uses delayed scaling—computing the current step&#39;s scale from the amax (absolute max) history of the previous <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi></mrow><annotation encoding="application/x-tex">N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> iterations:</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>scaling_factor</mtext><mo>=</mo><mfrac><mtext>FP8_MAX</mtext><mtext>amax</mtext></mfrac><mtext> </mtext><mo>÷</mo><mtext> </mtext><msup><mn>2</mn><mrow><mi>m</mi><mi>a</mi><mi>r</mi><mi>g</mi><mi>i</mi><mi>n</mi></mrow></msup><mo separator="true">,</mo><mspace width="1em"/><mtext>amax</mtext><mo>=</mo><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><mtext>history_window</mtext><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\text{scaling\_factor} = \frac{\text{FP8\_MAX}}{\text{amax}} \ \div\ 2^{margin},\quad \text{amax} = \max(\text{history\_window})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0044em;vertical-align:-0.31em;"></span><span class="mord text"><span class="mord">scaling_factor</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.0693em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3833em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">amax</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.7em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">FP8_MAX</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace"> </span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">÷</span><span class="mspace"> </span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0691em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8747em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">ma</span><span class="mord mathnormal mtight" style="margin-right:0.0278em;">r</span><span class="mord mathnormal mtight" style="margin-right:0.0359em;">g</span><span class="mord mathnormal mtight">in</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em;"></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord text"><span class="mord">amax</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"></span><span class="mop">max</span><span class="mopen">(</span><span class="mord text"><span class="mord">history_window</span></span><span class="mclose">)</span></span></span></span></span></p>
+<p>Key parameters: <code>amax_history_len=1024</code> (window), <code>amax_compute_algo=&quot;max&quot;</code> (conservative max), <code>margin=0</code> (safety margin; increasing prevents overflow but reduces precision).</p>
+<p><strong>Mixed-precision tensor layout:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Tensor</th>
+<th>Format</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Forward activations</td>
+<td>FP8 E4M3</td>
+<td>High-throughput GEMM</td>
+</tr>
+<tr>
+<td>Weight master copy</td>
+<td>BF16/FP32</td>
+<td>Optimizer updates need precision</td>
+</tr>
+<tr>
+<td>Gradient GEMM</td>
+<td>FP8 E5M2</td>
+<td>Wide dynamic range</td>
+</tr>
+<tr>
+<td>Optimizer states</td>
+<td>FP32</td>
+<td>Adam m/v stable updates</td>
+</tr>
+</tbody></table>
+<p><strong>Usage:</strong></p>
+<pre><code class="hljs language-python"><span class="hljs-keyword">from</span> transformer_engine.pytorch <span class="hljs-keyword">import</span> fp8_autocast
+<span class="hljs-keyword">from</span> transformer_engine.common.recipe <span class="hljs-keyword">import</span> DelayedScaling, Format
+
+recipe = DelayedScaling(fp8_format=Format.HYBRID, amax_history_len=<span class="hljs-number">1024</span>,
+                        amax_compute_algo=<span class="hljs-string">&quot;max&quot;</span>, margin=<span class="hljs-number">0</span>)
+
+<span class="hljs-keyword">with</span> fp8_autocast(enabled=<span class="hljs-literal">True</span>, fp8_recipe=recipe):
+    out = model(inp)   <span class="hljs-comment"># forward runs in FP8</span>
+loss = out.mean()
+loss.backward()        <span class="hljs-comment"># ⚠️ backward MUST be called outside fp8_autocast</span>
+</code></pre>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p><strong>Critical</strong>: <code>backward()</code> must be called <strong>outside</strong> the <code>fp8_autocast</code> context—TE needs to aggregate cross-GPU amax before executing the backward pass.</p>
+</div>
+<p><strong>Training throughput speedup (H100, vs BF16):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Model scale</th>
+<th>Speedup</th>
+<th>Trend</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>7–8B</td>
+<td>~1.3–1.5×</td>
+<td>Small models memory-bandwidth-bound</td>
+</tr>
+<tr>
+<td>70B</td>
+<td>~1.4–1.6×</td>
+<td>GEMM fraction grows</td>
+</tr>
+<tr>
+<td>405B (NeMo)</td>
+<td>~1.53×</td>
+<td>Large models GEMM-dominated</td>
+</tr>
+</tbody></table>
+<p>Larger models benefit more (higher GEMM fraction + heavier BF16 memory bandwidth pressure—FP8 halves weight transfer volume).</p>
+<p><strong>Debugging tip:</strong> With aggressive learning rates or small batches, delayed scaling can be unstable (history amax contains outliers); switch to <code>Float8CurrentScaling</code> (uses current tensor amax). TE Linear layers require input dimensions divisible by 16.</p>
+<h3 id="sec-12">1.8c Marlin INT4 Kernel</h3>
+<p><strong>Marlin (Frantar et al., IST-DASLab, arXiv:2408.11743)</strong> is an extremely optimized FP16×INT4 GEMM kernel targeting GPTQ INT4 weights for LLM auto-regressive decode inference.</p>
+<p><strong>Core contributions:</strong></p>
+<ul>
+<li>On A100/Ampere, simultaneously <strong>saturates ALL GPU resources</strong> (global memory, L2 cache, shared memory, Tensor Cores, Vector Cores)—prior INT4 kernels degraded sharply at batch &gt; 1</li>
+<li>For batch sizes <strong>1–32</strong>, achieves <strong>~3.9× speedup on single-layer GEMM microbenchmarks</strong> (prior best kernels only covered batch 1–2)</li>
+<li>Integrated with vLLM end-to-end: <strong>up to 2.8× vs FP16</strong> (batch 16); Sparse-Marlin extension supports 2:4 sparsity, <strong>kernel-level ~5.3×</strong> (not end-to-end)</li>
+<li>AutoGPTQ supports <code>use_marlin=True</code> for one-click conversion of GPTQ weights to Marlin format</li>
+</ul>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>Marlin&#39;s design philosophy mirrors FA3: <strong>not new math—it&#39;s algebraically rearranging computation for specific hardware so all execution units stay busy simultaneously.</strong> The flat performance curve from batch 1→16 is especially critical for production serving (meaning you can increase concurrent batching without sacrificing per-token latency).</p>
+</div>
+<h3 id="sec-13">1.8d Quantization Granularity Comparison</h3>
+<p>Quantization accuracy vs. overhead is determined by the <strong>granularity at which scaling factors are shared</strong>. Engineering tradeoffs by granularity:</p>
+<table>
+<thead>
+<tr>
+<th>Granularity</th>
+<th>Scale Count</th>
+<th>Accuracy</th>
+<th>Typical Use</th>
+<th>Overhead</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>per-tensor</strong></td>
+<td>1 / tensor</td>
+<td>Lowest—outlier error is high</td>
+<td>Early INT8 inference; per-tensor amax FP8</td>
+<td>Nearly zero</td>
+</tr>
+<tr>
+<td><strong>per-token / per-channel</strong></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi></mrow><annotation encoding="application/x-tex">T</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span></span></span></span> or <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi></mrow><annotation encoding="application/x-tex">C</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span></span></span></span></td>
+<td>Medium—independent scale per token/channel</td>
+<td>AWQ / SmoothQuant per-channel; KIVI per-channel K + per-token V</td>
+<td>Small extra memory (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>×</mo><mtext>fp16</mtext></mrow><annotation encoding="application/x-tex">T \times \text{fp16}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">fp16</span></span></span></span></span>)</td>
+</tr>
+<tr>
+<td><strong>per-group</strong></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>×</mo><mi>C</mi><mi mathvariant="normal">/</mi><mi>G</mi></mrow><annotation encoding="application/x-tex">T \times C / G</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mord">/</span><span class="mord mathnormal">G</span></span></span></span></td>
+<td>Medium-high—shared scale within group</td>
+<td>GPTQ group-128 (default, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><mn>128</mn></mrow><annotation encoding="application/x-tex">G=128</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal">G</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">128</span></span></span></span>)</td>
+<td>Memory increase <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∝</mo><mn>1</mn><mi mathvariant="normal">/</mi><mi>G</mi></mrow><annotation encoding="application/x-tex">\propto 1/G</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mrel">∝</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1/</span><span class="mord mathnormal">G</span></span></span></span></td>
+</tr>
+<tr>
+<td><strong>per-block (FP8)</strong></td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>×</mo><mi>C</mi><mi mathvariant="normal">/</mi><mi>B</mi></mrow><annotation encoding="application/x-tex">T \times C / B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">T</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">C</span><span class="mord">/</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span> (B≈128)</td>
+<td>High—finer than per-group</td>
+<td>FA3 FP8 block quantization; TE <code>Float8BlockScaling</code> (FP32 scale, ~3.1% overhead at B=128)</td>
+<td>~0.8% with int8 scale; ~3.1% with FP32 scale</td>
+</tr>
+<tr>
+<td><strong>sub-channel / MX</strong></td>
+<td>Shared E8M0 scale per 32 values</td>
+<td>Highest—near FP16 accuracy</td>
+<td>MXFP8 / MXFP4 (Blackwell B200, 32-value block + 8-bit E8M0)</td>
+<td>~3.1% extra memory</td>
+</tr>
+</tbody></table>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p><strong>FP8 block scaling ≠ MXFP8</strong>: TE <code>Float8BlockScaling</code> uses 128-element blocks + FP32 scale factors; MXFP8 uses 32-element blocks + E8M0 (8-bit) scale. Both share the &quot;block quantization&quot; idea, but block size, scale dtype, and hardware requirements differ.</p>
+</div>
+<p>Choose granularity = balance <strong>accuracy → overhead → hardware support</strong>. Per-tensor scaling works well for FP8 training via dynamic amax (DelayedScaling) but is fragile for low-bit activation quantization and outlier-heavy tensors; per-group (GPTQ group-128) is the industry standard for INT4 weight quantization; per-block / sub-channel is the direction for FP8/FP4.</p>
+<h3 id="sec-14">1.9 Speculative Decoding</h3>
 <p><strong>Core Idea:</strong> A small draft model predicts <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> tokens in parallel; the target model then verifies them all in a single forward pass.</p>
 <p><strong>Accept-Reject Sampling:</strong></p>
 <ul>
@@ -624,8 +836,63 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <li>The output distribution is <strong>exactly identical</strong> to direct sampling from the target model (lossless)</li>
 </ul>
 <p><strong>Speedup:</strong> Depends on the token acceptance rate between the draft model and the target model. In typical scenarios a <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.5</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">1.5\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.5</span><span class="mord">×</span></span></span></span>–<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2.5</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">2.5\times</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">2.5</span><span class="mord">×</span></span></span></span> speedup is achievable.</p>
-<hr>
-<h3 id="sec-11">1.10 7-Step ML System Design Framework</h3>
+<h3 id="sec-15">1.9b Chunked Prefill</h3>
+<p>The two phases of LLM inference have dramatically different GPU utilization profiles: <strong>prefill</strong> processes input prompts in parallel (compute-bound, GPU efficient), while <strong>decode</strong> generates tokens one-at-a-time autoregressively (memory-bandwidth-bound, extremely low GPU utilization—per-token cost can reach 200× that of prefill).</p>
+<p><strong>SARATHI (Agrawal et al., Microsoft Research, arXiv:2308.16369)</strong>&#39;s core insight: decode has extremely low arithmetic intensity—mixing one compute-heavy prefill chunk into a decode batch incurs minimal decode latency overhead (LLaMA-13B/A6000 measured: decode-only ~12.49ms/token → ~1.2ms/token with prefill chunk mixed in, though the exact increment depends on model size, hardware, and chunk size), while GPU utilization rises substantially.</p>
+<p>Two core techniques:</p>
+<table>
+<thead>
+<tr>
+<th>Technique</th>
+<th>Approach</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Chunked-Prefills</strong></td>
+<td>Split a large prefill request into equal-compute chunks instead of processing all at once</td>
+<td>Avoids long prefill blocking all decodes</td>
+</tr>
+<tr>
+<td><strong>Decode-Maximal Batching</strong></td>
+<td>Each batch = 1 prefill chunk + remaining slots filled with decode requests</td>
+<td>Decodes &quot;piggyback&quot; on the prefill&#39;s GPU compute</td>
+</tr>
+</tbody></table>
+<p><strong>Performance gains:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Model / Hardware</th>
+<th>Decode Throughput</th>
+<th>End-to-End Throughput</th>
+<th>Pipeline Bubble</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LLaMA-13B / A6000</td>
+<td><strong>10×</strong></td>
+<td>1.33×</td>
+<td>—</td>
+</tr>
+<tr>
+<td>LLaMA-33B / A100</td>
+<td><strong>4.25×</strong></td>
+<td>1.25×</td>
+<td>—</td>
+</tr>
+<tr>
+<td>GPT-3 / 64 A100 (PP+TP)</td>
+<td>—</td>
+<td><strong>1.91×</strong></td>
+<td>Reduced <strong>6.29×</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Engineering adoption:</strong> vLLM has merged chunked prefill (PR #3884), enabled via <code>enable_chunked_prefill</code> with <code>max_num_batched_tokens</code> controlling chunk size. TensorRT-LLM, DeepSpeed-MII and other major frameworks all support it. Key parameter: chunk size must match the hardware + workload—the authors have open-sourced an auto-tuner (automatically selects the maximum chunk size satisfying the TBT SLO).</p>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p><strong>Core insight</strong>: SARATHI didn&#39;t invent a new attention algorithm—it just <strong>reordered the scheduling</strong> (chunking prefill + co-batching with decode). This 10× decode throughput improvement comes from recognizing that <strong>decode&#39;s memory-bandwidth slack can &quot;absorb&quot; a prefill&#39;s compute-heavy chunk with negligible latency increase</strong>. A good scheduling algorithm can deliver larger gains than a new kernel.</p>
+</div>
+<h3 id="sec-16">1.10 7-Step ML System Design Framework</h3>
 <table>
 <thead>
 <tr>
@@ -671,11 +938,11 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </tr>
 </tbody></table>
 <hr>
-<h2 id="sec-12">Part 2 — From-Scratch Snippets</h2>
+<h2 id="sec-17">Part 2 — From-Scratch Snippets</h2>
 <blockquote>
 <p>The following are minimal educational implementations highlighting core logic, omitting production-level error handling and optimization.</p>
 </blockquote>
-<h3 id="sec-13">2.1 Scaled Dot-Product Attention</h3>
+<h3 id="sec-18">2.1 Scaled Dot-Product Attention</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
 <span class="hljs-keyword">import</span> math
@@ -693,7 +960,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
     attn_weights = F.softmax(scores, dim=-<span class="hljs-number">1</span>)
     <span class="hljs-keyword">return</span> torch.matmul(attn_weights, v), attn_weights
 </code></pre>
-<h3 id="sec-14">2.2 Causal Self-Attention Layer</h3>
+<h3 id="sec-19">2.2 Causal Self-Attention Layer</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 <span class="hljs-keyword">import</span> math
@@ -722,7 +989,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
         out = (attn @ v).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>).reshape(B, T, C)
         <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.out_proj(out)
 </code></pre>
-<h3 id="sec-15">2.3 LoRA Layer</h3>
+<h3 id="sec-20">2.3 LoRA Layer</h3>
 <details class="code-fold"><summary>36 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 <span class="hljs-keyword">import</span> math
@@ -759,7 +1026,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
             new_linear.bias.data.copy_(<span class="hljs-variable language_">self</span>.base.bias.data)
         <span class="hljs-keyword">return</span> new_linear
 </code></pre></details>
-<h3 id="sec-16">2.4 Grouped-Query Attention (GQA)</h3>
+<h3 id="sec-21">2.4 Grouped-Query Attention (GQA)</h3>
 <details class="code-fold"><summary>42 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 <span class="hljs-keyword">import</span> math
@@ -802,7 +1069,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
         out = (attn @ v).transpose(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>).reshape(B, T, -<span class="hljs-number">1</span>)
         <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.wo(out)
 </code></pre></details>
-<h3 id="sec-17">2.5 RoPE (Rotary Position Embedding)</h3>
+<h3 id="sec-22">2.5 RoPE (Rotary Position Embedding)</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">precompute_rope_freqs</span>(<span class="hljs-params">dim: <span class="hljs-built_in">int</span>, max_len: <span class="hljs-built_in">int</span> = <span class="hljs-number">4096</span>, base: <span class="hljs-built_in">float</span> = <span class="hljs-number">10000.0</span></span>):
@@ -826,7 +1093,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
     out2 = x2 * cos + x1 * sin
     <span class="hljs-keyword">return</span> torch.cat([out1, out2], dim=-<span class="hljs-number">1</span>)
 </code></pre>
-<h3 id="sec-18">2.6 DPO Loss</h3>
+<h3 id="sec-23">2.6 DPO Loss</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
 
@@ -843,7 +1110,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
     logits = beta * (log_ratio_w - log_ratio_l)
     <span class="hljs-keyword">return</span> -F.logsigmoid(logits).mean()
 </code></pre>
-<h3 id="sec-19">2.7 KV Cache Wrapper (Minimal)</h3>
+<h3 id="sec-24">2.7 KV Cache Wrapper (Minimal)</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
 <span class="hljs-keyword">class</span> <span class="hljs-title class_">KVCache</span>:
@@ -866,7 +1133,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
         <span class="hljs-string">&quot;&quot;&quot;Return the current cached KV (trimmed to cur_len).&quot;&quot;&quot;</span>
         <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.k[:, :, :<span class="hljs-variable language_">self</span>.cur_len], <span class="hljs-variable language_">self</span>.v[:, :, :<span class="hljs-variable language_">self</span>.cur_len]
 </code></pre>
-<h3 id="sec-20">2.8 Symmetric INT8 Quantize / Dequantize</h3>
+<h3 id="sec-25">2.8 Symmetric INT8 Quantize / Dequantize</h3>
 <pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">symmetric_quantize_int8</span>(<span class="hljs-params">weight: torch.Tensor</span>):
@@ -880,7 +1147,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
     <span class="hljs-keyword">return</span> w_q.<span class="hljs-built_in">float</span>() * scale
 </code></pre>
 <hr>
-<h3 id="sec-21">2.9 Tensor-Parallel Linear (Column / Row)</h3>
+<h3 id="sec-26">2.9 Tensor-Parallel Linear (Column / Row)</h3>
 <details class="code-fold"><summary>32 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
 <span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
 
@@ -917,8 +1184,8 @@ Y_ref = ref(X)
 <p>A Megatron MLP chains <strong>column-parallel → GeLU (local) → row-parallel</strong>, so the whole block needs only <strong>one</strong> all-reduce in the forward pass (one in backward) — minimizing communication.</p>
 </blockquote>
 <hr>
-<h2 id="sec-22">Part 3 — Interview Questions</h2>
-<h3 id="sec-23">L1 — Basic</h3>
+<h2 id="sec-27">Part 3 — Interview Questions</h2>
+<h3 id="sec-28">L1 — Basic</h3>
 <details>
 <summary>Q1: What is the time complexity of self-attention in a Transformer? How can it be reduced?</summary><p><strong>Answer:</strong> Standard self-attention has time complexity <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mi>d</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n^2 d)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">O</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mord mathnormal">d</span><span class="mclose">)</span></span></span></span> (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> = sequence length, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">d</span></span></span></span> = dimension) because it must compute an <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">n \times n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> attention matrix. Methods to reduce it include:</p>
 <ul>
@@ -1022,7 +1289,7 @@ In LLM training, a small number of anomalous samples can produce extremely large
 <p>Yes. Continuous batching answers &quot;when to schedule requests&quot;; PagedAttention answers &quot;how to allocate KV cache memory&quot; — it splits the KV cache into fixed-size pages, allocates on demand, and avoids memory fragmentation caused by variable request lengths.</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-24">L2 — Intermediate</h3>
+<h3 id="sec-29">L2 — Intermediate</h3>
 <details>
 <summary>Q8: Explain what each of the three ZeRO stages does, and their respective communication overhead.</summary><p><strong>Answer:</strong></p>
 <ul>
@@ -1177,7 +1444,7 @@ In LLM training, a small number of anomalous samples can produce extremely large
 <p>Staleness causes rollout to generate data with old parameters <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><msub><mi>θ</mi><mtext>old</mtext></msub></msub></mrow><annotation encoding="application/x-tex">\pi_{\theta_{\text{old}}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6864em;vertical-align:-0.2559em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.0278em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">old</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2559em;"><span></span></span></span></span></span></span></span></span></span>, introducing an off-policy bias. PPO&#39;s importance ratio clip (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>≈</mo><mn>0.1</mn><mtext>–</mtext><mn>0.2</mn></mrow><annotation encoding="application/x-tex">\epsilon \approx 0.1\text{–}0.2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4831em;"></span><span class="mord mathnormal">ϵ</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.1</span><span class="mord text"><span class="mord">–</span></span><span class="mord">0.2</span></span></span></span>) tolerates mild staleness, but when staleness is large, gradient estimate variance grows and training becomes unstable. Mitigation: control the weight sync frequency (no more than a few mini-batch updates), or use more aggressive importance sampling correction.</p>
 </blockquote>
 </details><hr>
-<h3 id="sec-25">L3 — Deep</h3>
+<h3 id="sec-30">L3 — Deep</h3>
 <details>
 <summary>Q17: How does Megatron-LM's Column-Parallel and Row-Parallel Linear reduce the number of AllReduce operations?</summary><p><strong>Answer:</strong></p>
 <p>Consider two consecutive linear transforms <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>=</mo><mi>G</mi><mi>E</mi><mi>L</mi><mi>U</mi><mo stretchy="false">(</mo><mi>X</mi><mi>A</mi><mo stretchy="false">)</mo><mi>B</mi></mrow><annotation encoding="application/x-tex">Y = GELU(XA)B</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.2222em;">Y</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">GE</span><span class="mord mathnormal" style="margin-right:0.109em;">LU</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="mord mathnormal">A</span><span class="mclose">)</span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span></span></span></span> (an MLP block), <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>h</mi><mo>×</mo><mn>4</mn><mi>h</mi></mrow></msup></mrow><annotation encoding="application/x-tex">A \in \mathbb{R}^{h \times 4h}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mtight">4</span><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span></span>, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mn>4</mn><mi>h</mi><mo>×</mo><mi>h</mi></mrow></msup></mrow><annotation encoding="application/x-tex">B \in \mathbb{R}^{4h \times h}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7224em;vertical-align:-0.0391em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8491em;"></span><span class="mord"><span class="mord mathbb">R</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">4</span><span class="mord mathnormal mtight">h</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight">h</span></span></span></span></span></span></span></span></span></span></span></span>:</p>
@@ -1505,7 +1772,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <p>Fine-tuning handles &quot;style and format&quot; — making the model respond in a customer-service tone and follow the correct workflow. RAG handles &quot;knowledge and facts&quot; — providing up-to-date product information and company policy. They are complementary, not interchangeable: fine-tuning alone causes hallucinations about product details; RAG alone makes the model sound like a generic assistant rather than a professional customer service agent. The ideal solution combines both.</p>
 </blockquote>
 </details><hr>
-<h2 id="sec-26">Appendix: Key Term Glossary</h2>
+<h2 id="sec-31">Appendix: Key Term Glossary</h2>
 <table>
 <thead>
 <tr>
@@ -1626,7 +1893,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </tr>
 </tbody></table>
 <hr>
-<h2 id="sec-27">Extended L3</h2>
+<h2 id="sec-32">Extended L3</h2>
 <details>
 <summary>Q26: Explain the IO-aware tiling strategy in FlashAttention. Why does standard attention have a memory access bottleneck, and how does the online softmax trick enable block-wise computation without materializing the full N×N attention matrix?</summary><p>Standard attention must write the complete <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">N \times N</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> attention matrix to HBM (High Bandwidth Memory), making IO the bottleneck. FlashAttention uses GPU SRAM (fast but small) via tiling:</p>
 <ol>
@@ -1765,7 +2032,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <blockquote>
 <p><strong>Follow-up:</strong> Does MLA&#39;s low-rank compression cause different attention heads&#39; patterns to converge (loss of head diversity)? Can the high rank of the projection matrix <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>W</mi><mrow><mi>U</mi><mi>K</mi></mrow></msup></mrow><annotation encoding="application/x-tex">W^{UK}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8413em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8413em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.109em;">U</span><span class="mord mathnormal mtight" style="margin-right:0.0715em;">K</span></span></span></span></span></span></span></span></span></span></span></span> fully mitigate this risk? In practice, what signals can detect degradation of head diversity?</p>
 </blockquote>
-</details><h2 id="sec-28">§A Key Papers Timeline</h2>
+</details><h2 id="sec-33">§A Key Papers Timeline</h2>
 <ul class="timeline">
 <li><p><strong>2018-11 · GPipe</strong> — Huang et al., NeurIPS 2019. <a href="https://arxiv.org/abs/1811.06965">arXiv:1811.06965</a> — Foundational pipeline parallelism: partitions layers into stages across devices and splits each mini-batch into micro-batches fed through the pipeline to amortize the bubble, trading recomputation for activation memory so giant models fit across devices.</p>
 </li>

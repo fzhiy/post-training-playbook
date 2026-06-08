@@ -376,6 +376,34 @@ $$
 
 **PagedAttention（vLLM）：** 将 KV cache 分为固定大小的 page（如 16 tokens/page），按需分配，消除显存碎片，支持更多并发。
 
+### 1.7b FlashAttention — 从 FA2 到 FA3 / FlashAttention: FA2 → FA3
+
+FlashAttention 是主流通用 CUDA attention 后端，在条件满足时被 PyTorch SDPA / vLLM / HuggingFace 等框架优先选用。核心思路：**避免物化完整的 $N\times N$ 注意力矩阵**，通过分块 (tiling) + 在线 softmax 重计算，将 $O(N^2)$ 显存降到 $O(N)$。
+
+**FA2 (Dao, ICLR 2024, arXiv:2307.08691):**
+- 在 A100 上前向+反向均达到显著加速（FP16/BF16，~1.3–3× vs 标准 PyTorch attention）
+- 核心优化：减少非 matmul FLOPs（在线 rescaling + causal mask 跳过）、在序列维度并行化、按 warp 重新划分工作；**反向从写中间矩阵改为重计算**（memory-bound → compute-bound）
+- A100 利用率 50–73%（取决于序列长度和 head dim），显著高于标准 attention
+- 主要局限：H100 上利用率仅 ~35%（vs GEMM 的 80–90%），因为 FA2 采用**同步执行模型**，未利用 Hopper 的异步 Tensor Core（WGMMA）和 Tensor Memory Accelerator（TMA）
+
+**FA3 (Shah et al., NeurIPS 2024, arXiv:2407.08608):** 针对 H100 从硬件-软件协同角度重新设计，三项核心技术：
+
+1. **生产者-消费者异步 (warp specialization):** 将 warp 拆为 producer（用 TMA 从 HBM→SMEM 异步搬运 Q/K/V tile）和 consumer（用 WGMMA 在 Tensor Core 做 GEMM + softmax），通过 pingpong SMEM buffer 重叠数据搬运与计算。Hopper 的 `setmaxnreg` 让 consumer warp 独占更多寄存器（MMA 需大量 regfile），producer 只用 1 线程驱动 TMA
+2. **GEMM-softmax 交错 (2-stage pipelining):** softmax 的非 GEMM 操作（exp·mul-add·row-max）吞吐低；FA3 重排计算顺序——WGMMA **异步发射**下一块 score 矩阵 $S$ 的同时执行当前块的 softmax，把 softmax 延迟**隐藏在 GEMM 下**，Tensor Core 几乎不空转
+3. **FP8 + block quantization + incoherent processing:** Hopper FP8 Tensor Core 吞吐是 FP16 的 2×。精确保留方面：per-block scaling 替代 per-tensor scaling + incoherent processing 处理 outlier，数值误差比标准 per-tensor FP8 低 **2.6×**
+
+性能 (H100 SXM5):
+
+| 精度 | 吞吐量 | 利用率 | vs FA2 |
+|------|--------|--------|--------|
+| FP16 | 740 TFLOPs/s | 75% | 1.5–2.0× |
+| BF16 (NeurIPS 更新) | 840 TFLOPs/s | 85% | 1.5–2.0× |
+| FP8 | 1.3 PFLOPs/s | — | ~2× (vs FP16) |
+
+反向 ~1.5–1.75× vs FA2。FA3 可通过 Dao-AILab `flash-attn` 库直接使用；HuggingFace 在近期版本中支持 `flash_attention_3` 作为可选 attention 后端。PyTorch SDPA 截至当前仍以 FA2 为 Flash 后端（FA3 集成属后续工作）。
+
+> 💡 **FA2 → FA3 的启示**: 并非新数学——是**硬件-软件协同**把 Hopper 的异步执行模型（TMA + WGMMA + setmaxnreg）变成算法优势。CUDA 代码针对硬件代数重写，换来的利用率 35%→85% 比很多"新算法"效果更大。
+
 ---
 
 ### 1.8 量化基础 / Quantization Fundamentals
@@ -409,9 +437,94 @@ $$
 
 **KV-cache 量化：** 长上下文下 KV cache 主导显存。K 沿 channel 维有离群值 → 宜 per-channel 量化；V 较平滑 → per-token 量化（如 KIVI, arXiv:2402.02750）。常用 int8/int4/fp8，可把 KV 显存降 2–4×；int8/fp8 多数任务精度损失可忽略，int4 则依任务而定（长上下文检索更敏感）。
 
+### 1.8b FP8 训练与 Transformer Engine / FP8 Training & Transformer Engine
+
+H100 引入原生 FP8 Tensor Core（吞吐为 FP16 的 2×），配合 **NVIDIA Transformer Engine (TE)** 在训练中动态管理 FP8 精度。
+
+**FP8 两种子格式：**
+
+| 格式 | 指数·尾数 | 范围 | 用途 |
+|------|----------|------|------|
+| **E4M3** | 4 exp + 3 mantissa | ±448 | 前向权重/激活（精度优先） |
+| **E5M2** | 5 exp + 2 mantissa | ±57,344 | 反向梯度（动态范围优先） |
+
+TE 的 `HYBRID` 模式：前向 E4M3 + 反向 E5M2，是推荐配置。
+
+**Delayed Scaling 配方（核心机制）：**
+
+与 FP16 训练的单全局 loss scale 不同，FP8 动态范围太小，需**每个张量独立缩放因子**。TE 采用延迟缩放——用前 $N$ 次迭代的 amax（absolute max）历史计算当前步缩放：
+
+$$\text{scaling\_factor} = \frac{\text{FP8\_MAX}}{\text{amax}} \ \div\ 2^{margin},\quad \text{amax} = \max(\text{history\_window})$$
+
+核心参数：`amax_history_len=1024`（窗口）、`amax_compute_algo="max"`（取保守最大值）、`margin=0`（安全边距，增大可防溢出但降精度）。
+
+**混合精度张量布局：**
+
+| 张量 | 格式 | 原因 |
+|------|------|------|
+| 前向激活值 | FP8 E4M3 | 高吞吐 GEMM |
+| 权重主副本 | BF16/FP32 | 优化器更新需要精度 |
+| 梯度 GEMM | FP8 E5M2 | 宽动态范围 |
+| 优化器状态 | FP32 | Adam m/v 稳定更新 |
+
+**使用方式：**
+
+```python
+from transformer_engine.pytorch import fp8_autocast
+from transformer_engine.common.recipe import DelayedScaling, Format
+
+recipe = DelayedScaling(fp8_format=Format.HYBRID, amax_history_len=1024,
+                        amax_compute_algo="max", margin=0)
+
+with fp8_autocast(enabled=True, fp8_recipe=recipe):
+    out = model(inp)   # 前向在 FP8 下执行
+loss = out.mean()
+loss.backward()        # ⚠️ backward 必须在 fp8_autocast 外调用
+```
+
+> ⚠️ **关键**: `backward()` 必须在 `fp8_autocast` 上下文**外部**调用——TE 需要先聚合跨 GPU 的 amax 再做反向。
+
+**训练吞吐量加速比 (H100, vs BF16):**
+
+| 模型规模 | 加速比 | 趋势 |
+|----------|--------|------|
+| 7–8B | ~1.3–1.5× | 小模型受限于内存带宽 |
+| 70B | ~1.4–1.6× | GEMM 占比增大 |
+| 405B (NeMo) | ~1.53× | 大模型 GEMM 占主导 |
+
+模型越大加速越显著（GEMM 占比更高 + BF16 内存带宽压力更重，FP8 将权重传输量减半）。
+
+**调试提示：** 剧烈学习率或小 batch 时延迟缩放可能不稳定（历史 amax 含异常值），可切换 `Float8CurrentScaling`（用当前张量 amax）。TE Linear 层要求输入维度被 16 整除。
+
+### 1.8c Marlin INT4 内核 / Marlin INT4 Kernel
+
+**Marlin (Frantar et al., IST-DASLab, arXiv:2408.11743)** 是面向 GPTQ INT4 权重的极致优化的 FP16×INT4 GEMM 内核，目标是 LLM 推理时的 auto-regressive decode。
+
+**核心贡献：**
+- 在 A100/Ampere 上同时**饱和全部 GPU 资源**（全局显存、L2 cache、共享内存、Tensor Core、Vector Core）——此前 INT4 内核在 batch > 1 时性能急剧退化
+- 对 batch size **1–32** 的单层 GEMM 微基准达 **~3.9× 加速**（此前最优内核仅能覆盖 batch 1–2）
+- 集成 vLLM 端到端推理：**最高 2.8× vs FP16**（batch 16）；Sparse-Marlin 扩展支持 2:4 稀疏性，**kernel 层面** ~5.3×（非端到端）
+- AutoGPTQ 支持 `use_marlin=True` 一键转换 GPTQ 权重到 Marlin 格式
+
+> 💡 Marlin 的设计哲学与 FA3 相同：**不是新数学——是针对具体硬件代数重排计算，让所有执行单元同时忙起来。** batch 1→16 的平坦性能曲线对生产服务尤为关键（意味着可以增大并发批处理而不会损失每 token 延迟）。
+
+### 1.8d 量化粒度对比 / Quantization Granularity Comparison
+
+量化精度 vs 开销由**共享缩放因子的粒度**决定。各粒度的工程取舍：
+
+| 粒度 | 缩放因子数 | 精度 | 典型场景 | 开销 |
+|------|----------|------|----------|------|
+| **per-tensor** | 1 / tensor | 最低—离群值撕裂误差大 | 早期 INT8 推理、per-tensor amax FP8 | 几乎为零 |
+| **per-token / per-channel** | $T$ 或 $C$ | 中—各 token/channel 有独立 scale | AWQ / SmoothQuant per-channel；KIVI per-channel K + per-token V | 少量额外显存 ($T \times \text{fp16}$) |
+| **per-group** | $T \times C / G$ | 中上—分组内共享 scale | GPTQ group-128（默认，$G=128$） | 显存增量 $\propto 1/G$ |
+| **per-block (FP8)** | $T \times C / B$ (B≈128) | 高—比 per-group 更细 | FA3 FP8 block quantization；TE `Float8BlockScaling`（FP32 scale，B=128 时额外 ~3.1%） | B=128 且 int8 scale 约 0.8%；FP32 scale 约 3.1% |
+| **sub-channel / MX** | 每 32 值共享 E8M0 scale | 最高—接近 FP16 精度 | MXFP8 / MXFP4（Blackwell B200，32-value block + 8-bit E8M0） | 额外 ~3.1% 显存 |
+
+> ⚠️ **FP8 block scaling ≠ MXFP8**：TE `Float8BlockScaling` 用 128-element block + FP32 scale factor；MXFP8 用 32-element block + E8M0（8-bit）scale。两者共享 "block quantization" 思路，但 block 大小、scale dtype、硬件要求均不同。
+
+选粒度 = 平衡**精度 → 开销 → 硬件支持**。per-tensor scaling 在 FP8 训练中通过动态 amax（DelayedScaling）可正常工作，但用于低 bit 激活量化和 outlier-heavy 张量时较脆弱；per-group（GPTQ group-128）是 INT4 权重量化的工业标准；per-block/sub-channel 是 FP8/FP4 的方向。
 
 ---
-
 ### 1.9 Speculative Decoding / 投机解码
 
 **核心思想：** 用小型 draft model 并行预测 $k$ 个 token，再用 target model 一次前向验证。
@@ -423,9 +536,32 @@ $$
 
 **加速比 / Speedup：** 取决于 draft model 与 target model 的 token 接受率。典型场景下可获得 $1.5\times$–$2.5\times$ 加速。
 
+### 1.9b Chunked Prefill / Chunked Prefill
+
+LLM 推理两个阶段的 GPU 利用率截然不同：**prefill** 处理输入 prompt 是 compute-bound（GPU 高效），**decode** 逐 token 自回归是 memory-bandwidth-bound（GPU 利用率极低，单 token 成本可达 prefill 的 200×）。
+
+**SARATHI (Agrawal et al., Microsoft Research, arXiv:2308.16369)** 的核心洞察：decode 的 arithmetic intensity 极低——在 decode batch 中混入一个 compute-heavy 的 prefill chunk，对 decode 延迟的增量很小（LLaMA-13B/A6000 实测：decode-only ~12.49ms/token → 混入 prefill chunk 后约 1.2ms/token），GPU 利用率则大幅提升。具体增量取决于模型规模、硬件和 chunk size。
+
+两个核心技术：
+
+| 技术 | 做法 | 效果 |
+|------|------|------|
+| **Chunked-Prefills** | 将一个大 prefill 请求拆成等计算量的 chunk，而非一次处理完 | 避免长 prefill 阻塞所有 decode |
+| **Decode-Maximal Batching** | 每批 = 1 个 prefill chunk + 填满剩余 slot 的 decode 请求 | decode "piggyback" 在 prefill 的 GPU 算力上 |
+
+**性能收益：**
+
+| 模型 / 硬件 | Decode 吞吐量 | 端到端吞吐量 | Pipeline Bubble |
+|-------------|-------------|-------------|-----------------|
+| LLaMA-13B / A6000 | **10×** | 1.33× | — |
+| LLaMA-33B / A100 | **4.25×** | 1.25× | — |
+| GPT-3 / 64 A100 (PP+TP) | — | **1.91×** | 减少 **6.29×** |
+
+**工程落地：** vLLM 已合并 chunked prefill（PR #3884），通过 `enable_chunked_prefill` 开启，`max_num_batched_tokens` 控制 chunk 大小。TensorRT-LLM、DeepSpeed-MII 等主流框架均已支持。关键参数：chunk size 需匹配硬件 + workload——作者开源了 auto-tuner（自动选满足 TBT SLO 的最大 chunk size）。
+
+> 💡 **核心启示**: SARATHI 没有发明新的 attention 算法——它只是**重排了调度顺序**（把 prefill 切块 + 与 decode 混批）。这 10× decode 吞吐提升来自认识到 **decode 的 memory-bandwidth slack 可以"吸收"prefill 的 compute-heavy chunk 而几乎不增加延迟**。一个好的调度算法比一个新 kernel 的收益可能更大。
 
 ---
-
 ### 1.10 模型设计通用框架 / 7-Step ML System Design Framework
 
 | 步骤 | 英文 | 要点 |

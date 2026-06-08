@@ -375,7 +375,33 @@ $$
 
 **PagedAttention (vLLM):** KV cache is divided into fixed-size pages (e.g., 16 tokens/page), allocated on demand, eliminating memory fragmentation and supporting more concurrent requests.
 
----
+### 1.7b FlashAttention — FA2 to FA3
+
+FlashAttention is the mainstream general-purpose CUDA attention backend, preferred by PyTorch SDPA / vLLM / HuggingFace when conditions allow. Core idea: **avoid materializing the full $N\times N$ attention matrix** by using tiling + online softmax recomputation, reducing memory from $O(N^2)$ to $O(N)$.
+
+**FA2 (Dao, ICLR 2024, arXiv:2307.08691):**
+- Significant speedup on A100 forward+backward (FP16/BF16, ~1.3–3× vs standard PyTorch attention)
+- Core optimizations: reduce non-matmul FLOPs (online rescaling + causal mask skip), parallelize over sequence length, repartition work across warps; **backward replaces writing intermediate matrices with recomputation** (memory-bound → compute-bound)
+- A100 utilization 50–73% (depending on sequence length and head dim), significantly higher than standard attention
+- Main limitation: H100 utilization only ~35% (vs 80–90% for GEMM), because FA2 uses a **synchronous execution model**, not exploiting Hopper's asynchronous Tensor Cores (WGMMA) and Tensor Memory Accelerator (TMA)
+
+**FA3 (Shah et al., NeurIPS 2024, arXiv:2407.08608):** Redesigned from a hardware-software co-design perspective targeting H100, with three core techniques:
+
+1. **Producer-consumer asynchrony (warp specialization):** Warps are split into producers (use TMA to asynchronously move Q/K/V tiles from HBM→SMEM) and consumers (use WGMMA on Tensor Cores for GEMM + softmax), with a pingpong SMEM buffer overlapping data movement and computation. Hopper's `setmaxnreg` gives consumer warps more registers (MMA needs a large register file), while producers need only 1 thread to drive TMA
+2. **GEMM-softmax interleaving (2-stage pipelining):** The non-GEMM operations in softmax (exp·mul-add·row-max) have low throughput; FA3 reorders computation so that WGMMA **asynchronously launches** the next block of the score matrix $S$ while softmax executes on the current block, **hiding softmax latency under GEMM**—Tensor Cores are almost never idle
+3. **FP8 + block quantization + incoherent processing:** Hopper FP8 Tensor Core throughput is 2× FP16. For accuracy: per-block scaling replaces per-tensor scaling + incoherent processing handles outliers, achieving **2.6× lower numerical error** than standard per-tensor FP8
+
+Performance (H100 SXM5):
+
+| Precision | Throughput | Utilization | vs FA2 |
+|-----------|-----------|-------------|--------|
+| FP16 | 740 TFLOPs/s | 75% | 1.5–2.0× |
+| BF16 (NeurIPS updated) | 840 TFLOPs/s | 85% | 1.5–2.0× |
+| FP8 | 1.3 PFLOPs/s | — | ~2× (vs FP16) |
+
+Backward: ~1.5–1.75× vs FA2. FA3 is available via the Dao-AILab `flash-attn` library; HuggingFace supports `flash_attention_3` as an optional attention backend in recent versions. PyTorch SDPA currently uses FA2 as its Flash backend (FA3 integration is future work).
+
+> 💡 **The FA2→FA3 lesson**: It's not new math—it's **hardware-software co-design** that turns Hopper's asynchronous execution model (TMA + WGMMA + setmaxnreg) into algorithmic advantage. Rewriting CUDA code for a hardware generation, lifting utilization from 35%→85%, can deliver more gain than many "new algorithms."
 
 ### 1.8 Quantization Fundamentals
 
@@ -408,8 +434,92 @@ $$
 
 **KV-cache quantization:** at long context the KV cache dominates memory. K has per-channel outliers → quantize per-channel; V is smoother → per-token (e.g., KIVI, arXiv:2402.02750). int8/int4/fp8 cut KV memory 2–4×; int8/fp8 with negligible loss on most tasks, while int4 is task-sensitive (long-context retrieval especially).
 
+### 1.8b FP8 Training & Transformer Engine
 
----
+The H100 introduces native FP8 Tensor Cores (2× throughput vs FP16), paired with **NVIDIA Transformer Engine (TE)** to dynamically manage FP8 precision during training.
+
+**Two FP8 sub-formats:**
+
+| Format | Exponent·Mantissa | Range | Use |
+|--------|----------|------|------|
+| **E4M3** | 4 exp + 3 mantissa | ±448 | Forward weights/activations (precision-priority) |
+| **E5M2** | 5 exp + 2 mantissa | ±57,344 | Backward gradients (dynamic-range-priority) |
+
+TE's `HYBRID` mode: forward E4M3 + backward E5M2, the recommended configuration.
+
+**Delayed Scaling recipe (core mechanism):**
+
+Unlike FP16 training's single global loss scale, FP8's dynamic range is too small, requiring **per-tensor independent scaling factors**. TE uses delayed scaling—computing the current step's scale from the amax (absolute max) history of the previous $N$ iterations:
+
+$$\text{scaling\_factor} = \frac{\text{FP8\_MAX}}{\text{amax}} \ \div\ 2^{margin},\quad \text{amax} = \max(\text{history\_window})$$
+
+Key parameters: `amax_history_len=1024` (window), `amax_compute_algo="max"` (conservative max), `margin=0` (safety margin; increasing prevents overflow but reduces precision).
+
+**Mixed-precision tensor layout:**
+
+| Tensor | Format | Reason |
+|--------|--------|--------|
+| Forward activations | FP8 E4M3 | High-throughput GEMM |
+| Weight master copy | BF16/FP32 | Optimizer updates need precision |
+| Gradient GEMM | FP8 E5M2 | Wide dynamic range |
+| Optimizer states | FP32 | Adam m/v stable updates |
+
+**Usage:**
+
+```python
+from transformer_engine.pytorch import fp8_autocast
+from transformer_engine.common.recipe import DelayedScaling, Format
+
+recipe = DelayedScaling(fp8_format=Format.HYBRID, amax_history_len=1024,
+                        amax_compute_algo="max", margin=0)
+
+with fp8_autocast(enabled=True, fp8_recipe=recipe):
+    out = model(inp)   # forward runs in FP8
+loss = out.mean()
+loss.backward()        # ⚠️ backward MUST be called outside fp8_autocast
+```
+
+> ⚠️ **Critical**: `backward()` must be called **outside** the `fp8_autocast` context—TE needs to aggregate cross-GPU amax before executing the backward pass.
+
+**Training throughput speedup (H100, vs BF16):**
+
+| Model scale | Speedup | Trend |
+|-------------|---------|-------|
+| 7–8B | ~1.3–1.5× | Small models memory-bandwidth-bound |
+| 70B | ~1.4–1.6× | GEMM fraction grows |
+| 405B (NeMo) | ~1.53× | Large models GEMM-dominated |
+
+Larger models benefit more (higher GEMM fraction + heavier BF16 memory bandwidth pressure—FP8 halves weight transfer volume).
+
+**Debugging tip:** With aggressive learning rates or small batches, delayed scaling can be unstable (history amax contains outliers); switch to `Float8CurrentScaling` (uses current tensor amax). TE Linear layers require input dimensions divisible by 16.
+
+### 1.8c Marlin INT4 Kernel
+
+**Marlin (Frantar et al., IST-DASLab, arXiv:2408.11743)** is an extremely optimized FP16×INT4 GEMM kernel targeting GPTQ INT4 weights for LLM auto-regressive decode inference.
+
+**Core contributions:**
+- On A100/Ampere, simultaneously **saturates ALL GPU resources** (global memory, L2 cache, shared memory, Tensor Cores, Vector Cores)—prior INT4 kernels degraded sharply at batch > 1
+- For batch sizes **1–32**, achieves **~3.9× speedup on single-layer GEMM microbenchmarks** (prior best kernels only covered batch 1–2)
+- Integrated with vLLM end-to-end: **up to 2.8× vs FP16** (batch 16); Sparse-Marlin extension supports 2:4 sparsity, **kernel-level ~5.3×** (not end-to-end)
+- AutoGPTQ supports `use_marlin=True` for one-click conversion of GPTQ weights to Marlin format
+
+> 💡 Marlin's design philosophy mirrors FA3: **not new math—it's algebraically rearranging computation for specific hardware so all execution units stay busy simultaneously.** The flat performance curve from batch 1→16 is especially critical for production serving (meaning you can increase concurrent batching without sacrificing per-token latency).
+
+### 1.8d Quantization Granularity Comparison
+
+Quantization accuracy vs. overhead is determined by the **granularity at which scaling factors are shared**. Engineering tradeoffs by granularity:
+
+| Granularity | Scale Count | Accuracy | Typical Use | Overhead |
+|-------------|------------|----------|-------------|----------|
+| **per-tensor** | 1 / tensor | Lowest—outlier error is high | Early INT8 inference; per-tensor amax FP8 | Nearly zero |
+| **per-token / per-channel** | $T$ or $C$ | Medium—independent scale per token/channel | AWQ / SmoothQuant per-channel; KIVI per-channel K + per-token V | Small extra memory ($T \times \text{fp16}$) |
+| **per-group** | $T \times C / G$ | Medium-high—shared scale within group | GPTQ group-128 (default, $G=128$) | Memory increase $\propto 1/G$ |
+| **per-block (FP8)** | $T \times C / B$ (B≈128) | High—finer than per-group | FA3 FP8 block quantization; TE `Float8BlockScaling` (FP32 scale, ~3.1% overhead at B=128) | ~0.8% with int8 scale; ~3.1% with FP32 scale |
+| **sub-channel / MX** | Shared E8M0 scale per 32 values | Highest—near FP16 accuracy | MXFP8 / MXFP4 (Blackwell B200, 32-value block + 8-bit E8M0) | ~3.1% extra memory |
+
+> ⚠️ **FP8 block scaling ≠ MXFP8**: TE `Float8BlockScaling` uses 128-element blocks + FP32 scale factors; MXFP8 uses 32-element blocks + E8M0 (8-bit) scale. Both share the "block quantization" idea, but block size, scale dtype, and hardware requirements differ.
+
+Choose granularity = balance **accuracy → overhead → hardware support**. Per-tensor scaling works well for FP8 training via dynamic amax (DelayedScaling) but is fragile for low-bit activation quantization and outlier-heavy tensors; per-group (GPTQ group-128) is the industry standard for INT4 weight quantization; per-block / sub-channel is the direction for FP8/FP4.
 
 ### 1.9 Speculative Decoding
 
@@ -422,8 +532,30 @@ $$
 
 **Speedup:** Depends on the token acceptance rate between the draft model and the target model. In typical scenarios a $1.5\times$–$2.5\times$ speedup is achievable.
 
+### 1.9b Chunked Prefill
 
----
+The two phases of LLM inference have dramatically different GPU utilization profiles: **prefill** processes input prompts in parallel (compute-bound, GPU efficient), while **decode** generates tokens one-at-a-time autoregressively (memory-bandwidth-bound, extremely low GPU utilization—per-token cost can reach 200× that of prefill).
+
+**SARATHI (Agrawal et al., Microsoft Research, arXiv:2308.16369)**'s core insight: decode has extremely low arithmetic intensity—mixing one compute-heavy prefill chunk into a decode batch incurs minimal decode latency overhead (LLaMA-13B/A6000 measured: decode-only ~12.49ms/token → ~1.2ms/token with prefill chunk mixed in, though the exact increment depends on model size, hardware, and chunk size), while GPU utilization rises substantially.
+
+Two core techniques:
+
+| Technique | Approach | Effect |
+|-----------|----------|--------|
+| **Chunked-Prefills** | Split a large prefill request into equal-compute chunks instead of processing all at once | Avoids long prefill blocking all decodes |
+| **Decode-Maximal Batching** | Each batch = 1 prefill chunk + remaining slots filled with decode requests | Decodes "piggyback" on the prefill's GPU compute |
+
+**Performance gains:**
+
+| Model / Hardware | Decode Throughput | End-to-End Throughput | Pipeline Bubble |
+|------------------|-------------------|-----------------------|-----------------|
+| LLaMA-13B / A6000 | **10×** | 1.33× | — |
+| LLaMA-33B / A100 | **4.25×** | 1.25× | — |
+| GPT-3 / 64 A100 (PP+TP) | — | **1.91×** | Reduced **6.29×** |
+
+**Engineering adoption:** vLLM has merged chunked prefill (PR #3884), enabled via `enable_chunked_prefill` with `max_num_batched_tokens` controlling chunk size. TensorRT-LLM, DeepSpeed-MII and other major frameworks all support it. Key parameter: chunk size must match the hardware + workload—the authors have open-sourced an auto-tuner (automatically selects the maximum chunk size satisfying the TBT SLO).
+
+> 💡 **Core insight**: SARATHI didn't invent a new attention algorithm—it just **reordered the scheduling** (chunking prefill + co-batching with decode). This 10× decode throughput improvement comes from recognizing that **decode's memory-bandwidth slack can "absorb" a prefill's compute-heavy chunk with negligible latency increase**. A good scheduling algorithm can deliver larger gains than a new kernel.
 
 ### 1.10 7-Step ML System Design Framework
 
