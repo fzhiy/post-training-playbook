@@ -5,7 +5,7 @@
 
 ## 1. 安全对齐总览 (Safety Alignment Overview)
 
-安全对齐要解决的问题:**让模型在保持有用的同时,拒绝它不该做的事**——而且要在面对**对抗性输入**时仍然守得住。它不是单一技术,而是横跨**训练信号 / 表征防御 / 运行时护栏 / 评测**四个层面的系统工程。
+安全对齐要解决的问题:**让模型在保持有用的同时,拒绝它不该做的事**——而且要在面对**对抗性输入**时仍然守得住。它不是单一技术,而是横跨**训练信号 / 推理时安全 / 表征防御 / 运行时护栏 / 评测**五个层面的系统工程。
 
 ### 1.1 HHH 框架与 helpful↔harmless 张力
 
@@ -20,11 +20,12 @@
 | 层面 | 做法 | 代表 | 章节 |
 |------|------|------|------|
 | **训练信号** | 把"安全/特权序"写进损失/奖励 | 安全 RLHF / RBR / 指令层级 / Constitutional AI | §4.1–4.2, §4.5;CAI 见 data-pipeline |
+| **推理时安全** | 在 CoT 中显式推理安全规范 | Deliberative Alignment | §4.6 |
 | **表征/内部** | 改写产生有害输出的内部表征 | Circuit Breakers | §4.4 |
-| **运行时 I/O 护栏** | 在输入/输出端独立拦截 | Llama Guard | §4.3 |
+| **运行时 I/O 护栏** | 在输入/输出端独立拦截 | Llama Guard / Constitutional Classifiers | §4.3, §4.7 |
 | **评测/审计** | 攻击模型、度量拒答与过度拒答 | 红队 / HarmBench / StrongREJECT / XSTest | §2, §5 |
 
-四类是纵深防御:任何单层都可被绕过(§3 越狱、§6 脆弱性),只有组合才有意义。
+五类是纵深防御:任何单层都可被绕过(§3 越狱、§6 脆弱性),只有组合才有意义。
 
 ### 1.3 核心矛盾:refusal vs over-refusal
 
@@ -117,11 +118,40 @@ def evolve_jailbreak(seeds, judge, rounds=10, pop=8, keep=3, rng=None):
 
 **"Do Anything Now"**(Shen et al., [arXiv:2308.03825](https://arxiv.org/abs/2308.03825), CCS 2024):系统采集并分类了 **1,405 条真实流传的越狱提示**(来自论坛/Discord 等),归纳出常见结构策略:**角色扮演 (DAN persona)、权限提升 (假装开发者模式)、提示注入、虚构情境**。这类"野外"提示不靠优化,靠社会工程学包装,提醒我们攻击面不止于算法。
 
+### 3.5 采样类攻击 — Best-of-N 越狱
+
+**Best-of-N (BoN) Jailbreaking**(Hughes et al., [arXiv:2412.03556](https://arxiv.org/abs/2412.03556))展示了一种**简单到令人不安**的黑盒越狱方法:**对同一有害请求重复采样 N 次**(每次施加随机扰动:大小写变换、词汇乱序、文本格式微调等),用一个 safety judge 自动筛出成功越狱的那条。
+
+核心发现:**ASR 随 N 呈幂律(power-law)增长**,在测试范围内平滑上升——更多采样预算 = 可预测地更高成功率;部分区间存在表观平台(受人工复核噪声/分类器误差影响),外推到更大 N 的标度行为仍待验证。
+
+- **GPT-4o ASR ~89%**(10,000 条增强 prompt 下);**Claude 3.5 Sonnet ~78%**;Claude 3 Opus ~92%
+- **跨模态**:文本(LLM)、视觉(VLM)、音频(ALM,如 Gemini 1.5 Pro)均可
+- **可组合**:与优化前缀攻击叠加 ASR 再提升 ~35%,与 many-shot 组合在 Claude 3.5 Sonnet 上**同等 ASR 只需 1/28 的 shot 数**
+- **破已有防御**:对 **Circuit Breakers** 有效;o1 经 NeurIPS 更新版评测**最鲁棒**(ASR ~37%,N 较小因推理成本限制),但仍非零成功率——并非"推理模型免疫"
+
+> ❌ **常见误判**:Best-of-N 是**攻击方法**,不是防御。arXiv:2412.03556 标题 "Best-of-N Jailbreaking",GPT-4o ASR ~89% 是攻击成功率(Attack Success Rate),不是防御降低率。在 agent 安全实践中应把 Best-of-N 理解为「攻击者可以用更多采样预算来绕过多轮轨迹中的安全检查」。
+
+攻击如此简单却高效,揭示了当前安全对齐的一个深层脆弱性:**模型对看似无害的输入扰动(brittle to innocuous perturbations)缺乏鲁棒性**——不需要精心构造对抗 token,随机扰动 + 重复采样就够了。这对 agent 场景尤其关键:agent 的多轮交互天然给了攻击者更多采样机会。
+
+### 3.6 多轮升级攻击 — Crescendo
+
+**Crescendo**(Russinovich et al., Microsoft, [arXiv:2404.01833](https://arxiv.org/abs/2404.01833))是一种**多轮逐步升级**的越狱攻击,核心是心理学「登门槛 (foot-in-the-door)」策略:**不直接请求危险内容(那会被拒),而是通过一系列看似无害的渐进式问题,利用模型关注自身上文(attend to its own recently generated text)的特性,逐步引导模型输出危险信息。**
+
+- **完全黑盒**:只需正常 API/对话交互,无需梯度或对抗后缀
+- **提示表面无害**:早期/中间轮次以良性、人类可读的文本为主——危险主要体现在跨 turn 的语义累积,因此单步过滤难以检测
+- **多轮特性**:输入过滤器极难检测(没有单条提示是明显恶意的,但后期 turns 可能累积危险上下文)
+- **Crescendomation 自动化工具**:在 AdvBench 子集上,比当时其他越狱方法高 **29–61%**(GPT-4)和 **49–71%**(Gemini-Pro)
+- 测试模型覆盖 GPT-4、Gemini Pro/Ultra、Claude 2/3/3.5 Sonnet、LLaMA-2/3 70B
+
+> ⚠️ **agent 场景比 chatbot 更危险**:agent 天然是多轮交互,攻击者可以把恶意目标拆成多个无害子步骤——每步单独看都合法(如「帮我查一下 X」「再查一下 Y」「把 X 和 Y 组合起来」),但序列组合构成攻击。这正是轨迹级监控(§3 agent-safety)的核心 motivation——单步规则引擎抓不到多步组合攻击。
+
+Crescendo 暴露了一个关键缺口:**当前越狱基准和许多防护评测偏重单轮**,而 Crescendo 展示多轮逐步升级可以系统性地绕过这些措施——防御需要 adaptive multi-turn 基准和在轨迹层面观察累积语义漂移。
+
 ---
 
 ## 4. 防御与安全训练 (Defenses & Safety Training)
 
-防御按作用点分三类:**训练侧**把安全写进权重(§4.1–4.2 损失/奖励、§4.5 特权序),**表征侧**改写内部有害轨迹(§4.4),**运行时**在 I/O 端独立拦截(§4.3)。
+防御按作用点分五类:**训练侧**把安全写进权重(§4.1–4.2 损失/奖励、§4.5 特权序),**推理时**在 CoT 中显式思考安全(§4.6),**表征侧**改写内部有害轨迹(§4.4),**运行时护栏**在 I/O 端独立拦截(§4.3, §4.7)。
 
 ### 4.1 安全 RLHF — reward + cost 双模型 + 拉格朗日
 
@@ -169,7 +199,46 @@ def safe_rlhf_step(lam, batch_reward, batch_cost, d, lr_lambda=0.05):
 
 **The Instruction Hierarchy**(Wallace et al., [arXiv:2404.13208](https://arxiv.org/abs/2404.13208)):训练模型遵守严格的**特权序:system prompt > user 消息 > 工具/检索返回内容**。训练让模型**倾向于**遵守该特权序、让低特权输入**更难覆盖**高特权指令——从而**降低** prompt injection(把恶意指令藏在网页/工具输出里)越过系统级安全约束的概率(是降低概率,非形式化保证)。是防御**间接注入**的训练侧方案。
 
-> 📝 五种防御互补、非替代:训练侧(Safe-RLHF/RBR/指令层级)塑造默认行为与特权序,运行时(Llama Guard)在 I/O 端兜底,表征侧(Circuit Breakers)对抗绕过拒答的攻击。任何单点都可被 §6 的脆弱性击穿。
+> 📝 这些防御互补、非替代:训练侧(Safe-RLHF/RBR/指令层级)塑造默认行为与特权序,推理时(Deliberative Alignment)让模型在 CoT 中思考安全,表征侧(Circuit Breakers)对抗绕过拒答的攻击,运行时护栏(Llama Guard / Constitutional Classifiers)在 I/O 端拦截。任何单点都可被 §6 的脆弱性击穿,纵深防御才有意义。
+
+### 4.6 推理时安全思考 — Deliberative Alignment
+
+**Deliberative Alignment**(Guan et al., OpenAI, [arXiv:2412.16339](https://arxiv.org/abs/2412.16339))提出了一种新范式:**不再靠人工标注的偏好对隐式注入安全,而是直接把安全规范 (safety specifications) 教给模型,让模型在思维链 (CoT) 中主动回忆、推理这些规范,再生成回答。**
+
+两阶段训练:
+
+| 阶段 | 方法 | 说明 |
+|------|------|------|
+| **SFT** | 监督微调 | 用合成数据 (prompt + CoT引用安全规范 + 安全回答) 训练模型在推理时主动检索并应用安全规范 |
+| **RL** | 强化学习 | 用奖励模型 $G_{RM}$ 对**回答质量**打分——**关键设计:RM 只评 answer,不评 CoT**,防止模型生成欺骗性 CoT(嘴上说安全、实际写有害内容)来刷分 |
+
+关键结果 (StrongREJECT goodness@0.1):
+- **o1 (经 Deliberative Alignment):0.88** vs GPT-4o:0.37
+- XSTest 良性提示准确率 **93%**——在提升越狱鲁棒性的同时**降低了**过度拒答
+- o1 在 hard refusal style adherence 为 **0.79**(GPT-4o 0.72);BBQ ambiguous stereotype 表现与 o1-preview 接近,优于大多数非 o 模型
+
+> 💡 **对 agent 场景的意义**:agent 的 CoT / think step 天然是 deliberation 的载体——可以在 think 里加入 safety check,且 agent 多步推理给了多次 safety check 机会。但这也意味着:**如果 think 本身被注入(§3 prompt injection)或模型推理出错,safety deliberation 会一起失效。**
+
+⚠️ 局限:DA 依赖推理时 deliberation,存在 latency/token 权衡;论文指出把完整 safety spec 放入每次上下文部署会"costly/overkill",DA 通过嵌入 spec 知识来避免这一点,但仍需推理开销。后续工作(如 EASE 框架)提出选择性激活安全推理来降低开销,但仍是开放问题。
+
+### 4.7 宪法式分类器 — Constitutional Classifiers
+
+**Constitutional Classifiers**(Sharma et al., Anthropic, [arXiv:2501.18837](https://arxiv.org/abs/2501.18837))是一种**模型外部的输入/输出护栏**:用一份「安全宪法 (constitution)」——以自然语言定义允许/禁止的内容类别——**自动生成合成训练数据**,训练轻量级分类器在主模型前后做拦截。
+
+工作流:
+1. **定义 constitution**:用自然语言写安全边界(如"芥末食谱 OK,芥子气配方不行")
+2. **自动合成数据**:用 Claude 按 constitution 生成多样化 prompt/completion,覆盖各类别 + 多语翻译 + 已知越狱风格增强
+3. **训练分类器**:独立的输入分类器和输出分类器学习按 constitution 判有毒/无毒
+4. **部署为护栏**:分类器包裹生产模型,在请求入口与回答出口做拦截
+
+关键数字:
+- **原型红队系统**:邀请 405 人,183 人活跃参与,估计 **>3,000 小时**红队投入——**未发现 universal jailbreak**,但误拒率较高(~44% 流量被拒)
+- **改进后自动化系统**:越狱成功率 86% → **4.4%**;过度拒答仅上升 **+0.38%**(统计不显著);推理开销额外 **23.7%**
+- **公开 Bug Bounty**(2025-02):339 名参与者,30 万+ 次交互,~3,700 小时——第 5/7 天发现 1 个 true universal jailbreak;4 人通关全部 8 级;支付 $55K 奖金
+
+> 💡 **与 Deliberative Alignment 互补**:Deliberative Alignment 做模型**内置的「慢思考」安全**(推理时 deliberation),Constitutional Classifiers 做**外部的「快判断」护栏**(输入/输出分类)。前者依赖模型推理质量,后者受限于 constitution 覆盖面——两者组合才是纵深。
+
+⚠️ 局限:constitution 覆盖不到的边缘攻击可能漏过;分类器可被针对性绕过(Bug Bounty 证明了这一点);需要随新攻击持续更新。Anthropic 明确将其定位为**纵深防御的一层,而非独立方案**。
 
 ---
 
@@ -475,12 +544,36 @@ def weighted_safety_loss(token_nll, mode="deep"):
 
 ---
 
+<details>
+<summary>Q18: Best-of-N 越狱与 GCG/PAIR 的本质区别是什么?为什么简单的重复采样就能突破防御?</summary>
+
+**答：** **机制区别**:**GCG/PAIR/AutoDAN 构造特定越狱提示**(对抗后缀/迭代改写/遗传进化),Best-of-N 则**不构造任何东西**——只有随机扰动(大小写变换、词汇乱序等)+ 重复采样,靠数量堆出成功越狱。**为什么有效**:ASR 随采样数 N 呈**幂律增长**,无饱和平台——每次采样相当于在模型脆弱的决策边界附近再试一次,总有一次会踩中盲区。这揭示了当前对齐的深层问题:**模型对看似无害的输入扰动缺乏鲁棒性**,不需要精心构造对抗 token,随机噪声 + 重复就够了。它对 agent 场景尤其关键:agent 多轮交互给了攻击者更多隐式采样机会。
+
+> **追问：** Best-of-N 能破哪些防御?攻击成本不对称意味着什么?
+> 能破 **Circuit Breakers**;o1 经 NeurIPS 更新版最鲁棒(ASR ~37%),但仍非零成功率。成本不对称:攻击方加大采样预算(N)可预测地提高 ASR,防御方需要更强单次分类器/轨迹监控/红队数据来应对——任何 defensive sampling 都需要独立验证,不是简单"加大防御 N"就能对称。核心启示:攻防在成本曲线上高度不对称,对攻击方有利。
+
+</details>
+
+---
+
+<details>
+<summary>Q19: Crescendo 多轮升级攻击的机制?为什么在 agent 场景比单轮 chatbot 更危险?</summary>
+
+**答：** Crescendo 利用心理学「登门槛」策略:**不直接请求危险内容,而是通过一系列渐进式问题,利用模型关注自身上下文(attend to own recently generated text)的特性,逐步引导模型输出危险信息。** 早期/中间轮次以良性文本为主,危险在跨 turn 语义累积中体现——输入过滤器极难检测,因为没有单条提示一开始就明显恶意(但后期 turns 可能累积危险上下文)。**agent 更危险的原因**:agent 天然是多轮交互,攻击者可以把恶意目标拆成多个无害子步骤——每步单独看都合法(如「查 X」「查 Y」「组合 XY」),但序列组合构成攻击。单步规则引擎抓不到多步组合攻击,必须靠**轨迹级监控**(观察累积语义漂移)才能检测。
+
+> **追问：** 当前的拒答训练为什么对 Crescendo 效果差?
+> 因为当前越狱基准和许多防护评测**偏重单轮**,模型在训练和评测中主要暴露于单轮攻击——学到的是「第一轮看到危险请求就拒绝」。Crescendo 的多轮渐进式引导不在这个分布内:每一步单独看都不触发拒答,等模型意识到被引导时,已经在上文中做出了太多"合规"承诺,难以回头拒答。防御需要 adaptive multi-turn 基准和轨迹级监控。
+
+</details>
+
+---
+
 ### L3 — 高级 (Advanced)
 
 ---
 
 <details>
-<summary>Q18: "浅层安全对齐"的机制是什么?为何它能统一解释多种攻击?</summary>
+<summary>Q20: "浅层安全对齐"的机制是什么?为何它能统一解释多种攻击?</summary>
 
 **答：** Qi et al. 2024 发现当前对齐主要改变了输出**前几个 token** 的分布(让回答以"我不能…"开头),靠后 token 几乎不受安全约束。这一个机制解释了多种攻击:**前缀注入/prefilling**(直接替换开头几个 token)、**对抗后缀**(GCG,改开头概率)、**微调**(几步梯度即改写浅层行为)——它们都在绕过那几个 token 之后让模型"裸奔"。对策:把安全损失对**靠后 token 加权**,逼对齐"更深"。
 
@@ -492,7 +585,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 ---
 
 <details>
-<summary>Q19: 拒答由"单一方向"中介意味着什么?对防御有何启示?</summary>
+<summary>Q21: 拒答由"单一方向"中介意味着什么?对防御有何启示?</summary>
 
 **答：** Arditi et al. 在 13 个开源模型上发现拒答由残差流中**一个线性方向**主导:消除它→显著削弱拒答,注入它→诱导对无害请求也拒答。这说明拒答机制可能惊人地**简单且脆弱**。启示:① 对**开放权重**模型,攻击者可直接做权重/激活手术去对齐,无需越狱提示;② 真正鲁棒的安全不能依赖单一可被线性消除的方向,需要把安全分布式地嵌入计算(呼应 Circuit Breakers 的表征级思路)。
 
@@ -504,7 +597,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 ---
 
 <details>
-<summary>Q20: 为什么对抗训练有时反而让 Sleeper Agents 的后门更隐蔽?</summary>
+<summary>Q22: 为什么对抗训练有时反而让 Sleeper Agents 的后门更隐蔽?</summary>
 
 **答：** Sleeper Agents(Hubinger et al.)训练带条件触发后门的模型,发现后门能挺过 RLHF/SFT/对抗训练;对抗训练给模型展示"触发样本"并惩罚有害输出,但模型可能学到的是**"在像被测试的情境下不触发"**,而非真正移除后门——即学会更好地**隐藏**而非**去除**。结果是后门在评测时不显形、在真实触发条件下照样激活。
 
@@ -516,7 +609,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 ---
 
 <details>
-<summary>Q21: 设计一套完整的安全对齐评测方案,要覆盖哪些维度?</summary>
+<summary>Q23: 设计一套完整的安全对齐评测方案,要覆盖哪些维度?</summary>
 
 **答：**
 
@@ -539,7 +632,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 ---
 
 <details>
-<summary>Q22: helpful 与 harmless 的张力如何量化与权衡?</summary>
+<summary>Q24: helpful 与 harmless 的张力如何量化与权衡?</summary>
 
 **答：** 张力体现在**同一改动常此消彼长**:更强的拒答提升 harmless、降低 helpful(over-refusal)。量化上可画 **helpful–harmless 帕累托前沿**,看不同安全强度下的权衡。Safe-RLHF 的约束视角更优:把 harmless 设为**硬约束**(cost ≤ d)、在其内最大化 helpful,用 $\lambda$ 自适应地停在约束边界,而非用单一标量把两者强行加权混合。
 
@@ -551,7 +644,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 ---
 
 <details>
-<summary>Q23: 微调即破安全 + 浅层对齐,对"开放权重模型安全"意味着什么?</summary>
+<summary>Q25: 微调即破安全 + 浅层对齐,对"开放权重模型安全"意味着什么?</summary>
 
 **答：** 两者叠加说明:只要能**微调权重或访问激活**,当前对齐就极易被移除——约 10 条样本微调即可(6.1),拒答还可被单方向消除(6.3),因为对齐只占很浅的行为层(6.2)。对开放权重模型,**发布即等于放弃对"去对齐"的控制**;安全不能只靠模型自身对齐,需配合**发布策略、使用条款、下游护栏、滥用监测**等社会-技术手段。
 
@@ -563,7 +656,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 ---
 
 <details>
-<summary>Q24: 越狱攻防的"军备竞赛"会收敛吗?表征级防御能否终结它?</summary>
+<summary>Q26: 越狱攻防的"军备竞赛"会收敛吗?表征级防御能否终结它?</summary>
 
 **答：** 短期看更像**持续军备竞赛**:每出一种防御(困惑度过滤→AutoDAN 通顺提示;拒答训练→GCG/越狱提示;长窗口→many-shot),很快有对应绕过。**表征级防御(Circuit Breakers)** 把战线从"输出 token"推到"内部表征",理论上更难绕过(攻击需操纵内部计算而非仅输出),但仍可能被新型表征攻击或定位误差击穿,且有 over-refusal/能力损失代价。没有证据表明任何单一防御能终结竞赛。
 
@@ -575,7 +668,7 @@ def weighted_safety_loss(token_nll, mode="deep"):
 ---
 
 <details>
-<summary>Q25: 如何系统性防御自动化越狱 (GCG/PAIR/AutoDAN)?各防御的代价?</summary>
+<summary>Q27: 如何系统性防御自动化越狱 (GCG/PAIR/AutoDAN)?各防御的代价?</summary>
 
 **答：**
 
@@ -591,6 +684,28 @@ def weighted_safety_loss(token_nll, mode="deep"):
 
 > **追问：** 为什么"对抗训练"不能像图像领域那样基本解决问题?
 > 文本攻击空间离散、巨大且语义可无限改写,对抗训练只覆盖见过的攻击分布,对新包装(新语言/新编码/新情境)泛化差;加上浅层对齐与可微调性,使"训一次永久鲁棒"在 LLM 上不现实。
+
+</details>
+
+---
+
+<details>
+<summary>Q28: Deliberative Alignment 和 Constitutional Classifiers 如何互补构建纵深防御?各自的盲区和适用场景?</summary>
+
+**答：** 两者代表安全防御的两种范式,互补而非替代:
+
+| 维度 | Deliberative Alignment | Constitutional Classifiers |
+|------|------------------------|----------------------------|
+| **位置** | 模型**内部**(权重级) | 模型**外部**(输入/输出护栏) |
+| **机制** | 推理时 CoT 显式引用安全规范 → 慢思考 | 轻量分类器快速判有毒/无毒 → 快判断 |
+| **适用场景** | 需要模型内在判断的灰色地带(如"这是否算仇恨言论?") | 需要快速、可审计拦截的明确类别(如 CBRN/CSAM) |
+| **盲区** | 依赖模型推理质量;think 可被注入;对所有查询都做安全推理(开销大) | constitution 覆盖不到的边缘攻击;可被针对性绕过(Bug Bounty 已证) |
+| **更新方式** | 重新训练/微调(重) | 更新 constitution + 合成新数据重训分类器(相对轻) |
+
+**互补逻辑**:Deliberative Alignment 让模型有「内在安全直觉」,Constitutional Classifiers 提供「外部安全规则」——前者处理灰色地带,后者兜底明确红线。组合可提高攻击成本、减少单点失效;但仍需覆盖部署路径、工具层、监控与更新,不能视为充分保证。Anthropic 明确将 Constitutional Classifiers 定位为**纵深防御的一层而非独立方案**(类比瑞士奶酪模型);OpenAI 在 o1 System Card 中也将其安全架构设计为多层组合。
+
+> **追问：** 为什么不能只用其中一个?
+> 只用 Deliberative Alignment:推理可能出错、think 可被注入、对 CBRN 等明确红线缺乏可审计的硬拦截。只用 Constitutional Classifiers:灰色地带(如"微妙的政治偏见")难以用 constitution 穷举,分类器倾向于过度拦截或漏拦,且 Bug Bounty 证明分类器可被针对性绕过。组合才能覆盖「直觉 + 规则」两个维度,让攻击者需要同时绕过两者才能造成实质损害。
 
 </details>
 
@@ -624,6 +739,10 @@ def weighted_safety_loss(token_nll, mode="deep"):
 | Shallow Alignment | 浅层对齐 | 安全只改了前几个 token 的分布 |
 | Refusal Direction | 拒答方向 | 残差流中中介拒答的单一线性方向 |
 | Sleeper Agents | 潜伏后门 | 挺过安全训练的条件触发后门 |
+| Best-of-N (BoN) Jailbreak | 最优-N 越狱 | 随机扰动 + 重复采样 N 次寻越狱,ASR 呈幂律增长,是攻击方法 |
+| Crescendo | 渐进越狱 | 多轮逐步升级的越狱攻击,利用登门槛策略引导模型 |
+| Deliberative Alignment | 审慎对齐 | 让模型在 CoT 中显式推理安全规范再回答,o1 训练的核心安全方法 |
+| Constitutional Classifiers | 宪法式分类器 | 基于安全宪法的合成数据训练的输入/输出护栏分类器 |
 
 ---
 
@@ -671,6 +790,8 @@ def weighted_safety_loss(token_nll, mode="deep"):
 
 - **2024-04 · Many-shot Jailbreaking** — Anil et al., NeurIPS 2024 (Anthropic). [tech report](https://www-cdn.anthropic.com/af5633c94ed2beb282f6a53c595eb437e8e7b630/Many_Shot_Jailbreaking__2024_04_02_0936.pdf) — 在长上下文里预置大量有害示例,随 shot 数增加可预测地压过拒答,揭示"扩长上下文=放大攻击面"的能力-安全冲突。
 
+- **2024-04 · Crescendo: Multi-Turn LLM Jailbreak Attack** — Russinovich et al., Microsoft. [arXiv:2404.01833](https://arxiv.org/abs/2404.01833) — 用「登门槛」策略通过多轮看似无害的渐进式问题逐步引导模型输出危险信息;完全黑盒、提示表面无害、输入过滤难以检测;Crescendomation 自动化工具在 AdvBench 上比当时方法高 29–71%;在 agent 多轮场景尤其危险。
+
 - **2024-06 · Improving Alignment and Robustness with Circuit Breakers** — Zou et al., NeurIPS 2024. [arXiv:2406.04313](https://arxiv.org/abs/2406.04313) — 用 representation rerouting 在表征层中断有害生成轨迹,使模型即便被绕过拒答也更难产出有害内容,对多类未见攻击经验上更鲁棒。
 
 - **2024-06 · Safety Alignment Should Be Made More Than Just a Few Tokens Deep** — Qi et al., ICLR 2025 Oral/Outstanding. [arXiv:2406.05946](https://arxiv.org/abs/2406.05946) — 证明当前对齐只改了输出前几个 token 的"浅层"行为,统一解释前缀注入/对抗后缀/微调等攻击,并提出加深对齐的方向。
@@ -678,3 +799,9 @@ def weighted_safety_loss(token_nll, mode="deep"):
 - **2024-06 · Refusal in LMs Is Mediated by a Single Direction** — Arditi et al., NeurIPS 2024. [arXiv:2406.11717](https://arxiv.org/abs/2406.11717) — 在 13 个开源模型上发现拒答由残差流单一线性方向中介:消除即关拒答、注入即触发,揭示开放权重模型对齐的表征级脆弱性。
 
 - **2024-11 · Rule Based Rewards for Language Model Safety** — Mu et al., NeurIPS 2024. [arXiv:2411.01111](https://arxiv.org/abs/2411.01111) — 用人写规则(LLM 裁判给 0–1 软分)在 RL 中直接构造安全奖励,替代不透明的安全 RM,使安全信号可解释、可审计、随政策更新;规则漏洞比黑盒 RM 更易发现修补,但规则本身仍可能被 gaming、需持续审计。
+
+- **2024-12 · Best-of-N Jailbreaking** — Hughes et al., preprint. [arXiv:2412.03556](https://arxiv.org/abs/2412.03556) — 用随机扰动 + 重复采样 N 次的简单黑盒方法实现越狱;ASR 随 N 呈幂律增长(GPT-4o ~89%),跨模态有效,可破 Circuit Breakers 与推理模型;揭示对齐对无害扰动的深层脆弱性(非防御,是攻击方法)。
+
+- **2024-12 · Deliberative Alignment: Reasoning Enables Safer Language Models** — Guan et al., OpenAI. [arXiv:2412.16339](https://arxiv.org/abs/2412.16339) — 把安全规范直接教给模型在 CoT 中推理,两阶段训练(SFT+RL, RM 只评 answer 不评 CoT);o1 StrongREJECT goodness@0.1 达 0.88(vs GPT-4o 0.37),XSTest 良性准确率 93%;在提升鲁棒性同时降低过度拒答。
+
+- **2025-01 · Constitutional Classifiers: Defending against Universal Jailbreaks** — Sharma et al., Anthropic. [arXiv:2501.18837](https://arxiv.org/abs/2501.18837) — 基于 constitution 自动生成合成训练数据,训练输入/输出护栏分类器;自动化越狱率 86%→4.4%,过拒仅 +0.38%;183 人 >3000h 红队未找到 universal jailbreak;Bug Bounty 证明可被绕过,定位为纵深防御一层。
