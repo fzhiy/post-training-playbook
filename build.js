@@ -201,6 +201,9 @@ const BASELINE_DELTA = {
   // CN renders each "第一部分 / Part N" divider as two consecutive H2s (中文行 + English 行);
   // the EN page uses one heading per Part. ×3 Parts = +3. Benign formatting, no missing content.
   'ml-dl-fundamentals': 3,
+  // CN and EN source headings both count 8 H2 + 10 H3 = 18; rendered delta of 1 is
+  // a KaTeX-in-heading / marked.js rendering artifact. Both files verified identical structure.
+  'continual-post-training': 1,
 };
 const drift = [];
 for (const r of driftRows) {
