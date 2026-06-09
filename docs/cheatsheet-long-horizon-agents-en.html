@@ -140,7 +140,7 @@
 <nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-long-horizon-agents.html">中文 ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Long-Horizon / Self-Evolving Agents: Production State vs. Frontier (Interview-Oriented)</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. 【Production】What Long-Horizon Agentic Systems Look Like Today (Shipped Products)</a></li><li class="lv2"><a href="#sec-1">2. 【Production】Engineering Pillars of Long-Horizon Agents (Official Guides, High Interview Frequency)</a></li><li class="lv2"><a href="#sec-2">3. 【Frontier】Training Paradigms for Long-Horizon / Agentic Systems (Research Context, Not Yet Industry Standards)</a></li><li class="lv3"><a href="#sec-3">3.1 Sparse / Long-Horizon Rewards + Difficulty-Band Design (High-Frequency System Design Question)</a></li><li class="lv3"><a href="#sec-4">3.2 Three Core Challenges of Web / Agent RL (WebRL Framework)</a></li><li class="lv3"><a href="#sec-5">3.3 Connections to Other Pages</a></li><li class="lv2"><a href="#sec-6">4. 【Frontier · Least Mature】Self-Evolving / Self-Evolving Agents (Requires Most Caution)</a></li><li class="lv2"><a href="#sec-7">5. Interview Question Clusters / Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-8">L1 Fundamentals</a></li><li class="lv3"><a href="#sec-9">L2 Intermediate</a></li><li class="lv3"><a href="#sec-10">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-11">References</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">1. 【Production】What Long-Horizon Agentic Systems Look Like Today (Shipped Products)</a></li><li class="lv2"><a href="#sec-1">2. 【Production】Engineering Pillars of Long-Horizon Agents (Official Guides, High Interview Frequency)</a></li><li class="lv2"><a href="#sec-2">3. 【Frontier】Training Paradigms for Long-Horizon / Agentic Systems (Research Context, Not Yet Industry Standards)</a></li><li class="lv3"><a href="#sec-3">3.1 Sparse / Long-Horizon Rewards + Difficulty-Band Design (High-Frequency System Design Question)</a></li><li class="lv3"><a href="#sec-4">3.2 Three Core Challenges of Web / Agent RL (WebRL Framework)</a></li><li class="lv3"><a href="#sec-5">3.3 Connections to Other Pages</a></li><li class="lv2"><a href="#sec-6">4. 【Frontier · Least Mature】Self-Evolving / Self-Evolving Agents (Requires Most Caution)</a></li><li class="lv2"><a href="#sec-7">§A Key Papers &amp; Products Timeline</a></li><li class="lv2"><a href="#sec-8">5. Interview Question Clusters / Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-9">L1 Fundamentals</a></li><li class="lv3"><a href="#sec-10">L2 Intermediate</a></li><li class="lv3"><a href="#sec-11">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-12">References</a></li></ul></nav>
 <main id="out"><blockquote>
 <p><strong>long-horizon</strong> = multi-step, long-running tasks requiring sustained autonomous execution; <strong>self-evolving</strong> = enabling an agent to continuously improve via self-generated data / self-feedback.
 ⚠️ This page uses <strong>strict column separation</strong>: 【Production】= shipped products / official engineering guides; 【Frontier】= papers / technical reports, <strong>not yet industry standards</strong>. In interviews, do not treat frontier findings as production-standard answers.
@@ -169,6 +169,38 @@ Integrity notice: the &quot;interview question clusters&quot; on this page are <
 <li><strong>Self-verification</strong>: rules-based (linter, precise), visual (screenshot, verifies UI), LLM-as-judge (fuzzy criteria, costs latency / stability).</li>
 <li>Reliability = appropriate tools + clear feedback + representative scenario testing + iterating on failure modes.</li>
 </ul>
+<p><strong>Agent loop skeleton</strong> (simplified, showing control flow; real implementations need error handling / compaction / sandbox):</p>
+<details class="code-fold"><summary>31 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">agent_loop</span>(<span class="hljs-params">task, tools, max_steps=<span class="hljs-number">50</span>, token_limit=<span class="hljs-number">128_000</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;Long-horizon agent core loop: gather context → take action → verify → repeat.&quot;&quot;&quot;</span>
+    context = [{<span class="hljs-string">&quot;role&quot;</span>: <span class="hljs-string">&quot;system&quot;</span>, <span class="hljs-string">&quot;content&quot;</span>: AGENT_SYSTEM_PROMPT}]
+    context.append({<span class="hljs-string">&quot;role&quot;</span>: <span class="hljs-string">&quot;user&quot;</span>, <span class="hljs-string">&quot;content&quot;</span>: task})
+
+    <span class="hljs-keyword">for</span> step <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(max_steps):
+        <span class="hljs-comment"># 1. gather: LLM reasons about the next action</span>
+        response = llm.chat(context, tools=tools)
+
+        <span class="hljs-keyword">if</span> response.has_tool_calls():
+            <span class="hljs-keyword">for</span> tc <span class="hljs-keyword">in</span> response.tool_calls:
+                result = execute_tool(tc)                <span class="hljs-comment"># real tool execution (in sandbox)</span>
+                context.append(tool_result_msg(tc, result))
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">break</span>                                        <span class="hljs-comment"># agent decides the task is done</span>
+
+        <span class="hljs-comment"># 2. verify: check the current step with environment ground truth</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> verify_step(response, tools):             <span class="hljs-comment"># rules/visual/LLM-as-judge</span>
+            context.append({<span class="hljs-string">&quot;role&quot;</span>: <span class="hljs-string">&quot;user&quot;</span>,
+                           <span class="hljs-string">&quot;content&quot;</span>: <span class="hljs-string">&quot;Step seems wrong; review the result and retry.&quot;</span>})
+
+        <span class="hljs-comment"># 3. context management: prevent token overflow</span>
+        <span class="hljs-keyword">if</span> estimate_tokens(context) &gt; token_limit:
+            context = compact_context(context)           <span class="hljs-comment"># auto-summarize old messages</span>
+
+    <span class="hljs-keyword">return</span> response.content
+<span class="hljs-comment"># Key design points:</span>
+<span class="hljs-comment"># - execute_tool must be sandboxed (code in isolated env, browser in virtual browser)</span>
+<span class="hljs-comment"># - verify_step tiered from cheap to expensive: rules → visual → LLM-as-judge</span>
+<span class="hljs-comment"># - compact_context keeps key decision-point markers, only compresses intermediate chat</span>
+</code></pre></details>
 <h2 id="sec-2">3. 【Frontier】Training Paradigms for Long-Horizon / Agentic Systems (Research Context, Not Yet Industry Standards)</h2>
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p>The following is <strong>research</strong> context, not a production deployment claim for any specific product. In interviews you may say &quot;I&#39;ve been tracking direction X&quot; — do not say &quot;this is the industry standard.&quot;</p>
@@ -180,6 +212,16 @@ Integrity notice: the &quot;interview question clusters&quot; on this page are <
 <p>Negative reward is given for both &quot;too hard (no one solves it, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo lspace="0em" rspace="0em">=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">s{=}0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord mathnormal">s</span><span class="mord"><span class="mrel">=</span></span><span class="mord">0</span></span></span></span>)&quot; and &quot;too easy (everyone solves it, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">s{=}1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord mathnormal">s</span><span class="mord"><span class="mrel">=</span></span><span class="mord">1</span></span></span></span>)&quot;; only intermediate difficulty is rewarded. <em>(This page only uses the reward design; performance numbers are unverified and not cited.)</em></p>
 <p><strong>MiMo</strong><span class="cite-wrap"><a class="cite" id="fnref-7" href="#ref-7">7</a><span class="cite-note">Xiaomi&#39;s released-model RL recipe: remove KL loss, Clip-Higher, dynamic sampling to filter pass-rate 0/1.<a href="https://arxiv.org/abs/2505.07608">Xiaomi 2025 ↗</a></span></span> (RL recipe for Xiaomi&#39;s released model): dynamic sampling <strong>filters prompts with pass-rate<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>0</mn><mi mathvariant="normal">/</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">=0/1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.3669em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">0/1</span></span></span></span></strong>, and maintains a 10% easy-question pool to prevent instability in late-stage policy updates.</p>
 <p><strong>The motivation of both is the same</strong> = difficulty-adaptive curriculum: concentrate signal on problems the model &quot;can almost solve but hasn&#39;t yet mastered.&quot;</p>
+<pre><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">difficulty_band_reward</span>(<span class="hljs-params">solve_rate, alpha=<span class="hljs-number">0.8</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;Self-Play SWE-RL piecewise reward: penalize too-hard/too-easy, reward intermediate.
+    solve_rate: s ∈ [0,1] = fraction of fixers who solved the bug.&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">if</span> solve_rate == <span class="hljs-number">0.0</span> <span class="hljs-keyword">or</span> solve_rate == <span class="hljs-number">1.0</span>:
+        <span class="hljs-keyword">return</span> -alpha                       <span class="hljs-comment"># too hard (no one solves) or too easy (everyone solves) → negative</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-number">1.0</span> - (<span class="hljs-number">1.0</span> + alpha) * solve_rate <span class="hljs-comment"># intermediate s ∈ (0,1): lower s (harder) → higher reward</span>
+<span class="hljs-comment"># Intuition: s=0→-0.8; s≈0.1 (extremely hard)≈0.82 max; s=0.5→0.1; s=1→-0.8.</span>
+<span class="hljs-comment"># Encourages generating &quot;extremely hard but not impossible&quot; bugs — real hard bugs that most fixers can&#x27;t solve.</span>
+<span class="hljs-comment"># Note: the function peaks as s→0+; the paper also applies a consistency-validation penalty.</span>
+</code></pre>
 <h3 id="sec-4">3.2 Three Core Challenges of Web / Agent RL (WebRL Framework)</h3>
 <p>Standard structure for answering &quot;why is web/long-horizon agent training hard&quot;: ① <strong>scarcity of training tasks</strong>; ② <strong>sparse feedback signals</strong>; ③ <strong>policy distribution shift</strong>.<span class="cite-wrap"><a class="cite" id="fnref-8" href="#ref-8">8</a><span class="cite-note">Three core challenges of web agent training: task scarcity / sparse feedback / policy shift (this page only uses this framework).<a href="https://arxiv.org/abs/2411.02337">Qi 2024 ↗</a></span></span> <em>(WebRL&#39;s core is &quot;failed trajectories → self-evolving curriculum&quot;; this page only uses its three-challenge framework and does not expand on that mechanism.)</em></p>
 <h3 id="sec-5">3.3 Connections to Other Pages</h3>
@@ -191,30 +233,125 @@ Integrity notice: the &quot;interview question clusters&quot; on this page are <
 <ul>
 <li>Core idea: let the agent continuously improve via <strong>self-generated data / self-play / generating new tasks from failures / reflection-self-correction</strong>, bypassing human annotation.</li>
 <li>Current state of the field: papers exist exploring this direction (automated curriculum, self-play search, etc.), but strong claims of &quot;unsupervised fully automatic scaling&quot; <strong>often do not hold up to verification</strong>; treat as an <strong>open research question</strong>, not a mature solution. Deep treatment is left to the independent <a href="https://github.com/fzhiy/agent-post-training-playbook">agent-post-training-playbook</a>.</li>
+</ul>
+<p><strong>Existing research attempts (framework-level, not performance claims)</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Representative work</th>
+<th>Core mechanism</th>
+<th>Known fragility</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Failure → new tasks</td>
+<td><strong>WebRL</strong> (<a href="https://arxiv.org/abs/2411.02337">arXiv:2411.02337</a>)</td>
+<td>Reverse-construct new training tasks from failure trajectories (&quot;the agent went wrong here → create a targeted drill&quot;)</td>
+<td>Auto-generated tasks may be &quot;noise&quot; rather than &quot;effective difficulty&quot;</td>
+</tr>
+<tr>
+<td>Self-play RL</td>
+<td><strong>Self-Play SWE-RL</strong> (<a href="https://arxiv.org/abs/2512.18552">arXiv:2512.18552</a>)</td>
+<td>Same LLM injects bugs → fixes bugs, using test suites as ground-truth reward</td>
+<td>Bug injection may degenerate to &quot;injecting too-trivial/too-absurd bugs&quot;</td>
+</tr>
+<tr>
+<td>Reflection self-correction</td>
+<td><strong>Self-Refine</strong> (<a href="https://arxiv.org/abs/2303.17651">arXiv:2303.17651</a>)</td>
+<td>Model generates → self-critiques → revises per feedback</td>
+<td>Purely intrinsic self-correction often changes right to wrong (see <a href="cheatsheet-test-time-scaling-en.html">test-time-scaling §2.3</a>)</td>
+</tr>
+<tr>
+<td>Multi-agent mutual critique</td>
+<td><strong>MULTI-AGENT Debate</strong> line</td>
+<td>Agent A generates, Agent B critiques, iteratively improve</td>
+<td>Multiple agents share the same base-model biases → risk of groupthink</td>
+</tr>
+</tbody></table>
+<p><strong>Four core failure modes</strong> (standard answer framework for L3 interviews): ① <strong>Mode collapse</strong> — model prefers its own style → positive feedback → loss of diversity; ② <strong>Reward collapse</strong> — self-judgment quality degrades (increasingly &quot;lenient&quot; toward its own outputs); ③ <strong>Difficulty collapse</strong> — self-generated tasks trend simple (the model invents problems it already knows how to do); ④ <strong>Distributional drift</strong> — self-generated data diverges from the real task distribution. Root cause: <strong>lack of an external ground-truth anchor</strong> — no objective, model-independent verification signal to calibrate the direction. Verifiable domains (code/math) can provide anchors; open-ended domains have almost none. For interviews: a candid analysis of the boundaries is more persuasive than claiming &quot;it can be done.&quot;</p>
+<ul>
 <li><strong>Honest connection (your research)</strong>: your <strong>Continual Agent (in progress) + Fed-TaLoRA anti-forgetting</strong> perspective → you can say &quot;I focus on continual learning / catastrophic forgetting in agents, which gives me an understanding of why self-evolution is still immature in production and where the boundaries are&quot;; do <strong>not</strong> say &quot;I have built production self-evolving agent systems.&quot; See <a href="cheatsheet-continual-post-training-en.html">continual-post-training</a>.</li>
 </ul>
-<h2 id="sec-7">5. Interview Question Clusters / Stratified Follow-ups</h2>
+<h2 id="sec-7">§A Key Papers &amp; Products Timeline</h2>
+<ul class="timeline">
+<li><p><strong>2023-03 · Self-Refine</strong> — Madaan et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2303.17651">arXiv:2303.17651</a> — &quot;Generate→self-critique→revise&quot; loop with the same LLM; the seed of self-evolution ideas; follow-up work notes that purely intrinsic self-correction yields limited gains.</p>
+</li>
+<li><p><strong>2023-07 · WebArena</strong> — Zhou et al., ICLR 2024. <a href="https://arxiv.org/abs/2307.13854">arXiv:2307.13854</a> — One of the earliest systematic web agent benchmarks; self-built websites (e-commerce/forum/CMS) with programmatic verification.</p>
+</li>
+<li><p><strong>2024-05 · SWE-agent</strong> — Yang et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2405.15793">arXiv:2405.15793</a> — Proposed ACI (Agent-Computer Interface) design principles; &quot;well-designed CLI tools&quot; over raw shell improve agent efficiency.</p>
+</li>
+<li><p><strong>2024-10 · Anthropic Computer Use</strong> — Anthropic, product release (public beta). <a href="https://www.anthropic.com/news/3-5-models-and-computer-use">blog</a> — Claude views screenshots → operates a computer; tasks &quot;require dozens, and sometimes even hundreds of steps&quot;; the first frontier AI model to offer computer use in public beta.</p>
+</li>
+<li><p><strong>2024-11 · WebRL</strong> — Qi et al., ICLR 2025. <a href="https://arxiv.org/abs/2411.02337">arXiv:2411.02337</a> — Proposes the three core challenges of web agent training (task scarcity/sparse feedback/policy shift) + a self-evolving curriculum framework; this page uses the framework without expanding the mechanism.</p>
+</li>
+<li><p><strong>2024-12 · Building Effective Agents</strong> — Anthropic, engineering guide. <a href="https://www.anthropic.com/research/building-effective-agents">blog</a> — workflow vs agent, common patterns, when to use an agent, ACI/sandbox principles; the agent engineering &quot;bible.&quot;</p>
+</li>
+<li><p><strong>2025-01 · OpenAI Operator / CUA</strong> — OpenAI, research preview. <a href="https://openai.com/index/introducing-operator/">blog</a> — GPT-4o vision + RL reasoning computer-use agent, screenshot→CoT→action loop; integrated into ChatGPT agent 2025-07.</p>
+</li>
+<li><p><strong>2025-03 · DAPO</strong> — Yu et al. (ByteDance Seed), preprint. <a href="https://arxiv.org/abs/2503.14476">arXiv:2503.14476</a> — Clip-Higher + remove KL loss; adopted by MiMo and other agent RL recipes (details at <a href="cheatsheet-reasoning-rl-frontier-en.html">reasoning-rl-frontier</a>).</p>
+</li>
+<li><p><strong>2025-05 · MiMo</strong> — Xiaomi LLM-Core, tech report. <a href="https://arxiv.org/abs/2505.07608">arXiv:2505.07608</a> — Complete RL recipe for a released model: remove KL loss + Clip-Higher + dynamic sampling filtering + difficulty-band curriculum.</p>
+</li>
+<li><p><strong>2025-12 · Self-Play SWE-RL</strong> — Wei et al. (Meta/FAIR), accepted to ICML 2026. <a href="https://arxiv.org/abs/2512.18552">arXiv:2512.18552</a> — Self-play RL where the same LLM both injects and fixes bugs; piecewise difficulty-band reward; this page only uses the reward design, without unverified performance numbers.</p>
+</li>
+</ul>
+<h2 id="sec-8">5. Interview Question Clusters / Stratified Follow-ups</h2>
 <blockquote>
 <p>Inferred from public papers / JDs as high-frequency clusters; <strong>not real exam questions</strong>.</p>
 </blockquote>
-<h3 id="sec-8">L1 Fundamentals</h3>
-<ul>
-<li>What is the difference between a workflow and an agent? When should you <strong>not</strong> use an agent (when a workflow / single call is sufficient)?</li>
-<li>How does computer use / Operator work (the screenshot → reasoning → action loop)?</li>
-</ul>
-<h3 id="sec-9">L2 Intermediate</h3>
-<ul>
-<li>How do you prevent context overflow in long-horizon agents (compaction / files as memory / subagents)?</li>
-<li>How do you handle sparse rewards in long-horizon tasks? Why use a difficulty band / dynamic sampling (filter pass-rate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mi mathvariant="normal">/</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">0/1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">0/1</span></span></span></span>)?</li>
-<li>How does an agent self-verify (rules / visual / LLM-as-judge), and what are the costs of each?</li>
-</ul>
-<h3 id="sec-10">L3 Deep Dive</h3>
-<ul>
-<li>Design the reward for a long-horizon coding agent: how do you prevent reward hacking and degeneration (no signal when too hard / too easy)?</li>
-<li>What are the three core challenges of web / long-horizon agent training (task scarcity / sparse feedback / policy shift) and how is each mitigated?</li>
-<li>What are the failure modes of self-evolving / self-play training? Why is full automation still not trusted in production?</li>
-</ul>
-<h2 id="sec-11">References</h2>
+<h3 id="sec-9">L1 Fundamentals</h3>
+<details>
+<summary>Q1: What is the difference between a workflow and an agent? When should you **not** use an agent?</summary><p><strong>A:</strong> <strong>Workflow</strong> = LLM/tools follow <strong>predefined code paths</strong> (control flow lives in the code — the developer hardcodes &quot;call A → if X then B → else C&quot; beforehand). <strong>Agent</strong> = LLM <strong>dynamically decides</strong> the process and tool usage itself (control flow lives in the model — it chooses what to do next based on the current state). Anthropic&#39;s decision criterion: an agent is appropriate when the <strong>task is open-ended, the number of steps is unpredictable, and the path cannot be hardcoded</strong> — and you&#39;re willing to trade higher latency/cost for better performance. When NOT to use an agent: ① the number of steps is predictable (e.g., &quot;check weather → give advice&quot; is two fixed segments) → prompt chaining + routing suffices; ② a single LLM call + retrieval handles it (e.g., FAQ answering); ③ latency/cost is critical and the agent&#39;s extra benefit doesn&#39;t justify the cost. The golden rule: <strong>&quot;Start with the simplest solution and only escalate to an agent when necessary.&quot;</strong></p>
+<blockquote>
+<p><strong>Follow-up:</strong> What&#39;s the difference between orchestrator-workers and an autonomous agent?
+orchestrator-workers has an LLM-dynamic &quot;orchestrator&quot; (unlike hardcoded prompt chaining), but the &quot;workers&quot; are fixed sub-LLM calls — the control flow is in the orchestrator&#39;s hands, not in the code, so it sits closer to the agent side, as a &quot;contained agent.&quot;</p>
+</blockquote>
+</details><details>
+<summary>Q2: How does computer use / Operator work (the screenshot → reasoning → action loop)?</summary><p><strong>A:</strong> The core loop: <strong>screenshot → visually understand the current screen → CoT reasoning about the next action → execute the action (click/scroll/type/hotkey) → wait for the environment to change → repeat</strong>. Two implementations: ① <strong>Anthropic computer use</strong> (2024-10): Claude views screenshots and outputs structured tool-use instructions (<code>computer</code> tool type); tasks &quot;require dozens, and sometimes even hundreds of steps&quot;; officially experimental and error-prone. ② <strong>OpenAI Operator / CUA</strong> (2025-01→07): GPT-4o vision + RL reasoning; the same screenshot→CoT→action loop underneath; ChatGPT agent integrates this into a virtual computer (visual browser + terminal + API). Shared safety design: password/payment entry requires user handoff (not fully automated); high-risk tasks (bank transfers) are declined; sandbox isolation is used. In interviews, stress two points: ① visual understanding is the key bottleneck (screenshot resolution/latency/imprecise element targeting); ② many steps → error accumulation → per-step environment ground truth verification is essential.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> What is the key engineering difference between the two?
+Anthropic provides an API tool (developers integrate into their own systems), OpenAI provides a product (directly operates a virtual computer within ChatGPT) — the former is more flexible but requires self-assembly of the environment, the latter is ready out of the box but limited in customization.</p>
+</blockquote>
+</details><h3 id="sec-10">L2 Intermediate</h3>
+<details>
+<summary>Q3: How do you prevent context overflow in long-horizon agents (compaction / files as memory / subagents)?</summary><p><strong>A:</strong> Claude Agent SDK provides three combined strategies: ① <strong>compaction</strong>: auto-summarize old messages — when the prompt grows too long, compress early conversation into a brief summary to free tokens while keeping key information; ② <strong>file system as memory</strong>: don&#39;t cram all context into the prompt — write long outputs/intermediate results/history to the file system → grep/tail on demand when needed — essentially using the disk as &quot;external memory&quot;; ③ <strong>subagents</strong>: delegate sub-tasks to independent agents (isolated context, parallel execution), returning only the summary to the main agent — preventing sub-task details from contaminating the main context. In practice, the three are combined in tiers: compaction for chat history, the file system for long persistent memory, subagents for parallel independent sub-tasks. Additional measures: structured outputs (limit token waste), step counter (forced truncation).</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Can compaction lose critical information?
+Yes, there&#39;s a risk — a detail compressed away early in the conversation may later become critical. Mitigations: keep pointers to the original messages (&quot;re-check the source if needed&quot;), and set non-compaction markers on key decision points.</p>
+</blockquote>
+</details><details>
+<summary>Q4: How do you handle sparse rewards in long-horizon tasks? Why use a difficulty band / dynamic sampling?</summary><p><strong>A:</strong> Long-horizon agent tasks typically have only a <strong>final pass/fail</strong> binary signal — with no reward feedback at all for the 100 intermediate steps. The core insight of the difficulty-band design: <strong>effective RL signal only exists in the intermediate difficulty band where &quot;the model can almost do it but isn&#39;t certain.&quot;</strong> Both extremes yield zero gradient: too hard → always fails → all-wrong group advantage is zero; too easy → always succeeds → all-correct group advantage is zero. Solution: <strong>dynamic sampling filters prompts with pass-rate=0/1</strong> (MiMo&#39;s approach: evaluate current pass-rate on each prompt → discard all-correct and all-wrong → keep the &quot;can-just-barely-do&quot; difficulty band + maintain a 10% easy-question pool to prevent late-stage instability). Self-Play SWE-RL goes further: uses a <strong>piecewise reward function</strong> to explicitly penalize both difficulty extremes (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">s=0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span> too hard no one can solve it, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">s=1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> too easy everyone solves it) → only rewards <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>&lt;</mo><mi>s</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">0&lt;s&lt;1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6835em;vertical-align:-0.0391em;"></span><span class="mord">0</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.5782em;vertical-align:-0.0391em;"></span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span>, the intermediate difficulty band. The motivation of both is the same: <strong>difficulty-adaptive curriculum — concentrate the training signal on problems that the model &quot;can reach but hasn&#39;t yet mastered.&quot;</strong></p>
+<blockquote>
+<p><strong>Follow-up:</strong> What if difficulty converges late in training (most prompts become either too easy or too hard)?
+Expand the prompt pool and inject new problems; meanwhile keep a tiny fraction of all-correct/all-wrong prompts as &quot;anchors&quot; — don&#39;t filter completely clean, preserve a minimal proportion of easy/hard samples to prevent distribution skew.</p>
+</blockquote>
+</details><details>
+<summary>Q5: How does an agent self-verify (rules / visual / LLM-as-judge), and what are the costs of each?</summary><p><strong>A:</strong> Claude Agent SDK provides three verification methods, used in tier from cheap to expensive: ① <strong>rules-based</strong> (linter/unit tests/regex/state checks): most precise, zero latency, fully automatable — but only works for rule-checkable properties (code correctness, format compliance, page URL correctness); ② <strong>visual</strong> (screenshot verification): suited for UI agents — use a vision model / pixel comparison to judge &quot;has the interface reached the desired state?&quot; — more flexible than rules but requires additional visual understanding capability, and the screenshot/processing overhead is non-trivial; ③ <strong>LLM-as-judge</strong>: most flexible — can evaluate fuzzy criteria (&quot;is the response helpful?&quot;, &quot;is the interaction natural?&quot;) — but costs extra LLM call latency and expense + judge bias and error (position/verbosity/self-preference → see <a href="cheatsheet-eval-and-judges-en.html">eval-and-judges §2</a>). In practice, use from cheap to expensive in tier: rules first → visual if insufficient → LLM-as-judge as the last resort.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> When must you use LLM-as-judge?
+When the evaluation criterion itself is inherently fuzzy — such as &quot;is the dialogue helpful?&quot; or &quot;is the generated email tonally appropriate?&quot; — these cannot be rule-checked and can only be approximated by human preference or an LLM judge. The cost is high but there is no alternative.</p>
+</blockquote>
+</details><h3 id="sec-11">L3 Deep Dive</h3>
+<details>
+<summary>Q6: Design the reward for a long-horizon coding agent: how do you prevent reward hacking and degeneration?</summary><p><strong>A:</strong> Core challenges: ① only a final test pass/fail binary signal → zero feedback for the N intermediate steps; ② the agent may reward-hack (loop empty actions to burn steps, hardcode answers to bypass real reasoning); ③ prompts that are too hard or too easy yield zero gradient. Design plan: <strong>Primary reward</strong> = final test pass rate (0/1 binary), plus <strong>step-efficiency penalty</strong> (deduct λ per extra step to prevent infinite looping); <strong>Process reward</strong> = small reward for key intermediate products (e.g., &quot;located the bug&#39;s file&quot;) to alleviate the zero-signal problem in intermediate steps — but beware the &quot;process reward being hacked&quot; risk (the model learns to do actions that &quot;look like finding a bug&quot; without actually finding it); <strong>Difficulty-band filtering</strong> = discard all-correct/all-wrong prompts + keep a 10% easy-question anchor. The key to preventing reward hacking: coding agents choose <strong>verifiable domains</strong> — code unit tests ≈ ground truth, nearly impossible to fool with a neural RM — which is precisely why the coding-agent RL mainline and GRPO/RLVR take the same path (rule-based verifiers).</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Can intermediate rewards be hacked?
+Yes — this is exactly why the R1 mainline chooses outcome reward (only the final answer&#39;s correctness) rather than process reward. In coding-agent settings, intermediate verification signals (e.g., running a linter, checking whether a file exists) are more reliable than an AI model&#39;s PRM — prefer rule-based intermediate signals.</p>
+</blockquote>
+</details><details>
+<summary>Q7: What are the three core challenges of web / long-horizon agent training and how is each mitigated?</summary><p><strong>A:</strong> The &quot;three challenges&quot; framework comes from WebRL (Qi et al. 2024): ① <strong>Training task scarcity</strong>: real web tasks are diverse but expensive to annotate. Mitigation: auto-generate task templates (derive new tasks from website structure) + reverse-construct new training tasks from failure trajectories (&quot;the agent went wrong at this step → create a targeted drill for it&quot;); ② <strong>Sparse feedback signals</strong>: web tasks typically have only a binary signal of final goal completion. Mitigation: provide shaping rewards for intermediate state changes (page URL jumps/DOM changes/form-filling progress) + set checkpoint rewards for key milestones; ③ <strong>Policy distribution shift</strong>: the agent&#39;s behavior changes the distribution of its subsequent observations — a new policy produces different browsing paths, and &quot;what counts as a good action&quot; for the same prompt differs under different policies. Mitigation: online RL (sample with the freshly updated policy each round, don&#39;t reuse old data) + first SFT to consolidate basic browsing behavior, then RL fine-tune. These three challenges are coupled: task scarcity limits training scale → limits the ability to cope with distribution shift → which in turn exacerbates the sparse-feedback difficulty.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Why are web agents so much harder than math agents?
+A math agent&#39;s environment is static (a math problem doesn&#39;t change because the model tried it multiple times). A web agent&#39;s environment is interactive — the agent&#39;s actions change the page state, causing distribution shift. Coupled with the web&#39;s lack of a clean &quot;correct answer&quot; — success is ambiguous (&quot;booked a flight but the price isn&#39;t optimal&quot; — does that count as success?) — rewards are even harder to define.</p>
+</blockquote>
+</details><details>
+<summary>Q8: What are the failure modes of self-evolving / self-play training? Why is full automation still not trusted in production?</summary><p><strong>A:</strong> Four core failure modes: ① <strong>Mode collapse</strong>: the model prefers its own style → a positive feedback loop → output diversity continuously decreases → degenerates into a narrow &quot;self-preferred&quot; policy; ② <strong>Reward collapse</strong>: self-judgment quality degrades round by round (the model becomes increasingly &quot;lenient&quot; toward its own outputs, assigning higher and higher scores while actual quality stays flat or drops) → training gets worse the more it runs; ③ <strong>Difficulty collapse</strong>: self-generated tasks trend simple — the model tends to invent problems it already knows how to do (because those earn positive reward) → training-set difficulty continuously falls → training becomes meaningless; ④ <strong>Distributional drift</strong>: self-generated data gradually diverges from the real task distribution → performance on real tasks actually drops (&quot;getting better and better in its own world, getting worse and worse in the real world&quot;). The root cause: <strong>lack of an external ground-truth anchor</strong> — no objective, model-independent verification signal to calibrate the self-evolution direction. Verifiable domains (code unit tests / math exact-match) can provide such anchors, but open-ended domains have virtually none. Production doesn&#39;t trust full automation because: without an external anchor, a self-evolving system looks good in the short term but inevitably collapses in the long term.</p>
+<blockquote>
+<p><strong>Follow-up:</strong> Are there &quot;semi-automated&quot; compromise approaches being explored?
+① Periodically bring in human evaluation to re-anchor the direction (a small amount of manual labeling re-anchors the self-evolution direction); ② Use verifiable domains as anchor tasks and mix in open-domain training (code/math ground-truth signals indirectly constrain open-domain behavior); ③ Multi-agent mutual critique (one agent generates, another critiques — no reliance on a single self-judgment). All three have been tried but none has a widely accepted mature solution — all remain at the research stage.</p>
+</blockquote>
+</details><h2 id="sec-12">References</h2>
 <blockquote>
 <p>Click superscript <code>[N]</code> to jump here; click <code>↩</code> to return to the original text; on wide screens the gist appears as a margin note.</p>
 </blockquote>
