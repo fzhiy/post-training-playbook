@@ -38,6 +38,13 @@
 | **MATH** | 竞赛数学(7 学科 / 5 难度级) | 自由形式解答 | 最终答案匹配(可验证) | 答案解析脆弱;部分被污染 |
 | **HumanEval** | Python 代码生成 | 函数补全 + 单测 | pass@k(单测通过率) | 仅 164 题、方差大、易过拟合 |
 | **IFEval** | 可验证指令遵循 | 带约束指令(字数 / 格式) | 程序化验证(无需 judge) | 只覆盖可机检约束 |
+| **GPQA**（Diamond） | 研究生级物理/生物/化学，设计目标：**熟练非专家即使无限制上网也无法 100% 答对**（"Google-proof"） | 4 选 1 选择题 | 选项准确率 | 领域专家准确率约 65%（Diamond 子集更高，具体随学科变化）；选项需 expert-level 知识才能区分，区分度极高 |
+| **MMLU-Pro** | MMLU 加强版——排除简单/污染题、10 选 1 加大难度 | 10 选 1 选择题 | 选项准确率 | 随机基线更低(10% vs 25%)；显著缓解 MMLU 的天花板效应 |
+
+**偏好/对话评测的 2024 演进**：
+
+| **Arena-Hard** | 从 Chatbot Arena 海量数据中自动筛选 **500 道"难倒模型"的题**，用 GPT-4 judge 做 pairwise | win-rate(对参考的胜率) | judge 偏置（全盘继承） | 与 Arena Elo 排序 Spearman 约 94.1%，快速近似真人偏好；专挑难题放大区分度 |
+| **MixEval** | 将**真实 web 用户查询**匹配到现成 benchmark 题目，用 **ground-truth 答案**（非 judge）评测，动态加权聚合 | 归一化多维度平均分 | 采样权重敏感、子集旧版残留污染 | 多轮权重校准+去污染过滤，力图综合反映能力+偏好；本质是 ground-truth 基准混合物而非 judge benchmark |
 
 ### 1.1a pass@k 无偏估计 / Unbiased pass@k
 
@@ -88,6 +95,80 @@ def elo_update(r_a, r_b, score_a, K=32, scale=400):
 ```
 
 > 📝 批量场景直接对全部成对结果做 BT 的 MLE(逻辑回归)比逐场 Elo 更稳,且能给**置信区间**(Arena 用 BT + bootstrap 报区间)。
+
+### 1.3 SWE-bench:从函数补全到真实软件工程 / SWE-bench
+
+> 📎 **交叉引用**：SWE-bench 是代码评测从"补全函数"到"修真实 bug"的代表性演进。关于 pass@k 的无偏估计见 §1.1a；测试时采样(采样→挑选)的收益上限分析见 [test-time-scaling §3.3](cheatsheet-test-time-scaling.html)。SWE-bench 轨迹也常被用作 agent SFT/RL 的训练数据（见 [long-horizon-agents](cheatsheet-long-horizon-agents.html)）。
+
+**SWE-bench**（Jimenez et al., [arXiv:2310.06770](https://arxiv.org/abs/2310.06770), ICLR 2024）把代码评测从"补全一个函数"升级为**"修复一个真实 GitHub issue"**，是 2024 年代码评测领域最具影响力的新 benchmark 之一。
+
+- **任务**：给模型一个**真实的 GitHub issue 描述** + 对应代码库 **snapshot** → 模型生成 **patch**（`git diff`，跨多文件/多行修改）
+- **评测**：在 Docker 容器里 apply patch → 运行 instance 关联的 **FAIL_TO_PASS** 和 **PASS_TO_PASS** 测试 → 全部通过才算 resolved
+- **规模**：~2,294 个 issue，来自 12 个流行 Python 仓库（Django, Flask, SymPy, scikit-learn, matplotlib 等）
+- **难度**：需理解大型代码库结构、定位 bug 所在文件/函数、写跨文件修改——远超单函数补全（对比 HumanEval 的 164 道独立函数题）
+
+**关键子集**：
+
+| 子集 | 描述 | 实例数 |
+|------|------|--------|
+| **SWE-bench Lite** | 从原始 SWE-bench 精选的"易入手"子集，用于快速迭代 | ~300 |
+| **SWE-bench Verified**（OpenAI 2024-08, [blog](https://openai.com/index/introducing-swe-bench-verified/)） | 人工复核 500 道题：确认 issue 描述质量 + 测试可靠 + 排除不可复现项，修复后的子集 | 500 |
+
+**关键结果轨迹**（% resolved，仅说明相对进展不构成横向比较）：
+- 2024-03（原始 SWE-bench）：Devin（Cognition AI）~13.86%（首次突破 10%）
+- 2024-08（原始 SWE-bench）：SWE-agent + GPT-4 组合 ~18–20%
+- 2024-10（Verified 子集）：Claude 3.5 Sonnet ~49%（当时 SOTA）
+- 2025 初（Verified 子集）：多 agent 系统 >50%
+
+> ⚠️ SWE-bench 的核心约束是**评测成本**——每个 instance 需构建完整 Docker 容器 + 跑 repo 测试套件，一次评测可能耗 5–30 min/instance。
+
+**代码评测的三层演进**（HumanEval → BigCodeBench → SWE-bench）：
+
+| 层级 | Benchmark | 文件数 | 评测方式 | 对应能力 |
+|------|------|------|------|------|
+| 单函数补全 | HumanEval, MBPP | 1 文件 | 单测 pass@k | 基本代码生成 |
+| 复杂函数+库调用 | **BigCodeBench**（[arXiv:2406.15877](https://arxiv.org/abs/2406.15877)） | 函数级 + 多样库调用 | 单测 pass@k | 复杂 API 使用 |
+| 真实软件工程 | **SWE-bench** | 全 repo（12 个真实仓库） | apply patch → 跑 repo 原测试套件 | 代码理解+定位+编辑 |
+
+**抗污染的补充**——**LiveCodeBench**（Jain et al., [arXiv:2403.07974](https://arxiv.org/abs/2403.07974), ICLR 2025）：从 LeetCode/AtCoder/Codeforces **新题**（时间隔离）自动构建代码评测，涵盖代码生成、执行预测、测试生成等多种任务，按月滚动更新，解决 HumanEval 题量小 + 易过拟合的问题。
+
+### 1.4 Agent 评测 / Agent Evaluation
+
+> 📎 **交叉引用**：本页聚焦 agent **评测**（怎么看 agent 做得好不好）。agent 的训练方法（自演化 RL、工具使用 SFT、computer use 配方）见 [long-horizon-agents](cheatsheet-long-horizon-agents.html)。
+
+后训练正在从"单轮对话"向"多步 agent"演进，评测也必须跟。Agent 评测比传统 benchmark 复杂——需要**模拟真实交互环境**（浏览器、文件系统、API），且成功取决于**多步决策链**而非单次生成质量。
+
+三类代表性 agent 评测：
+
+| Benchmark | 环境 | 典型任务 | 评测方式 | 核心限制 |
+|------|------|------|------|------|
+| **WebArena**（Zhou et al., [arXiv:2307.13854](https://arxiv.org/abs/2307.13854), ICLR 2024） | 自建网站（电商/论坛/地图/CMS） | "在指定商品下找到评分最高的评论并回复" | 程序化验证（页面状态/URL/元素存在） | 自建环境覆盖面有限，非真实互联网 |
+| **TAU-bench**（Yao et al., [arXiv:2406.12045](https://arxiv.org/abs/2406.12045)） | 对话式 tool-agent-user 交互（航班/零售/金融数据库） | "帮用户改签航班到周五晚、靠窗座、用里程升舱" | 数据库状态比对 + pass^k | 需与模拟用户多轮对话，user 行为设定影响评测口径 |
+| **OSWorld**（Xie et al., [arXiv:2404.07972](https://arxiv.org/abs/2404.07972), NeurIPS 2024 D&B） | 真实操作系统 VM（Ubuntu/Windows/macOS） | "在 LibreOffice 做表格 → 导出 PDF → 发邮件" | 屏幕状态/文件系统/窗口状态检查 | 最真但也最贵——每个任务需 VM 快照 + VNC |
+
+**agent 评测的三个特殊维度**（区别于传统 benchmark）：
+
+1. **步数依赖**：评测结果是"给定最大步数"下的 success rate——**准确率-步数曲线**比单点数字更有信息量（类比 test-time scaling 的准确率-预算曲线）。同一模型在 5 步 vs 30 步的 success rate 可以差倍数。
+2. **不可复现性**：环境状态、工具调用结果可能随网络/时间变化——需 Docker/VM 快照锁环境确保复现。
+3. **轨迹质量 ≠ 成功**：一条"绕了 20 步才成功"的轨迹和"3 步直接完成"在 success rate 上等价，但效率和成本差几倍——需报告**步数/ token 效率**。
+
+> ⚠️ agent 评测当前最大的未解决问题：**缺乏跨 benchmark 的一致排名**——某 agent 在 WebArena 上 SOTA 但在 OSWorld 上一般，反之亦然。这反映了 agent 评测的碎片化状态，尚无"agent 界的 Arena"。
+
+### 1.5 长上下文评测 / Long-Context Evaluation
+
+"声称支持 128K/1M"和"实际能用好"是两回事。长上下文评测需回答三个问题：① **能找到吗**（检索）？② **能理解吗**（推理/综合）？③ **能用到吗**（下游任务）？
+
+| Benchmark | 测什么 | 上下文长度 | 核心发现 |
+|------|------|------|------|
+| **Needle-in-a-Haystack (NIAH)**（Kamradt 2023, [GitHub](https://github.com/gkamradt/LLMTest_NeedleInAHaystack)） | 在长文档的**随机位置**插入一条事实 → 问模型这条事实 | 可扩到任意长度 | 多数模型在开头的"针"和结尾的"针"接近 100%，但**中间位置显著下降**（U 形曲线）——长上下文也存在位置偏置 |
+| **RULER**（Hsieh et al., [arXiv:2404.06654](https://arxiv.org/abs/2404.06654), COLM 2024） | **多针**检索+聚合（多针答案需综合）+ 多跳问答 | 4K–128K+ | 单针 NIAH 的高分**不等于真实能力**；多针+多跳测试下，许多"支持 128K"的模型有效上下文远低于声称值 |
+| **LongBench**（Bai et al., [arXiv:2308.14508](https://arxiv.org/abs/2308.14508), ACL 2024） | 21 个数据集、6 大类任务（单/多文档 QA、摘要、代码、少样本学习、合成、对话） | 1K–18K 中英双语 | 不同任务上长上下文能力**不是单一维度**——代码长上下文和摘要长上下文是两类能力，不能用一个标量概括 |
+
+**长上下文评测与后训练的关键联系**：
+- **alignment tax 的特殊形式**：长上下文能力常在 RLHF/DPO 对齐训练中**退化**——安全/对话训练数据多为短上下文，导致长上下文召回率隐性下降。评测时需专门检查。
+- **judge 自身的长上下文能力**：如果用 LLM-as-judge 评多轮对话或其他长上下文，**judge 本身能不能在长上下文中准确评判**也是一环（§2.2 judge-human agreement 不直接回答这个）。
+
+> ⚠️ "支持 128K"≠"128K 内都能用好"。评测时至少用 RULER（多针）和 LongBench（多任务）两个维度交叉验证，不要只看单针 NIAH 热力图。
 
 ## 2. LLM-as-judge:怎么用 + 偏置
 
@@ -213,11 +294,13 @@ $$\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\
 
 ## 5. 一套实用评测口径(post-training)
 
-1. **能力**:GSM8K/MATH(数学)、HumanEval(代码)、MMLU(知识)、IFEval(指令遵循)。
-2. **对齐质量**:AlpacaEval / MT-Bench(judge,带位置去偏)、必要时 Arena。
-3. **安全/拒答**:有害提示拒答率、过度拒答(over-refusal)率。
-4. **回归**:对比基线,确认没在某些维度变差(alignment tax)。
-5. **污染审计** + **多 seed/prompt** 报方差。
+1. **能力**:GSM8K/MATH(数学)、HumanEval→SWE-bench(代码)、MMLU/MMLU-Pro/GPQA(知识)、IFEval(指令遵循)。
+2. **对齐质量**:AlpacaEval / MT-Bench / Arena-Hard(judge,带位置去偏)、必要时 Arena。
+3. **安全/拒答**:有害提示拒答率、过度拒答率。
+4. **Agent**:WebArena / TAU-bench(多步交互,报准确率-步数曲线)。
+5. **长上下文**:RULER(多针检索)+ LongBench(多任务理解),不只看 NIAH 单针。
+6. **回归**:对比基线,确认没在某些维度变差(alignment tax)。
+7. **污染审计** + **多 seed/prompt** 报方差。
 
 ---
 
@@ -253,6 +336,60 @@ $$\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\
 23. 对推理模型,为什么评测要从"单次准确率"转向"算力预算下的准确率"?这对评测协议提出什么要求?
 24. 如果线上指标(用户留存)和离线评测(judge win-rate)打架,你信哪个、怎么排查?
 25. 用单一标量分数概括模型时,怎样会掩盖"能力↑但安全↓"这类帕累托式回归?评测设计上如何把它暴露出来?
+
+## 增补：2024 前沿覆盖 / 2024 Frontier Supplement
+
+> 以下题目覆盖本页 2024 年新增的评测前沿（SWE-bench、Agent 评测、长上下文评测、GPQA/MMLU-Pro）。
+
+<details>
+<summary>Qa. GPQA 为什么被称为"Google-proof"？它与 MMLU / MMLU-Pro 在区分度上有何根本不同？</summary>
+
+    **答：** GPQA（Graduate-Level Google-Proof Q&A）的题是领域专家出的**研究生级**物理/生物/化学选择题，设计目标就是"一个熟练的非专家即使无限制上网搜索也无法在 30 分钟内 100% 答对"（因此叫 Google-proof）。与 MMLU 的根本差异：① MMLU 的题人类天花板高（~90%+），区分度低（强模型挤在天花板附近）；② GPQA 的领域专家准确率约 65%（Diamond 子集各学科有所变化），拉开了模型间差距。MMLU-Pro 通过 10 选 1（而非 4 选 1）+ 排除过拟合/污染题来缓解 MMLU 的天花板问题，是 MMLU 到 GPQA 之间的过渡阶梯。
+
+    **追问：** 为什么推理模型（o1/R1）常选择 GPQA Diamond 作为核心评测之一？
+    因为 GPQA 要求深度领域知识+推理（单靠检索不能直接答对），天然适合衡量"长推理能否补足知识缺口"——这正是推理模型的卖点。
+
+</details>
+
+<details>
+<summary>Qb. SWE-bench 与 HumanEval 评测的代码能力有何本质区别？为什么单靠 pass@k 不够描述 SWE-bench 上的表现？</summary>
+
+    **答：** HumanEval 测的是**单函数补全**（给定签名+docstring → 写函数体），SWE-bench 测的是**真实软件工程**（给定 GitHub issue + 完整代码库 → 定位 bug → 跨文件 patch → 通过该 instance 的 FAIL_TO_PASS 和 PASS_TO_PASS 测试）。本质区别：① 前者测"生成"，后者测"理解+定位+编辑"的复合能力；② 前者每题孤立，后者需理解大型代码库的跨文件依赖。pass@k 不够描述 SWE-bench 表现的原因是：SWE-bench 每题只有一个正确 patch（不像代码生成可以采 k 个候选看是否有一条对）——pass@k 的"k 条至少一条对"逻辑不适用；SWE-bench 用的是 **% resolved**（关联测试全部通过率），是单次提交的 pass/fail。
+
+    **追问：** SWE-bench Verified 为什么重要？
+    原始 SWE-bench 的部分 issue 描述不清晰或测试不可靠——模型可能因"描述歧义"或"测试本身有 bug"而失败，而非能力不足。Verified 子集（OpenAI 2024-08 发布）经人工复核 500 道题排除了这类噪声，使评测信号更干净。
+
+</details>
+
+<details>
+<summary>Qc. Agent 评测的三个特殊挑战是什么？为什么"success rate"作为唯一指标不够？</summary>
+
+    **答：** ① **步数依赖**：同一模型在 5 步 vs 30 步预算下的 success rate 可能差几倍——必须报告准确率-步数曲线，而非单点数字。② **不可复现性**：网络/时间/环境状态变化导致同一 agent 两次运行结果不同——需容器/VM 快照锁环境。③ **轨迹质量 ≠ 成功**：绕 20 步成功和 3 步成功在 success rate 上等价，但效率和成本天差地别——需同时报告步数/token 效率。"success rate"不够是因为它只回答了"最终有没有成"，没回答"花多大代价成的"和"在什么步数预算下成的"——后两者对真实部署更重要。
+
+    **追问：** 当前 agent 评测最大的未解决问题是什么？
+    缺乏跨 benchmark 的一致排名——某 agent 在 WebArena 上 SOTA 但在 OSWorld 上一般（反之亦然），反映了 agent 评测的碎片化状态，尚无"agent 界的 Chatbot Arena"。
+
+</details>
+
+<details>
+<summary>Qd. 为什么单针 NIAH 热力图好 ≠ 长上下文能力强？RULER 和 LongBench 各补了什么短板？</summary>
+
+    **答：** 单针 NIAH 只测"能不能在一大堆无关文本里找到一条事实"——这是长上下文能力的**必要但不充分**条件。RULER 补了"多针检索+多跳聚合"（真实使用常需综合多处信息），暴露了很多"单针满分、多针崩盘"的模型。LongBench 补了"多任务多样性"（21 个数据集、6 大类，涵盖摘要、代码、少样本学习等），揭示了长上下文能力**不是单一维度**——一个模型可能在代码长上下文上强但在摘要长上下文上弱。三者关系：NIAH = 基础检索探针，RULER = 压力测试，LongBench = 生态效度（real-world utility）。
+
+    **追问：** 怎么排查后训练是否损害了长上下文能力？
+    在后训练前后各跑一次 RULER + LongBench；RLHF/DPO 训练数据多为短上下文，长上下文能力隐性退化是 alignment tax 的一种常被忽略的形式。
+
+</details>
+
+<details>
+<summary>Qe. Arena-Hard 和 MixEval 分别是如何解决"benchmark 过拟合/污染"和"单 benchmark 片面"问题的？各自还有什么局限？</summary>
+
+    **答：** **Arena-Hard** 从 Chatbot Arena 的海量真人投票中自动筛选出 500 道"难倒模型"的题做 GPT-4 pairwise judge——它继承了 Arena 的抗污染性（动态题库）同时把评测从"众包投票"压缩成自动 pipeline，与真人 Elo 的 Spearman 约 94.1%。局限：它全盘继承 judge 偏置，且固定 500 题仍有被针对性优化的风险。**MixEval** 将真实 web 用户查询匹配到现成 benchmark 题目，用 ground-truth 答案（非 judge）评测并动态加权聚合——本质是"多源 benchmark 混合物"而非 judge benchmark。局限：采样权重敏感（调权重就能"改变排名"），且子集中旧 benchmark 的污染会渗透进来。
+
+    **追问：** 这与 §4 的 Goodhart 定律有何关系？
+    Arena-Hard 和 MixEval 都是在"同一个 benchmark 成为优化目标后就失效"的前提下设计的抗刷机制——前者靠动态+难题筛选，后者靠多源混合稀释单个 benchmark 的权重。
+
+</details>
 
 
 ## 更多 L3 深挖 / Extended L3
@@ -327,9 +464,17 @@ $$\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\
 
 - **2023-06 · MT-Bench / LLM-as-a-Judge** — Zheng et al., NeurIPS 2023. [arXiv:2306.05685](https://arxiv.org/abs/2306.05685) — 多轮对话 judge 评分 + 系统性量化位置/冗长/自我偏好偏置,确立 LLM-as-judge 的方法学基线。
 
+- **2023-07 · WebArena** — Zhou et al., ICLR 2024. [arXiv:2307.13854](https://arxiv.org/abs/2307.13854) — 自建网站环境（电商/论坛/地图/CMS）做 agent 评测，程序化验证页面状态，是最早的系统化 agent benchmark 之一。
+
+- **2023-08 · LongBench** — Bai et al., ACL 2024. [arXiv:2308.14508](https://arxiv.org/abs/2308.14508) — 21 个数据集、6 大类长上下文任务（单/多文档 QA、摘要、代码、少样本、合成、对话）中英双语评测，揭示长上下文能力不是单一维度。
+
 - **2023-10 · Min-K% Prob** — Shi et al., ICLR 2024. [arXiv:2310.16789](https://arxiv.org/abs/2310.16789) — 以样本最低 k% token 概率做预训练数据成员推断,用于检测评测集是否被"见过"(污染探针)。
 
+- **2023-10 · SWE-bench** — Jimenez et al., ICLR 2024. [arXiv:2310.06770](https://arxiv.org/abs/2310.06770) — 用真实 GitHub issue → patch → 跑 FAIL_TO_PASS+PASS_TO_PASS 测试评测代码能力，把代码评测从"函数补全"升级到"真实软件工程"，是 2024 年最具影响力的新 benchmark 之一。
+
 - **2023-11 · IFEval** — Zhou et al., arXiv 预印本. [arXiv:2311.07911](https://arxiv.org/abs/2311.07911) — 用"可程序化验证"的指令(字数/格式等)做指令遵循评测,无需 judge、客观可复算。
+
+- **2023-11 · GPQA** — Rein et al., NeurIPS 2024 D&B. [arXiv:2311.12022](https://arxiv.org/abs/2311.12022) — 研究生级"Google-proof"物理/生物/化学选择题，领域专家仅 65–74%，为推理模型提供了高区分度评测靶。
 
 - **2024-03 · Chatbot Arena** — Chiang et al., ICML 2024. [arXiv:2403.04132](https://arxiv.org/abs/2403.04132) — 真人盲投成对对战 + Bradley-Terry/Elo 转排名,海量投票 + 动态新题成为抗污染的真人偏好金标准。
 
@@ -337,4 +482,22 @@ $$\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\
 
 - **2024-04 · Length-Controlled AlpacaEval** — Dubois et al., COLM 2024. [arXiv:2404.04475](https://arxiv.org/abs/2404.04475) — 用回归把"长度"从 win-rate 中扣除,显著降低冗长偏置、提升与人类排名的相关性。
 
+- **2024-04 · OSWorld** — Xie et al., NeurIPS 2024 D&B. [arXiv:2404.07972](https://arxiv.org/abs/2404.07972) — 在真实操作系统 VM 中评测 agent（LibreOffice/浏览器/文件管理），以屏幕状态+文件系统变化验证任务完成，是目前最真实的 agent 评测但成本极高。
+
 - **2024-06 · LiveBench** — White et al., ICLR 2025. [arXiv:2406.19314](https://arxiv.org/abs/2406.19314) — 月度滚动更新 + 客观可验证答案的"抗污染"评测,降低数据泄漏导致的虚高。
+
+- **2024-06 · MMLU-Pro** — Wang et al., arXiv 预印本. [arXiv:2406.01574](https://arxiv.org/abs/2406.01574) — MMLU 加强版：10 选 1 + 排除过拟合/污染题，解决 MMLU 天花板效应，强模型间区分度显著提升。
+
+- **2024-06 · Arena-Hard** — Li et al., arXiv 预印本. [arXiv:2406.11939](https://arxiv.org/abs/2406.11939) — 从 Chatbot Arena 数据中自动筛选 500 道难题做 GPT-4 pairwise judge，与真人 Elo Spearman ~0.9，快速近似真人偏好。
+
+- **2024-06 · MixEval** — Ni et al., NeurIPS 2024. [arXiv:2406.06565](https://arxiv.org/abs/2406.06565) — 从多 benchmark 混合采样、动态加权聚合，用多源混合稀释单 benchmark 权重对抗片面性+污染。
+
+- **2024-04 · RULER** — Hsieh et al., COLM 2024. [arXiv:2404.06654](https://arxiv.org/abs/2404.06654) — 多针检索+多跳合成的长上下文压力测试，暴露单针 NIAH 热力图掩盖的有效上下文不足问题。
+
+- **2024-06 · BigCodeBench** — Zhuo et al., arXiv 预印本. [arXiv:2406.15877](https://arxiv.org/abs/2406.15877) — 函数级、多样库调用的代码评测，填补 HumanEval（简单函数）到 SWE-bench（全 repo）之间的评测空白。
+
+- **2024-06 · TAU-bench** — Yao et al., arXiv 预印本. [arXiv:2406.12045](https://arxiv.org/abs/2406.12045) — 对话式 tool-agent-user 交互评测，以数据库状态比对验证 agent 任务完成，agent 评测的另一个重要维度。
+
+- **2024-08 · SWE-bench Verified** — OpenAI, [blog](https://openai.com/index/introducing-swe-bench-verified/). — 对 SWE-bench 的 500 道题做人工复核：确认 issue 描述质量+测试可靠性，排除噪声让评测信号更干净。
+
+- **2024-08 · LiveCodeBench** — Jain et al., ICLR 2025. [arXiv:2403.07974](https://arxiv.org/abs/2403.07974) — 从 LeetCode/AtCoder/Codeforces 新题自动构建评测，按月滚动更新做时间隔离，解决 HumanEval 题量小+过拟合问题。

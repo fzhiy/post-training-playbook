@@ -38,6 +38,13 @@
 | **MATH** | Competition math (7 subjects / 5 difficulty levels) | Free-form solutions | Final-answer match (verifiable) | Brittle answer parsing; partly contaminated |
 | **HumanEval** | Python code generation | Function completion + unit tests | pass@k (unit-test pass rate) | Only 164 problems, high variance, easy to overfit |
 | **IFEval** | Verifiable instruction following | Constrained instructions (length / format) | Programmatic verification (no judge needed) | Covers only machine-checkable constraints |
+| **GPQA** (Diamond) | Graduate-level physics/biology/chemistry, designed so that **skilled non-experts with unrestricted web access cannot achieve 100%** ("Google-proof") | 4-way multiple choice | Option accuracy | Domain expert accuracy ~65% (Diamond subset higher, varies by subject); options require expert-level knowledge to distinguish, very high discriminability |
+| **MMLU-Pro** | MMLU strengthened — removes easy/contaminated questions, uses 10-way choice for greater difficulty | 10-way multiple choice | Option accuracy | Lower random baseline (10% vs 25%); significantly mitigates MMLU's ceiling effect |
+
+**2024 evolutions of preference / dialogue evals**:
+
+| **Arena-Hard** | Automatically selects **500 "model-stumping" questions** from Chatbot Arena data, scored by GPT-4 pairwise judge | Win-rate (vs. the reference) | Judge bias (fully inherited) | Spearman ~94.1% with Arena Elo rankings; fast automatic proxy for human preference; hard questions amplify discriminability |
+| **MixEval** | Matches **real web user queries** to existing benchmark items, evaluates with **ground-truth answers** (not a judge), dynamically weighted aggregation | Normalized multi-dimension average | Sampling weights are sensitive; stale contamination from subset components can leak through | Multi-round weight calibration + decontamination filtering, aiming to reflect capability + preference holistically; fundamentally a ground-truth benchmark mixture, not a judge benchmark |
 
 ### 1.1a Unbiased pass@k
 
@@ -88,6 +95,80 @@ def elo_update(r_a, r_b, score_a, K=32, scale=400):
 ```
 
 > 📝 In the batch setting, fitting BT by MLE (logistic regression) over all pairwise results is more stable than per-match Elo and yields **confidence intervals** (Arena uses BT + bootstrap for intervals).
+
+### 1.3 SWE-bench: From Function Completion to Real-World Software Engineering
+
+> 📎 **Cross-reference**: SWE-bench represents the evolution of code evaluation from "complete a function" to "fix a real bug". For the unbiased estimator of pass@k, see §1.1a; for the upper-bound analysis of sampling-scaling gains (coverage vs. verifier quality), see [test-time-scaling §3.3](cheatsheet-test-time-scaling-en.html). SWE-bench trajectories are also commonly used as training data for agent SFT/RL (see [long-horizon-agents](cheatsheet-long-horizon-agents-en.html)).
+
+**SWE-bench** (Jimenez et al., [arXiv:2310.06770](https://arxiv.org/abs/2310.06770), ICLR 2024) upgrades code evaluation from "completing a function" to **"fixing a real GitHub issue"** — one of the most influential new benchmarks in 2024 code evaluation.
+
+- **Task**: give the model a **real GitHub issue description** + the corresponding codebase **snapshot** → model generates a **patch** (`git diff`, potentially touching multiple files and lines)
+- **Evaluation**: inside a Docker container, apply the patch → run the instance's associated **FAIL_TO_PASS** and **PASS_TO_PASS** tests → counted as resolved only if both pass
+- **Scale**: ~2,294 issues across 12 popular Python repositories (Django, Flask, SymPy, scikit-learn, matplotlib, etc.)
+- **Difficulty**: requires understanding large codebase structure, locating the bug's file/function, writing cross-file changes — far beyond single-function completion (compare HumanEval's 164 isolated function problems)
+
+**Key subsets**:
+
+| Subset | Description | Instance count |
+|------|------|--------|
+| **SWE-bench Lite** | Curated "easy-to-get-started" subset from the original SWE-bench, for rapid iteration | ~300 |
+| **SWE-bench Verified** (OpenAI 2024-08, [blog](https://openai.com/index/introducing-swe-bench-verified/)) | Human review of 500 instances: confirmed issue description quality + test reliability + excluded unreproducible instances; the fixed-up subset | 500 |
+
+**Key result trajectory** (% resolved; illustration of relative progress only, not a head-to-head comparison):
+- 2024-03 (original SWE-bench): Devin (Cognition AI) ~13.86% (first to break 10%)
+- 2024-08 (original SWE-bench): SWE-agent + GPT-4 combination ~18–20%
+- 2024-10 (Verified subset): Claude 3.5 Sonnet ~49% (then-SOTA)
+- Early 2025 (Verified subset): multi-agent systems >50%
+
+> ⚠️ SWE-bench's core constraint is **evaluation cost** — each instance requires building a full Docker container + running the repo's test suite, potentially taking 5–30 min per instance.
+
+**Three tiers of code evaluation** (HumanEval → BigCodeBench → SWE-bench):
+
+| Tier | Benchmark | Files | Scoring | Capability tested |
+|------|------|------|------|------|
+| Single-function completion | HumanEval, MBPP | 1 file | Unit-test pass@k | Basic code generation |
+| Complex func + library calls | **BigCodeBench** ([arXiv:2406.15877](https://arxiv.org/abs/2406.15877)) | Function-level + diverse library calls | Unit-test pass@k | Complex API usage |
+| Real-world software engineering | **SWE-bench** | Full repo (12 real repositories) | Apply patch → run original test suite | Code understanding + localization + editing |
+
+**Contamination-resistant complement** — **LiveCodeBench** (Jain et al., [arXiv:2403.07974](https://arxiv.org/abs/2403.07974), ICLR 2025): automatically builds code evaluations from **new** LeetCode/AtCoder/Codeforces problems (temporal isolation), covering diverse tasks including code generation, execution prediction, and test generation, updated monthly on a rolling basis, addressing HumanEval's small size and overfitting issues.
+
+### 1.4 Agent Evaluation
+
+> 📎 **Cross-reference**: This section focuses on agent **evaluation** (how to tell whether an agent is doing well). For agent training methods (self-evolution RL, tool-use SFT, computer-use recipes), see [long-horizon-agents](cheatsheet-long-horizon-agents-en.html).
+
+Post-training is evolving from "single-turn dialogue" to "multi-step agents", and evaluation must follow. Agent evaluation is more complex than traditional benchmarks — it requires **simulating real interaction environments** (browsers, file systems, APIs), and success depends on **multi-step decision chains** rather than single-generation quality.
+
+Three representative agent benchmarks:
+
+| Benchmark | Environment | Typical tasks | Scoring method | Core limitation |
+|------|------|------|------|------|
+| **WebArena** (Zhou et al., [arXiv:2307.13854](https://arxiv.org/abs/2307.13854), ICLR 2024) | Self-built websites (e-commerce/forum/map/CMS) | "Find the highest-rated review on a given product and reply" | Programmatic verification (page state/URL/element presence) | Self-built environment has limited coverage, not the real internet |
+| **TAU-bench** (Yao et al., [arXiv:2406.12045](https://arxiv.org/abs/2406.12045)) | Conversational tool-agent-user interaction (airline/retail/finance DB) | "Help the user reschedule the flight to Friday night, window seat, mileage upgrade" | Database state comparison + pass^k | Multi-turn dialogue with simulated users; user behavior choices shape evaluation signal |
+| **OSWorld** (Xie et al., [arXiv:2404.07972](https://arxiv.org/abs/2404.07972), NeurIPS 2024 D&B) | Real OS VMs (Ubuntu/Windows/macOS) | "Create a table in LibreOffice → export PDF → email it" | Screen state / file system / window state checks | Most realistic but most expensive — each task needs a VM snapshot + VNC |
+
+**Three distinctive dimensions of agent evaluation** (vs. traditional benchmarks):
+
+1. **Step-count dependence**: the result is the success rate "given a maximum step budget" — **accuracy-vs-steps curves** carry more information than a single-point number (analogous to test-time scaling's accuracy-budget curves). The same model's success rate at 5 steps vs. 30 steps can differ by a factor of several.
+2. **Non-reproducibility**: environment state and tool-call results can vary with network/time — needs Docker/VM snapshots to lock the environment for reproducibility.
+3. **Trajectory quality ≠ success**: a trajectory that "took 20 detour steps to succeed" and one that "finished directly in 3 steps" are equivalent on success rate, but differ by multiples in efficiency and cost — must report **step / token efficiency**.
+
+> ⚠️ The biggest unresolved problem in agent evaluation: **no consistent cross-benchmark ranking** — an agent that is SOTA on WebArena may be mediocre on OSWorld, and vice versa. This reflects the fragmented state of agent evaluation; there is not yet an "Arena for agents".
+
+### 1.5 Long-Context Evaluation
+
+"Claiming 128K/1M support" and "actually using it well" are two different things. Long-context evaluation needs to answer three questions: ① **Can it find it?** (retrieval); ② **Can it understand it?** (reasoning/synthesis); ③ **Can it use it?** (downstream tasks).
+
+| Benchmark | What it measures | Context length | Core finding |
+|------|------|------|------|
+| **Needle-in-a-Haystack (NIAH)** (Kamradt 2023, [GitHub](https://github.com/gkamradt/LLMTest_NeedleInAHaystack)) | Insert a single fact at a **random position** in a long document → ask the model about that fact | Extensible to any length | Most models score near 100% for "needles" at the beginning or end, but **drop significantly in the middle** (U-shaped curve) — position bias also exists in long-context settings |
+| **RULER** (Hsieh et al., [arXiv:2404.06654](https://arxiv.org/abs/2404.06654), COLM 2024) | **Multi-needle** retrieval + aggregation (answers across multiple needles must be synthesized) + multi-hop QA | 4K–128K+ | High scores on single-needle NIAH **do not equal real capability**; under multi-needle + multi-hop tests, many models that "support 128K" have effective context far below the claimed value |
+| **LongBench** (Bai et al., [arXiv:2308.14508](https://arxiv.org/abs/2308.14508), ACL 2024) | 21 datasets across 6 task categories (single/multi-doc QA, summarization, code, few-shot learning, synthetic, dialogue) | 1K–18K bilingual (CN+EN) | Long-context ability across different tasks **is not a single dimension** — code long-context and summarization long-context are two types of ability, not summarizable by a single scalar |
+
+**Key connections between long-context evaluation and post-training**:
+- **A special form of alignment tax**: long-context ability often **degrades** during RLHF/DPO alignment training — safety/dialogue training data is mostly short-context, causing silent drops in long-context recall. This must be explicitly checked during evaluation.
+- **The judge's own long-context capability**: if LLM-as-judge is used to evaluate multi-turn or other long-context outputs, whether the **judge itself** can accurately judge in long contexts is also a factor (§2.2 judge-human agreement does not directly answer this).
+
+> ⚠️ "Supports 128K" ≠ "can use all of 128K well". At minimum, cross-validate with RULER (multi-needle) and LongBench (multi-task) — do not rely on single-needle NIAH heatmaps alone.
 
 ## 2. LLM-as-Judge: How to Use It + Biases
 
@@ -213,11 +294,13 @@ The training set contains test-set examples → inflated scores that do not refl
 
 ## 5. A Practical Evaluation Protocol (Post-Training)
 
-1. **Capability**: GSM8K/MATH (math), HumanEval (code), MMLU (knowledge), IFEval (instruction following).
-2. **Alignment quality**: AlpacaEval / MT-Bench (judge, with position debiasing); Chatbot Arena when necessary.
+1. **Capability**: GSM8K/MATH (math), HumanEval → SWE-bench (code), MMLU/MMLU-Pro/GPQA (knowledge), IFEval (instruction following).
+2. **Alignment quality**: AlpacaEval / MT-Bench / Arena-Hard (judge, with position debiasing); Chatbot Arena when necessary.
 3. **Safety / refusal**: harmful-prompt refusal rate, over-refusal rate.
-4. **Regression**: compare against baselines to confirm no dimensions degraded (alignment tax).
-5. **Contamination audit** + **multiple seeds/prompts** to report variance.
+4. **Agent**: WebArena / TAU-bench (multi-step interaction, report accuracy-vs-steps curves).
+5. **Long-context**: RULER (multi-needle retrieval) + LongBench (multi-task understanding); don't rely on single-needle NIAH alone.
+6. **Regression**: compare against baselines to confirm no dimensions degraded (alignment tax).
+7. **Contamination audit** + **multiple seeds/prompts** to report variance.
 
 ---
 
@@ -253,6 +336,60 @@ The training set contains test-set examples → inflated scores that do not refl
 23. For reasoning models, why should evaluation shift from "single-pass accuracy" to "accuracy under a compute budget"? What does this demand of the evaluation protocol?
 24. If online metrics (user retention) conflict with offline evaluation (judge win-rate), which do you trust, and how do you investigate the discrepancy?
 25. When summarizing a model with a single scalar score, how can it mask Pareto-style regressions like "capability ↑ but safety ↓"? How should evaluation design expose this?
+
+## 2024 Frontier Supplement
+
+> The following questions cover the 2024 evaluation frontiers added to this page (SWE-bench, Agent Evaluation, Long-Context Evaluation, GPQA/MMLU-Pro).
+
+<details>
+<summary>Qa. Why is GPQA called "Google-proof"? How does it fundamentally differ from MMLU / MMLU-Pro in discriminability?</summary>
+
+    **A:** GPQA (Graduate-Level Google-Proof Q&A) questions are **graduate-level** physics/biology/chemistry multiple-choice questions designed by domain experts with the explicit goal that "even a skilled non-expert with unrestricted web access cannot achieve 100% within 30 minutes" (hence "Google-proof"). The fundamental difference from MMLU: ① MMLU's human ceiling is high (~90%+), so discriminability is low (strong models cluster near the ceiling); ② GPQA's domain expert accuracy is ~65% (varies by subject for Diamond), spreading out model differences. MMLU-Pro mitigates MMLU's ceiling effect via 10-way choice (rather than 4-way) + removing overfitted/contaminated questions — it is the stepping stone between MMLU and GPQA.
+
+    **Follow-up:** Why do reasoning models (o1/R1) often choose GPQA Diamond as a core evaluation?
+    Because GPQA requires deep domain knowledge + reasoning (cannot be answered directly by retrieval alone), making it natural for measuring "whether longer reasoning can compensate for knowledge gaps" — exactly the selling point of reasoning models.
+
+</details>
+
+<details>
+<summary>Qb. What is the essential difference between the code capability measured by SWE-bench vs. HumanEval? Why is pass@k alone insufficient to describe SWE-bench performance?</summary>
+
+    **A:** HumanEval measures **single-function completion** (given signature + docstring → write the function body); SWE-bench measures **real-world software engineering** (given a GitHub issue + full codebase → locate the bug → cross-file patch → pass the instance's FAIL_TO_PASS and PASS_TO_PASS tests). Essential difference: ① the former tests "generation"; the latter tests the compound capability of "understanding + localization + editing"; ② the former has isolated problems; the latter requires understanding cross-file dependencies in a large codebase. pass@k is insufficient to describe SWE-bench performance because each SWE-bench problem has only one correct patch (unlike code generation where you can sample k candidates and check whether one is correct) — pass@k's "at least one of k is correct" logic does not apply; SWE-bench uses **% resolved** (associated tests all pass), a single-submission pass/fail.
+
+    **Follow-up:** Why is SWE-bench Verified important?
+    The original SWE-bench had some issues with unclear descriptions or unreliable tests — models could fail due to "description ambiguity" or "bugs in the tests themselves" rather than lack of capability. The Verified subset (released by OpenAI 2024-08) underwent human review of 500 instances to exclude such noise, making the evaluation signal cleaner.
+
+</details>
+
+<details>
+<summary>Qc. What are the three distinctive challenges of agent evaluation? Why is "success rate" alone insufficient as a metric?</summary>
+
+    **A:** ① **Step-count dependence**: the same model's success rate at a 5-step vs. 30-step budget can differ by multiples — you must report accuracy-vs-steps curves, not single-point numbers. ② **Non-reproducibility**: network/time/environment-state changes cause the same agent to produce different results on two runs — needs Docker/VM snapshots to lock the environment. ③ **Trajectory quality ≠ success**: a 20-detour-step success and a 3-direct-step success are equivalent on success rate, but totally different on efficiency and cost — must also report step / token efficiency. "Success rate" is insufficient because it only answers "did it eventually succeed", not "at what cost" and "under what step budget" — the latter two are more important for real deployment.
+
+    **Follow-up:** What is the biggest unresolved problem in agent evaluation today?
+    The lack of consistent cross-benchmark ranking — an agent that is SOTA on WebArena may be mediocre on OSWorld (and vice versa). This reflects the fragmented state of agent evaluation; there is no "Chatbot Arena for agents" yet.
+
+</details>
+
+<details>
+<summary>Qd. Why does a good single-needle NIAH heatmap ≠ strong long-context capability? What gaps do RULER and LongBench respectively fill?</summary>
+
+    **A:** Single-needle NIAH only tests "can you find one fact in a pile of irrelevant text" — this is a **necessary but insufficient** condition for long-context capability. RULER fills the "multi-needle retrieval + multi-hop aggregation" gap (real usage often requires synthesizing information from multiple locations), exposing many models that score perfectly on single-needle NIAH but collapse on multi-needle. LongBench fills the "multi-task diversity" gap (21 datasets across 6 categories, spanning summarization, code, few-shot learning, etc.), revealing that long-context capability is **not a single dimension** — a model may be strong at code long-context but weak at summarization long-context. The relationship: NIAH = basic retrieval probe, RULER = stress test, LongBench = ecological validity (real-world utility).
+
+    **Follow-up:** How to check whether post-training has damaged long-context capability?
+    Run RULER + LongBench once before and once after post-training; RLHF/DPO training data is mostly short-context, so silent degradation of long-context capability is an often-overlooked form of alignment tax.
+
+</details>
+
+<details>
+<summary>Qe. How do Arena-Hard and MixEval respectively address the problems of "benchmark overfitting/contamination" and "single-benchmark narrowness"? What limitations remain?</summary>
+
+    **A:** **Arena-Hard** automatically selects 500 "model-stumping" questions from Chatbot Arena's massive human-vote data and uses a GPT-4 pairwise judge — it inherits Arena's contamination resistance (dynamic question pool) while compressing evaluation from "crowd voting" into an automatic pipeline, with Spearman ~94.1% against human Elo. Limitations: it fully inherits judge bias, and a fixed set of 500 questions can still be targeted for optimization. **MixEval** matches real web user queries to existing benchmark items, evaluates with ground-truth answers (not a judge), and uses dynamic weighted aggregation — fundamentally a "multi-source benchmark mixture" rather than a judge benchmark. Limitations: sampling weights are sensitive (tuning weights can "change the ranking"), and contamination from stale subset components can leak through.
+
+    **Follow-up:** How does this relate to Goodhart's Law in §4?
+    Both Arena-Hard and MixEval are anti-gaming mechanisms designed under the premise that "once a benchmark becomes an optimization target, it ceases to be a good measure" — the former relies on dynamic + hard-question filtering, the latter on multi-source mixing to dilute any single benchmark's weight.
+
+</details>
 
 
 ## Extended L3
@@ -327,9 +464,17 @@ The training set contains test-set examples → inflated scores that do not refl
 
 - **2023-06 · MT-Bench / LLM-as-a-Judge** — Zheng et al., NeurIPS 2023. [arXiv:2306.05685](https://arxiv.org/abs/2306.05685) — Multi-turn dialogue judge scoring plus systematic quantification of position/verbosity/self-preference bias; set the methodological baseline for LLM-as-judge.
 
+- **2023-07 · WebArena** — Zhou et al., ICLR 2024. [arXiv:2307.13854](https://arxiv.org/abs/2307.13854) — Self-built web environment (e-commerce/forum/map/CMS) for agent evaluation with programmatic verification of page state; one of the earliest systematic agent benchmarks.
+
+- **2023-08 · LongBench** — Bai et al., ACL 2024. [arXiv:2308.14508](https://arxiv.org/abs/2308.14508) — 21 datasets across 6 task categories (single/multi-doc QA, summarization, code, few-shot, synthetic, dialogue) in a bilingual (CN+EN) benchmark, revealing that long-context ability is not a single dimension.
+
 - **2023-10 · Min-K% Prob** — Shi et al., ICLR 2024. [arXiv:2310.16789](https://arxiv.org/abs/2310.16789) — Uses a sample's lowest k% token probabilities for pretraining-data membership inference, probing whether an eval set has been "seen" (contamination probe).
 
+- **2023-10 · SWE-bench** — Jimenez et al., ICLR 2024. [arXiv:2310.06770](https://arxiv.org/abs/2310.06770) — Evaluates code capability via real GitHub issues → patch → run FAIL_TO_PASS+PASS_TO_PASS tests, upgrading code evaluation from "function completion" to "real-world software engineering"; one of the most influential new benchmarks of 2024.
+
 - **2023-11 · IFEval** — Zhou et al., arXiv preprint. [arXiv:2311.07911](https://arxiv.org/abs/2311.07911) — Instruction-following eval built on programmatically verifiable instructions (word count / format), requiring no judge and objectively recomputable.
+
+- **2023-11 · GPQA** — Rein et al., NeurIPS 2024 D&B. [arXiv:2311.12022](https://arxiv.org/abs/2311.12022) — Graduate-level "Google-proof" physics/biology/chemistry multiple-choice questions; domain experts score only 65–74%, providing a high-discriminability evaluation target for reasoning models.
 
 - **2024-03 · Chatbot Arena** — Chiang et al., ICML 2024. [arXiv:2403.04132](https://arxiv.org/abs/2403.04132) — Human blind pairwise battles converted to rankings via Bradley-Terry/Elo; massive votes plus fresh prompts make it the contamination-resistant human-preference gold standard.
 
@@ -337,4 +482,22 @@ The training set contains test-set examples → inflated scores that do not refl
 
 - **2024-04 · Length-Controlled AlpacaEval** — Dubois et al., COLM 2024. [arXiv:2404.04475](https://arxiv.org/abs/2404.04475) — Regresses "length" out of win-rate, substantially reducing verbosity bias and improving correlation with human rankings.
 
+- **2024-04 · OSWorld** — Xie et al., NeurIPS 2024 D&B. [arXiv:2404.07972](https://arxiv.org/abs/2404.07972) — Evaluates agents in real OS VMs (LibreOffice/browser/file management), verifying task completion via screen state + file system changes; the most realistic agent benchmark but extremely expensive.
+
 - **2024-06 · LiveBench** — White et al., ICLR 2025. [arXiv:2406.19314](https://arxiv.org/abs/2406.19314) — Monthly rolling updates with objective, verifiable answers for contamination-resistant evaluation, reducing inflation from data leakage.
+
+- **2024-06 · MMLU-Pro** — Wang et al., arXiv preprint. [arXiv:2406.01574](https://arxiv.org/abs/2406.01574) — MMLU strengthened: 10-way choice + removal of overfitted/contaminated questions, addressing MMLU's ceiling effect with significantly improved discriminability among strong models.
+
+- **2024-06 · Arena-Hard** — Li et al., arXiv preprint. [arXiv:2406.11939](https://arxiv.org/abs/2406.11939) — Automatically selects 500 hard questions from Chatbot Arena data for GPT-4 pairwise judging, with Spearman ~0.9 against human Elo; fast automatic proxy for human preference.
+
+- **2024-06 · MixEval** — Ni et al., NeurIPS 2024. [arXiv:2406.06565](https://arxiv.org/abs/2406.06565) — Mixed sampling from multiple benchmarks with dynamic weighted aggregation, using multi-source mixing to dilute individual benchmark weight against narrowness + contamination.
+
+- **2024-04 · RULER** — Hsieh et al., COLM 2024. [arXiv:2404.06654](https://arxiv.org/abs/2404.06654) — Multi-needle retrieval + multi-hop synthesis as a long-context stress test, exposing the effective-context inadequacy masked by single-needle NIAH heatmaps.
+
+- **2024-06 · BigCodeBench** — Zhuo et al., arXiv preprint. [arXiv:2406.15877](https://arxiv.org/abs/2406.15877) — Function-level code evaluation with diverse library calls, filling the evaluation gap between HumanEval (simple functions) and SWE-bench (full repo).
+
+- **2024-06 · TAU-bench** — Yao et al., arXiv preprint. [arXiv:2406.12045](https://arxiv.org/abs/2406.12045) — Conversational tool-agent-user interaction benchmark, verifying agent task completion via database state comparison; another important dimension of agent evaluation.
+
+- **2024-08 · SWE-bench Verified** — OpenAI, [blog](https://openai.com/index/introducing-swe-bench-verified/). — Human review of 500 SWE-bench instances: confirmed issue description quality + test reliability, excluding noise to produce a cleaner evaluation signal.
+
+- **2024-08 · LiveCodeBench** — Jain et al., ICLR 2025. [arXiv:2403.07974](https://arxiv.org/abs/2403.07974) — Automatically constructs code evaluations from new LeetCode/AtCoder/Codeforces problems, with monthly rolling updates for temporal isolation, addressing HumanEval's small size and overfitting.

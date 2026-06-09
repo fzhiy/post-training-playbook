@@ -140,7 +140,7 @@
 <nav class="top"><a href="index.html">← 复习索引 / Study Index</a><a class="lang-toggle" href="cheatsheet-eval-and-judges-en.html">EN ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet · 题解</div><h1 class="hero-title">评测与 LLM-as-judge / Evaluation &amp; Judges</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. 三类评测 / Three families</a></li><li class="lv3"><a href="#sec-2">1.1 Benchmark 详细对比 / Benchmark cheat-sheet</a></li><li class="lv3"><a href="#sec-3">1.1a pass@k 无偏估计 / Unbiased pass@k</a></li><li class="lv3"><a href="#sec-4">1.2 Bradley-Terry / Elo:成对胜负 → 排名 / Pairwise wins → ranking</a></li><li class="lv2"><a href="#sec-5">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv3"><a href="#sec-6">2.1 位置去偏 judge harness(代码）</a></li><li class="lv3"><a href="#sec-7">2.2 judge 与人类一致性怎么量 / Judge–human agreement</a></li><li class="lv3"><a href="#sec-8">2.3 冗长去偏的回归形式 / Length-controlled win-rate</a></li><li class="lv2"><a href="#sec-9">3. 数据污染 / Contamination</a></li><li class="lv3"><a href="#sec-10">3.1 污染类型</a></li><li class="lv3"><a href="#sec-11">3.2 检测方法</a></li><li class="lv3"><a href="#sec-12">3.3 n-gram 去重 (Deduplication)</a></li><li class="lv3"><a href="#sec-13">3.4 抗污染 benchmark 设计</a></li><li class="lv2"><a href="#sec-14">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-15">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-16">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-17">L1 基础</a></li><li class="lv3"><a href="#sec-18">L2 进阶</a></li><li class="lv3"><a href="#sec-19">L3 深挖</a></li><li class="lv2"><a href="#sec-20">更多 L3 深挖 / Extended L3</a></li><li class="lv2"><a href="#sec-21">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. 三类评测 / Three families</a></li><li class="lv3"><a href="#sec-2">1.1 Benchmark 详细对比 / Benchmark cheat-sheet</a></li><li class="lv3"><a href="#sec-3">1.1a pass@k 无偏估计 / Unbiased pass@k</a></li><li class="lv3"><a href="#sec-4">1.2 Bradley-Terry / Elo:成对胜负 → 排名 / Pairwise wins → ranking</a></li><li class="lv3"><a href="#sec-5">1.3 SWE-bench:从函数补全到真实软件工程 / SWE-bench</a></li><li class="lv3"><a href="#sec-6">1.4 Agent 评测 / Agent Evaluation</a></li><li class="lv3"><a href="#sec-7">1.5 长上下文评测 / Long-Context Evaluation</a></li><li class="lv2"><a href="#sec-8">2. LLM-as-judge:怎么用 + 偏置</a></li><li class="lv3"><a href="#sec-9">2.1 位置去偏 judge harness(代码）</a></li><li class="lv3"><a href="#sec-10">2.2 judge 与人类一致性怎么量 / Judge–human agreement</a></li><li class="lv3"><a href="#sec-11">2.3 冗长去偏的回归形式 / Length-controlled win-rate</a></li><li class="lv2"><a href="#sec-12">3. 数据污染 / Contamination</a></li><li class="lv3"><a href="#sec-13">3.1 污染类型</a></li><li class="lv3"><a href="#sec-14">3.2 检测方法</a></li><li class="lv3"><a href="#sec-15">3.3 n-gram 去重 (Deduplication)</a></li><li class="lv3"><a href="#sec-16">3.4 抗污染 benchmark 设计</a></li><li class="lv2"><a href="#sec-17">4. 偏好评测的陷阱</a></li><li class="lv2"><a href="#sec-18">5. 一套实用评测口径(post-training)</a></li><li class="lv2"><a href="#sec-19">分层面试题 / Stratified follow-ups</a></li><li class="lv3"><a href="#sec-20">L1 基础</a></li><li class="lv3"><a href="#sec-21">L2 进阶</a></li><li class="lv3"><a href="#sec-22">L3 深挖</a></li><li class="lv2"><a href="#sec-23">增补：2024 前沿覆盖 / 2024 Frontier Supplement</a></li><li class="lv2"><a href="#sec-24">更多 L3 深挖 / Extended L3</a></li><li class="lv2"><a href="#sec-25">§A 核心论文时间线 / Key Papers Timeline</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>后训练里「<strong>评测</strong>」往往是真正的瓶颈:训练能跑、但&quot;到底变好没有 / 哪里变差&quot;全靠评测说话。本页讲怎么评一个对齐后的模型 + 各种评测的坑。
 ⚠️ 不放具体分数(易过时/易记错);具体数字以各 benchmark/leaderboard 官方为准。</p>
@@ -253,7 +253,24 @@
 <td>程序化验证(无需 judge)</td>
 <td>只覆盖可机检约束</td>
 </tr>
+<tr>
+<td><strong>GPQA</strong>（Diamond）</td>
+<td>研究生级物理/生物/化学，设计目标：<strong>熟练非专家即使无限制上网也无法 100% 答对</strong>（&quot;Google-proof&quot;）</td>
+<td>4 选 1 选择题</td>
+<td>选项准确率</td>
+<td>领域专家准确率约 65%（Diamond 子集更高，具体随学科变化）；选项需 expert-level 知识才能区分，区分度极高</td>
+</tr>
+<tr>
+<td><strong>MMLU-Pro</strong></td>
+<td>MMLU 加强版——排除简单/污染题、10 选 1 加大难度</td>
+<td>10 选 1 选择题</td>
+<td>选项准确率</td>
+<td>随机基线更低(10% vs 25%)；显著缓解 MMLU 的天花板效应</td>
+</tr>
 </tbody></table>
+<p><strong>偏好/对话评测的 2024 演进</strong>：</p>
+<p>| <strong>Arena-Hard</strong> | 从 Chatbot Arena 海量数据中自动筛选 <strong>500 道&quot;难倒模型&quot;的题</strong>，用 GPT-4 judge 做 pairwise | win-rate(对参考的胜率) | judge 偏置（全盘继承） | 与 Arena Elo 排序 Spearman 约 94.1%，快速近似真人偏好；专挑难题放大区分度 |
+| <strong>MixEval</strong> | 将<strong>真实 web 用户查询</strong>匹配到现成 benchmark 题目，用 <strong>ground-truth 答案</strong>（非 judge）评测，动态加权聚合 | 归一化多维度平均分 | 采样权重敏感、子集旧版残留污染 | 多轮权重校准+去污染过滤，力图综合反映能力+偏好；本质是 ground-truth 基准混合物而非 judge benchmark |</p>
 <h3 id="sec-3">1.1a pass@k 无偏估计 / Unbiased pass@k</h3>
 <p><strong>朴素估计</strong> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mover accent="true"><mi>p</mi><mo>^</mo></mover><msup><mo stretchy="false">)</mo><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">1-(1-\hat p)^k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span></span></span></span>(<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover accent="true"><mi>p</mi><mo>^</mo></mover><mo>=</mo><mi>c</mi><mi mathvariant="normal">/</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">\hat p=c/n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">c</span><span class="mord">/</span><span class="mord mathnormal">n</span></span></span></span>):对 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>≥</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">k\ge2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8304em;vertical-align:-0.136em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span> 在任意有限 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> 都<strong>系统性低估</strong>真实 pass@k(Jensen 不等式:<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mover accent="true"><mi>p</mi><mo>^</mo></mover><msup><mo stretchy="false">)</mo><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">(1-\hat p)^k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span></span></span></span> 对 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover accent="true"><mi>p</mi><mo>^</mo></mover></mrow><annotation encoding="application/x-tex">\hat p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span></span></span></span> 凸,故 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mover accent="true"><mi>p</mi><mo>^</mo></mover><msup><mo stretchy="false">)</mo><mi>k</mi></msup><mo stretchy="false">]</mo><mo>≥</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><msup><mo stretchy="false">)</mo><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">\mathbb{E}[(1-\hat p)^k]\ge(1-p)^k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathbb">E</span><span class="mopen">[(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord mathnormal">p</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span></span></span></span>),<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> 越大偏差越小但不为 0;<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k=1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> 时 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi mathvariant="normal">/</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">c/n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">c</span><span class="mord">/</span><span class="mord mathnormal">n</span></span></span></span> 已无偏。</p>
 <p><strong>无偏估计</strong>(Chen et al., <a href="https://arxiv.org/abs/2107.03374">arXiv:2107.03374</a> §3):每题采 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>≥</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">n\ge k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7719em;vertical-align:-0.136em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> 个候选、<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi></mrow><annotation encoding="application/x-tex">c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">c</span></span></span></span> 个过单测,则</p>
@@ -292,7 +309,167 @@
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
 <p>批量场景直接对全部成对结果做 BT 的 MLE(逻辑回归)比逐场 Elo 更稳,且能给<strong>置信区间</strong>(Arena 用 BT + bootstrap 报区间)。</p>
 </div>
-<h2 id="sec-5">2. LLM-as-judge:怎么用 + 偏置</h2>
+<h3 id="sec-5">1.3 SWE-bench:从函数补全到真实软件工程 / SWE-bench</h3>
+<blockquote>
+<p>📎 <strong>交叉引用</strong>：SWE-bench 是代码评测从&quot;补全函数&quot;到&quot;修真实 bug&quot;的代表性演进。关于 pass@k 的无偏估计见 §1.1a；测试时采样(采样→挑选)的收益上限分析见 <a href="cheatsheet-test-time-scaling.html">test-time-scaling §3.3</a>。SWE-bench 轨迹也常被用作 agent SFT/RL 的训练数据（见 <a href="cheatsheet-long-horizon-agents.html">long-horizon-agents</a>）。</p>
+</blockquote>
+<p><strong>SWE-bench</strong>（Jimenez et al., <a href="https://arxiv.org/abs/2310.06770">arXiv:2310.06770</a>, ICLR 2024）把代码评测从&quot;补全一个函数&quot;升级为**&quot;修复一个真实 GitHub issue&quot;**，是 2024 年代码评测领域最具影响力的新 benchmark 之一。</p>
+<ul>
+<li><strong>任务</strong>：给模型一个<strong>真实的 GitHub issue 描述</strong> + 对应代码库 <strong>snapshot</strong> → 模型生成 <strong>patch</strong>（<code>git diff</code>，跨多文件/多行修改）</li>
+<li><strong>评测</strong>：在 Docker 容器里 apply patch → 运行 instance 关联的 <strong>FAIL_TO_PASS</strong> 和 <strong>PASS_TO_PASS</strong> 测试 → 全部通过才算 resolved</li>
+<li><strong>规模</strong>：~2,294 个 issue，来自 12 个流行 Python 仓库（Django, Flask, SymPy, scikit-learn, matplotlib 等）</li>
+<li><strong>难度</strong>：需理解大型代码库结构、定位 bug 所在文件/函数、写跨文件修改——远超单函数补全（对比 HumanEval 的 164 道独立函数题）</li>
+</ul>
+<p><strong>关键子集</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>子集</th>
+<th>描述</th>
+<th>实例数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SWE-bench Lite</strong></td>
+<td>从原始 SWE-bench 精选的&quot;易入手&quot;子集，用于快速迭代</td>
+<td>~300</td>
+</tr>
+<tr>
+<td><strong>SWE-bench Verified</strong>（OpenAI 2024-08, <a href="https://openai.com/index/introducing-swe-bench-verified/">blog</a>）</td>
+<td>人工复核 500 道题：确认 issue 描述质量 + 测试可靠 + 排除不可复现项，修复后的子集</td>
+<td>500</td>
+</tr>
+</tbody></table>
+<p><strong>关键结果轨迹</strong>（% resolved，仅说明相对进展不构成横向比较）：</p>
+<ul>
+<li>2024-03（原始 SWE-bench）：Devin（Cognition AI）~13.86%（首次突破 10%）</li>
+<li>2024-08（原始 SWE-bench）：SWE-agent + GPT-4 组合 ~18–20%</li>
+<li>2024-10（Verified 子集）：Claude 3.5 Sonnet ~49%（当时 SOTA）</li>
+<li>2025 初（Verified 子集）：多 agent 系统 &gt;50%</li>
+</ul>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>SWE-bench 的核心约束是<strong>评测成本</strong>——每个 instance 需构建完整 Docker 容器 + 跑 repo 测试套件，一次评测可能耗 5–30 min/instance。</p>
+</div>
+<p><strong>代码评测的三层演进</strong>（HumanEval → BigCodeBench → SWE-bench）：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>Benchmark</th>
+<th>文件数</th>
+<th>评测方式</th>
+<th>对应能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>单函数补全</td>
+<td>HumanEval, MBPP</td>
+<td>1 文件</td>
+<td>单测 pass@k</td>
+<td>基本代码生成</td>
+</tr>
+<tr>
+<td>复杂函数+库调用</td>
+<td><strong>BigCodeBench</strong>（<a href="https://arxiv.org/abs/2406.15877">arXiv:2406.15877</a>）</td>
+<td>函数级 + 多样库调用</td>
+<td>单测 pass@k</td>
+<td>复杂 API 使用</td>
+</tr>
+<tr>
+<td>真实软件工程</td>
+<td><strong>SWE-bench</strong></td>
+<td>全 repo（12 个真实仓库）</td>
+<td>apply patch → 跑 repo 原测试套件</td>
+<td>代码理解+定位+编辑</td>
+</tr>
+</tbody></table>
+<p><strong>抗污染的补充</strong>——<strong>LiveCodeBench</strong>（Jain et al., <a href="https://arxiv.org/abs/2403.07974">arXiv:2403.07974</a>, ICLR 2025）：从 LeetCode/AtCoder/Codeforces <strong>新题</strong>（时间隔离）自动构建代码评测，涵盖代码生成、执行预测、测试生成等多种任务，按月滚动更新，解决 HumanEval 题量小 + 易过拟合的问题。</p>
+<h3 id="sec-6">1.4 Agent 评测 / Agent Evaluation</h3>
+<blockquote>
+<p>📎 <strong>交叉引用</strong>：本页聚焦 agent <strong>评测</strong>（怎么看 agent 做得好不好）。agent 的训练方法（自演化 RL、工具使用 SFT、computer use 配方）见 <a href="cheatsheet-long-horizon-agents.html">long-horizon-agents</a>。</p>
+</blockquote>
+<p>后训练正在从&quot;单轮对话&quot;向&quot;多步 agent&quot;演进，评测也必须跟。Agent 评测比传统 benchmark 复杂——需要<strong>模拟真实交互环境</strong>（浏览器、文件系统、API），且成功取决于<strong>多步决策链</strong>而非单次生成质量。</p>
+<p>三类代表性 agent 评测：</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>环境</th>
+<th>典型任务</th>
+<th>评测方式</th>
+<th>核心限制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>WebArena</strong>（Zhou et al., <a href="https://arxiv.org/abs/2307.13854">arXiv:2307.13854</a>, ICLR 2024）</td>
+<td>自建网站（电商/论坛/地图/CMS）</td>
+<td>&quot;在指定商品下找到评分最高的评论并回复&quot;</td>
+<td>程序化验证（页面状态/URL/元素存在）</td>
+<td>自建环境覆盖面有限，非真实互联网</td>
+</tr>
+<tr>
+<td><strong>TAU-bench</strong>（Yao et al., <a href="https://arxiv.org/abs/2406.12045">arXiv:2406.12045</a>）</td>
+<td>对话式 tool-agent-user 交互（航班/零售/金融数据库）</td>
+<td>&quot;帮用户改签航班到周五晚、靠窗座、用里程升舱&quot;</td>
+<td>数据库状态比对 + pass^k</td>
+<td>需与模拟用户多轮对话，user 行为设定影响评测口径</td>
+</tr>
+<tr>
+<td><strong>OSWorld</strong>（Xie et al., <a href="https://arxiv.org/abs/2404.07972">arXiv:2404.07972</a>, NeurIPS 2024 D&amp;B）</td>
+<td>真实操作系统 VM（Ubuntu/Windows/macOS）</td>
+<td>&quot;在 LibreOffice 做表格 → 导出 PDF → 发邮件&quot;</td>
+<td>屏幕状态/文件系统/窗口状态检查</td>
+<td>最真但也最贵——每个任务需 VM 快照 + VNC</td>
+</tr>
+</tbody></table>
+<p><strong>agent 评测的三个特殊维度</strong>（区别于传统 benchmark）：</p>
+<ol>
+<li><strong>步数依赖</strong>：评测结果是&quot;给定最大步数&quot;下的 success rate——<strong>准确率-步数曲线</strong>比单点数字更有信息量（类比 test-time scaling 的准确率-预算曲线）。同一模型在 5 步 vs 30 步的 success rate 可以差倍数。</li>
+<li><strong>不可复现性</strong>：环境状态、工具调用结果可能随网络/时间变化——需 Docker/VM 快照锁环境确保复现。</li>
+<li><strong>轨迹质量 ≠ 成功</strong>：一条&quot;绕了 20 步才成功&quot;的轨迹和&quot;3 步直接完成&quot;在 success rate 上等价，但效率和成本差几倍——需报告<strong>步数/ token 效率</strong>。</li>
+</ol>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>agent 评测当前最大的未解决问题：<strong>缺乏跨 benchmark 的一致排名</strong>——某 agent 在 WebArena 上 SOTA 但在 OSWorld 上一般，反之亦然。这反映了 agent 评测的碎片化状态，尚无&quot;agent 界的 Arena&quot;。</p>
+</div>
+<h3 id="sec-7">1.5 长上下文评测 / Long-Context Evaluation</h3>
+<p>&quot;声称支持 128K/1M&quot;和&quot;实际能用好&quot;是两回事。长上下文评测需回答三个问题：① <strong>能找到吗</strong>（检索）？② <strong>能理解吗</strong>（推理/综合）？③ <strong>能用到吗</strong>（下游任务）？</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>测什么</th>
+<th>上下文长度</th>
+<th>核心发现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Needle-in-a-Haystack (NIAH)</strong>（Kamradt 2023, <a href="https://github.com/gkamradt/LLMTest_NeedleInAHaystack">GitHub</a>）</td>
+<td>在长文档的<strong>随机位置</strong>插入一条事实 → 问模型这条事实</td>
+<td>可扩到任意长度</td>
+<td>多数模型在开头的&quot;针&quot;和结尾的&quot;针&quot;接近 100%，但<strong>中间位置显著下降</strong>（U 形曲线）——长上下文也存在位置偏置</td>
+</tr>
+<tr>
+<td><strong>RULER</strong>（Hsieh et al., <a href="https://arxiv.org/abs/2404.06654">arXiv:2404.06654</a>, COLM 2024）</td>
+<td><strong>多针</strong>检索+聚合（多针答案需综合）+ 多跳问答</td>
+<td>4K–128K+</td>
+<td>单针 NIAH 的高分<strong>不等于真实能力</strong>；多针+多跳测试下，许多&quot;支持 128K&quot;的模型有效上下文远低于声称值</td>
+</tr>
+<tr>
+<td><strong>LongBench</strong>（Bai et al., <a href="https://arxiv.org/abs/2308.14508">arXiv:2308.14508</a>, ACL 2024）</td>
+<td>21 个数据集、6 大类任务（单/多文档 QA、摘要、代码、少样本学习、合成、对话）</td>
+<td>1K–18K 中英双语</td>
+<td>不同任务上长上下文能力<strong>不是单一维度</strong>——代码长上下文和摘要长上下文是两类能力，不能用一个标量概括</td>
+</tr>
+</tbody></table>
+<p><strong>长上下文评测与后训练的关键联系</strong>：</p>
+<ul>
+<li><strong>alignment tax 的特殊形式</strong>：长上下文能力常在 RLHF/DPO 对齐训练中<strong>退化</strong>——安全/对话训练数据多为短上下文，导致长上下文召回率隐性下降。评测时需专门检查。</li>
+<li><strong>judge 自身的长上下文能力</strong>：如果用 LLM-as-judge 评多轮对话或其他长上下文，<strong>judge 本身能不能在长上下文中准确评判</strong>也是一环（§2.2 judge-human agreement 不直接回答这个）。</li>
+</ul>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>&quot;支持 128K&quot;≠&quot;128K 内都能用好&quot;。评测时至少用 RULER（多针）和 LongBench（多任务）两个维度交叉验证，不要只看单针 NIAH 热力图。</p>
+</div>
+<h2 id="sec-8">2. LLM-as-judge:怎么用 + 偏置</h2>
 <blockquote>
 <p>📎 <strong>交叉引用</strong>：本节侧重 LLM-as-Judge 作为<strong>评测实践</strong>的视角（如何选 judge、具体操作、benchmark 应用）。关于 LLM-as-Judge 作为 <strong>RLHF 训练信号</strong>时偏差如何影响 RM 训练和 reward hacking，见 <code>reward-modeling-eval.md §5.2</code>。</p>
 </blockquote>
@@ -305,7 +482,7 @@
 缓解通用招:<strong>reference-guided</strong>(给参考答案)、<strong>rubric/打分量表</strong>、<strong>多裁判投票</strong>、与<strong>人类标注校准</strong>。</li>
 </ul>
 <p><strong>位置去偏的形式化</strong>:记 judge 对有序对的偏好 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo><mo>∈</mo><mo stretchy="false">{</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">J(a,b)\in\{A,B\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">}</span></span></span></span>。无位置偏置时 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(a,b)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span></span></span></span> 与 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>b</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(b,a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">b</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> 应选<strong>同一</strong>答案(一致 consistent)。去偏判定:仅当两个顺序都选同一答案才判其胜,否则判 <strong>tie</strong>——把位置偏置显式记成平局,而非让它泄漏进 win-rate。注意:AlpacaEval 默认用<strong>单一顺序</strong>(model 排第一);MT-Bench pairwise 模式用<strong>交换增强</strong>(两序取平均)——并非所有工具都做顺序平均。</p>
-<h3 id="sec-6">2.1 位置去偏 judge harness(代码）</h3>
+<h3 id="sec-9">2.1 位置去偏 judge harness(代码）</h3>
 <pre><code class="hljs language-python"><span class="hljs-comment"># LLM-as-judge：成对比较 + 位置去偏（order-swap）harness。</span>
 <span class="hljs-comment"># 真实里 judge() 调一个强模型并解析其裁决；这里用桩函数演示协议与去偏逻辑。</span>
 
@@ -333,7 +510,7 @@
 <span class="hljs-built_in">print</span>(judge_debiased(<span class="hljs-string">&quot;q&quot;</span>, <span class="hljs-string">&quot;model&quot;</span>, <span class="hljs-string">&quot;ref&quot;</span>, biased_judge))   <span class="hljs-comment"># -&gt; &#x27;tie&#x27;</span>
 <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;win_rate:&quot;</span>, win_rate([<span class="hljs-string">&quot;q&quot;</span>], [<span class="hljs-string">&quot;model&quot;</span>], [<span class="hljs-string">&quot;ref&quot;</span>], biased_judge))  <span class="hljs-comment"># -&gt; 0.5</span>
 </code></pre>
-<h3 id="sec-7">2.2 judge 与人类一致性怎么量 / Judge–human agreement</h3>
+<h3 id="sec-10">2.2 judge 与人类一致性怎么量 / Judge–human agreement</h3>
 <p>&quot;与人类校准 / 一致率&quot;反复出现(§1 RM 行、上面的缓解招、Q31),但<strong>只看原始一致率 (raw agreement) 会高估&quot;扣掉偶然后真正的一致程度&quot;</strong>:当某一类标签占多数时,两个标注者光靠瞎猜也能高概率&quot;撞对&quot;。<strong>Cohen&#39;s κ</strong> 扣掉这部分偶然一致:</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>κ</mi><mo>=</mo><mfrac><mrow><msub><mi>p</mi><mi>o</mi></msub><mo>−</mo><msub><mi>p</mi><mi>e</mi></msub></mrow><mrow><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>e</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">\kappa = \frac{p_o - p_e}{1 - p_e}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">κ</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1408em;vertical-align:-0.8804em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">e</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">o</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">e</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8804em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
 <ul>
@@ -356,14 +533,14 @@
 <blockquote>
 <p>多于两个标注者(名义类别):用 <strong>Fleiss&#39; κ</strong>;有序评分:用 <strong>weighted κ</strong> 或 <strong>Krippendorff&#39;s α</strong>(可设有序距离、容缺失值)。</p>
 </blockquote>
-<h3 id="sec-8">2.3 冗长去偏的回归形式 / Length-controlled win-rate</h3>
+<h3 id="sec-11">2.3 冗长去偏的回归形式 / Length-controlled win-rate</h3>
 <p>§1 表里 AlpacaEval 2.0 的去偏写作&quot;回归扣除长度&quot;——具体做法(Dubois et al., <a href="https://arxiv.org/abs/2404.04475">arXiv:2404.04475</a>)是拟合一个<strong>广义线性模型</strong>预测 judge 的偏好,把<strong>长度差</strong>作为显式一项放进去(简化形式):</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>logit</mtext><mtext> </mtext><mi>P</mi><mo stretchy="false">(</mo><mtext>model</mtext><mo>≻</mo><mtext>ref</mtext><mo stretchy="false">)</mo><mo>=</mo><msub><mi>θ</mi><mi>m</mi></msub><mo>+</mo><mi>γ</mi><mo>⋅</mo><msub><mi mathvariant="normal">Δ</mi><mtext>len</mtext></msub><mo>+</mo><mo>…</mo></mrow><annotation encoding="application/x-tex">\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\text{len}} + \dots</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">logit</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="mopen">(</span><span class="mord text"><span class="mord">model</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≻</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">ref</span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">m</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0556em;">γ</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">Δ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">len</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.123em;"></span><span class="minner">…</span></span></span></span></span></p>
 <p>其中 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Δ</mi><mtext>len</mtext></msub></mrow><annotation encoding="application/x-tex">\Delta_{\text{len}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">Δ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">len</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> 为两答案长度差。报告时令长度项 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Δ</mi><mtext>len</mtext></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\Delta_{\text{len}}=0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">Δ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">len</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span>、对指令分布取期望,得到 <strong>length-controlled win-rate</strong>——直觉是&quot;两答案等长时模型本该有的胜率&quot;,把 GLM 所建模的&quot;长度关联&quot;那部分扣掉。</p>
 <p>⚠️ 注意:它扣的是<strong>模型所拟合的长度关联</strong>,与长度相关的真实质量信号可能被一并扣除,未建模的风格效应也扣不掉;实测能显著提升与 Chatbot Arena(真人 Elo)排名的 Spearman 相关性。</p>
-<h2 id="sec-9">3. 数据污染 / Contamination</h2>
+<h2 id="sec-12">3. 数据污染 / Contamination</h2>
 <p>训练集混入了评测集 → 分数虚高、不反映泛化。</p>
-<h3 id="sec-10">3.1 污染类型</h3>
+<h3 id="sec-13">3.1 污染类型</h3>
 <table>
 <thead>
 <tr>
@@ -388,7 +565,7 @@
 <td>训练集不含原题，但含有高度相关的分布内样本，导致分数虚高</td>
 </tr>
 </tbody></table>
-<h3 id="sec-11">3.2 检测方法</h3>
+<h3 id="sec-14">3.2 检测方法</h3>
 <ul>
 <li><strong>n-gram / 子串重叠</strong>：计算训练集与评测集之间的 n-gram Jaccard 相似度，设阈值过滤</li>
 <li><strong>Min-k% Prob (MIA)</strong>：成员推断攻击 (Membership Inference Attack)——计算测试样本在模型下的最低 k% token 概率；成员样本的最低 token 概率通常高于非成员（据 Shi et al. 2024 等工作，具体效果随设置而异）</li>
@@ -396,37 +573,39 @@
 <li><strong>异常低 perplexity</strong>：对测试样本计算 perplexity；若显著低于同类新样本，提示可能见过</li>
 <li><strong>改写后掉分</strong>：对测试题做语义等价改写，若模型在原题上分数高而改写版上分数低，提示记忆而非泛化</li>
 </ul>
-<h3 id="sec-12">3.3 n-gram 去重 (Deduplication)</h3>
+<h3 id="sec-15">3.3 n-gram 去重 (Deduplication)</h3>
 <ul>
 <li>训练数据内部去重（exact + near-dedup）可降低记忆风险，也减少 benchmark 污染传播</li>
 <li>常用工具：MinHash LSH、suffix array 去重（据 Lee et al. 2022 等工作）</li>
 <li>⚠️ 去重不等于去污染：去重针对训练集内重复，去污染 (decontamination) 专门针对训练集与评测集的交叉</li>
 </ul>
-<h3 id="sec-13">3.4 抗污染 benchmark 设计</h3>
+<h3 id="sec-16">3.4 抗污染 benchmark 设计</h3>
 <ul>
 <li><strong>动态/私有评测集</strong>：每轮评测使用新题（如 Chatbot Arena 的持续收集、LiveBench 的月度更新）</li>
 <li><strong>程序化生成题</strong>：自动生成可验证答案的题（数学、代码），题目新颖性由生成程序保证</li>
 <li><strong>时间隔离</strong>：明确报告训练数据截止日期 (data cutoff) 与评测集创建日期，供读者判断时间污染风险</li>
 <li><strong>污染审计报告</strong>：在论文/报告中公开 decontamination 流程和过滤比例，增加可信度</li>
 </ul>
-<h2 id="sec-14">4. 偏好评测的陷阱</h2>
+<h2 id="sec-17">4. 偏好评测的陷阱</h2>
 <ul>
 <li><strong>Goodhart</strong>:一旦某 benchmark 成了优化目标,它就不再是好的衡量(刷榜 ≠ 真变强)。</li>
 <li><strong>prompt 敏感</strong>:同一模型换 prompt 模板分数能差很多 → 固定评测 prompt、报告方差。</li>
 <li><strong>judge ≠ 真值</strong>:LLM-judge 的 win-rate 只是&quot;另一个模型觉得好&quot;,不等于人类偏好或真实效用。</li>
 <li><strong>单点准确率 vs 算力预算</strong>:推理模型要看&quot;给定 test-time 算力下的准确率&quot;,而非单次。</li>
 </ul>
-<h2 id="sec-15">5. 一套实用评测口径(post-training)</h2>
+<h2 id="sec-18">5. 一套实用评测口径(post-training)</h2>
 <ol>
-<li><strong>能力</strong>:GSM8K/MATH(数学)、HumanEval(代码)、MMLU(知识)、IFEval(指令遵循)。</li>
-<li><strong>对齐质量</strong>:AlpacaEval / MT-Bench(judge,带位置去偏)、必要时 Arena。</li>
-<li><strong>安全/拒答</strong>:有害提示拒答率、过度拒答(over-refusal)率。</li>
+<li><strong>能力</strong>:GSM8K/MATH(数学)、HumanEval→SWE-bench(代码)、MMLU/MMLU-Pro/GPQA(知识)、IFEval(指令遵循)。</li>
+<li><strong>对齐质量</strong>:AlpacaEval / MT-Bench / Arena-Hard(judge,带位置去偏)、必要时 Arena。</li>
+<li><strong>安全/拒答</strong>:有害提示拒答率、过度拒答率。</li>
+<li><strong>Agent</strong>:WebArena / TAU-bench(多步交互,报准确率-步数曲线)。</li>
+<li><strong>长上下文</strong>:RULER(多针检索)+ LongBench(多任务理解),不只看 NIAH 单针。</li>
 <li><strong>回归</strong>:对比基线,确认没在某些维度变差(alignment tax)。</li>
 <li><strong>污染审计</strong> + <strong>多 seed/prompt</strong> 报方差。</li>
 </ol>
 <hr>
-<h2 id="sec-16">分层面试题 / Stratified follow-ups</h2>
-<h3 id="sec-17">L1 基础</h3>
+<h2 id="sec-19">分层面试题 / Stratified follow-ups</h2>
+<h3 id="sec-20">L1 基础</h3>
 <ol>
 <li>为什么说评测是 post-training 的瓶颈?能力 benchmark 和偏好评测各测什么?</li>
 <li>LLM-as-judge 是什么?它有哪些已知偏置?</li>
@@ -439,7 +618,7 @@
 <li>为什么评测要固定 prompt 模板、多 seed 报方差?</li>
 <li>IFEval 和 MMLU 在&quot;怎么打分&quot;上有何根本不同(程序化验证 vs 选项准确率)?</li>
 </ol>
-<h3 id="sec-18">L2 进阶</h3>
+<h3 id="sec-21">L2 进阶</h3>
 <ol start="11">
 <li>位置偏置怎么缓解?为什么&quot;交换顺序各评一次&quot;有效?</li>
 <li>AlpacaEval / MT-Bench / Arena 三者的评测信号有何不同(自动 judge vs 真人 Elo)?</li>
@@ -452,7 +631,7 @@
 <li>自我偏好偏置在&quot;用同源模型当 judge&quot;时为什么特别危险?</li>
 <li>为什么 judge win-rate 高不等于真人更偏好?二者会在哪里系统性地分叉?</li>
 </ol>
-<h3 id="sec-19">L3 深挖</h3>
+<h3 id="sec-22">L3 深挖</h3>
 <ol start="21">
 <li>Goodhart 定律在刷榜上怎么体现?如何设计&quot;抗刷&quot;的评测?</li>
 <li>reward model 怎么评(RewardBench 的思路)?RM 评测和最终 policy 效果的关系?</li>
@@ -460,7 +639,41 @@
 <li>如果线上指标(用户留存)和离线评测(judge win-rate)打架,你信哪个、怎么排查?</li>
 <li>用单一标量分数概括模型时,怎样会掩盖&quot;能力↑但安全↓&quot;这类帕累托式回归?评测设计上如何把它暴露出来?</li>
 </ol>
-<h2 id="sec-20">更多 L3 深挖 / Extended L3</h2>
+<h2 id="sec-23">增补：2024 前沿覆盖 / 2024 Frontier Supplement</h2>
+<blockquote>
+<p>以下题目覆盖本页 2024 年新增的评测前沿（SWE-bench、Agent 评测、长上下文评测、GPQA/MMLU-Pro）。</p>
+</blockquote>
+<details>
+<summary>Qa. GPQA 为什么被称为"Google-proof"？它与 MMLU / MMLU-Pro 在区分度上有何根本不同？</summary><pre><code class="hljs"><span class="hljs-operator">**</span>答：<span class="hljs-operator">**</span> <span class="hljs-variable">GPQA</span>（<span class="hljs-variable">Graduate</span><span class="hljs-operator">-</span><span class="hljs-built_in">Level</span> <span class="hljs-variable">Google</span><span class="hljs-operator">-</span><span class="hljs-variable">Proof</span> <span class="hljs-variable">Q</span><span class="hljs-operator">&amp;</span><span class="hljs-variable">A</span>）的题是领域专家出的<span class="hljs-operator">**</span>研究生级<span class="hljs-operator">**</span>物理<span class="hljs-operator">/</span>生物<span class="hljs-operator">/</span>化学选择题，设计目标就是<span class="hljs-string">&quot;一个熟练的非专家即使无限制上网搜索也无法在 30 分钟内 100% 答对&quot;</span>（因此叫 <span class="hljs-variable">Google</span><span class="hljs-operator">-</span><span class="hljs-variable">proof</span>）。与 <span class="hljs-variable">MMLU</span> 的根本差异：① <span class="hljs-variable">MMLU</span> 的题人类天花板高（<span class="hljs-operator">~</span><span class="hljs-number">90</span><span class="hljs-operator">%+</span>），区分度低（强模型挤在天花板附近）；② <span class="hljs-variable">GPQA</span> 的领域专家准确率约 <span class="hljs-number">65</span><span class="hljs-operator">%</span>（<span class="hljs-built_in">Diamond</span> 子集各学科有所变化），拉开了模型间差距。<span class="hljs-variable">MMLU</span><span class="hljs-operator">-</span><span class="hljs-variable">Pro</span> 通过 <span class="hljs-number">10</span> 选 <span class="hljs-number">1</span>（而非 <span class="hljs-number">4</span> 选 <span class="hljs-number">1</span>）<span class="hljs-operator">+</span> 排除过拟合<span class="hljs-operator">/</span>污染题来缓解 <span class="hljs-variable">MMLU</span> 的天花板问题，是 <span class="hljs-variable">MMLU</span> 到 <span class="hljs-variable">GPQA</span> 之间的过渡阶梯。
+
+<span class="hljs-operator">**</span>追问：<span class="hljs-operator">**</span> 为什么推理模型（<span class="hljs-variable">o1</span><span class="hljs-operator">/</span><span class="hljs-variable">R1</span>）常选择 <span class="hljs-variable">GPQA</span> <span class="hljs-built_in">Diamond</span> 作为核心评测之一？
+因为 <span class="hljs-variable">GPQA</span> 要求深度领域知识<span class="hljs-operator">+</span>推理（单靠检索不能直接答对），天然适合衡量<span class="hljs-string">&quot;长推理能否补足知识缺口&quot;</span>——这正是推理模型的卖点。
+</code></pre>
+</details><details>
+<summary>Qb. SWE-bench 与 HumanEval 评测的代码能力有何本质区别？为什么单靠 pass@k 不够描述 SWE-bench 上的表现？</summary><pre><code class="hljs">**答：** HumanEval 测的是**单函数补全**（给定签名+docstring → 写函数体），SWE-bench 测的是**真实软件工程**（给定 GitHub issue + 完整代码库 → 定位 bug → 跨文件 patch → 通过该<span class="hljs-built_in"> instance </span>的 FAIL_TO_PASS 和 PASS_TO_PASS 测试）。本质区别：① 前者测<span class="hljs-string">&quot;生成&quot;</span>，后者测<span class="hljs-string">&quot;理解+定位+编辑&quot;</span>的复合能力；② 前者每题孤立，后者需理解大型代码库的跨文件依赖。pass@k 不够描述 SWE-bench 表现的原因是：SWE-bench 每题只有一个正确 patch（不像代码生成可以采 k 个候选看是否有一条对）——pass@k 的<span class="hljs-string">&quot;k 条至少一条对&quot;</span>逻辑不适用；SWE-bench 用的是 **% resolved**（关联测试全部通过率），是单次提交的 pass/fail。
+
+**追问：** SWE-bench Verified 为什么重要？
+原始 SWE-bench 的部分 issue 描述不清晰或测试不可靠——模型可能因<span class="hljs-string">&quot;描述歧义&quot;</span>或<span class="hljs-string">&quot;测试本身有 bug&quot;</span>而失败，而非能力不足。Verified 子集（OpenAI 2024-08 发布）经人工复核 500 道题排除了这类噪声，使评测信号更干净。
+</code></pre>
+</details><details>
+<summary>Qc. Agent 评测的三个特殊挑战是什么？为什么"success rate"作为唯一指标不够？</summary><pre><code class="hljs">**答：** ① **步数依赖**：同一模型在 <span class="hljs-number">5</span> 步 vs <span class="hljs-number">30</span> 步预算下的 success rate 可能差几倍——必须报告准确率-步数曲线，而非单点数字。② **不可复现性**：网络/时间/环境状态变化导致同一 <span class="hljs-built_in">agent</span> 两次运行结果不同——需容器/VM 快照锁环境。③ **轨迹质量 ≠ 成功**：绕 <span class="hljs-number">20</span> 步成功和 <span class="hljs-number">3</span> 步成功在 success rate 上等价，但效率和成本天差地别——需同时报告步数/token 效率。<span class="hljs-string">&quot;success rate&quot;</span>不够是因为它只回答了<span class="hljs-string">&quot;最终有没有成&quot;</span>，没回答<span class="hljs-string">&quot;花多大代价成的&quot;</span>和<span class="hljs-string">&quot;在什么步数预算下成的&quot;</span>——后两者对真实部署更重要。
+
+**追问：** 当前 <span class="hljs-built_in">agent</span> 评测最大的未解决问题是什么？
+缺乏跨 <span class="hljs-built_in">benchmark</span> 的一致排名——某 <span class="hljs-built_in">agent</span> 在 WebArena 上 SOTA 但在 OSWorld 上一般（反之亦然），反映了 <span class="hljs-built_in">agent</span> 评测的碎片化状态，尚无<span class="hljs-string">&quot;agent 界的 Chatbot Arena&quot;</span>。
+</code></pre>
+</details><details>
+<summary>Qd. 为什么单针 NIAH 热力图好 ≠ 长上下文能力强？RULER 和 LongBench 各补了什么短板？</summary><pre><code class="hljs">**答：** 单针 NIAH 只测<span class="hljs-string">&quot;能不能在一大堆无关文本里找到一条事实&quot;</span>——这是长上下文能力的**必要但不充分**条件。RULER 补了<span class="hljs-string">&quot;多针检索+多跳聚合&quot;</span>（真实使用常需综合多处信息），暴露了很多<span class="hljs-string">&quot;单针满分、多针崩盘&quot;</span>的模型。LongBench 补了<span class="hljs-string">&quot;多任务多样性&quot;</span>（<span class="hljs-number">21</span> 个数据集、<span class="hljs-number">6</span> 大类，涵盖摘要、代码、少样本学习等），揭示了长上下文能力**不是单一维度**——一个模型可能在代码长上下文上强但在摘要长上下文上弱。三者关系：NIAH = 基础检索探针，RULER = 压力测试，LongBench = 生态效度（<span class="hljs-built_in">real</span>-world utility）。
+
+**追问：** 怎么排查后训练是否损害了长上下文能力？
+在后训练前后各跑一次 RULER + LongBench；RLHF/DPO 训练数据多为短上下文，长上下文能力隐性退化是 alignment tax 的一种常被忽略的形式。
+</code></pre>
+</details><details>
+<summary>Qe. Arena-Hard 和 MixEval 分别是如何解决"benchmark 过拟合/污染"和"单 benchmark 片面"问题的？各自还有什么局限？</summary><pre><code class="hljs">**答：** **Arena-Hard** 从 Chatbot Arena 的海量真人投票中自动筛选出 <span class="hljs-number">500</span> 道<span class="hljs-string">&quot;难倒模型&quot;</span>的题做 GPT-<span class="hljs-number">4</span> pairwise judge——它继承了 Arena 的抗污染性（动态题库）同时把评测从<span class="hljs-string">&quot;众包投票&quot;</span>压缩成自动 pipeline，与真人 Elo 的 Spearman 约 <span class="hljs-number">94.1</span>%。局限：它全盘继承 judge 偏置，且固定 <span class="hljs-number">500</span> 题仍有被针对性优化的风险。**MixEval** 将真实 web 用户查询匹配到现成 <span class="hljs-built_in">benchmark</span> 题目，用 ground-truth 答案（非 judge）评测并动态加权聚合——本质是<span class="hljs-string">&quot;多源 benchmark 混合物&quot;</span>而非 judge <span class="hljs-built_in">benchmark</span>。局限：采样权重敏感（调权重就能<span class="hljs-string">&quot;改变排名&quot;</span>），且子集中旧 <span class="hljs-built_in">benchmark</span> 的污染会渗透进来。
+
+**追问：** 这与 §<span class="hljs-number">4</span> 的 Goodhart 定律有何关系？
+Arena-Hard 和 MixEval 都是在<span class="hljs-string">&quot;同一个 benchmark 成为优化目标后就失效&quot;</span>的前提下设计的抗刷机制——前者靠动态+难题筛选，后者靠多源混合稀释单个 <span class="hljs-built_in">benchmark</span> 的权重。
+</code></pre>
+</details><h2 id="sec-24">更多 L3 深挖 / Extended L3</h2>
 <details>
 <summary>Q26. 当用 LLM-as-judge 评估多轮、长上下文对话时，常见的困难是什么？有哪些评估方法上的改进？</summary><pre><code class="hljs">评估多轮对话的核心挑战是评判模型容易出现<span class="hljs-strong">**上下文遗忘 (context forgetting)**</span> 或<span class="hljs-strong">**局部偏好 (local bias)**</span>，即只关注最近一两轮的回答质量而忽略整体对话连贯性和任务完成度。一个关键改进是设计<span class="hljs-strong">**过程导向的评分量表 (process-oriented rubric)**</span>，明确要求评估每一轮对最终目标的贡献，并引入<span class="hljs-strong">**分段总结 (segment summarization)**</span> 机制，迫使judge模型先归纳再打分，从而在一定程度上缓解其短视问题。
 <span class="hljs-strong">**追问**</span>: 除了改进评分量表，是否可以通过改变评测协议来降低评判难度？例如，将其拆解为一系列更简单的子任务评估？
@@ -489,7 +702,7 @@
 <summary>Q32. 在领域特定（如医疗、法律）场景下，通用LLM-as-judge的评估会遇到哪些特有挑战？构建领域专家评估流水线时，关键步骤是什么？</summary><pre><code class="hljs">核心挑战是<span class="hljs-strong">**领域知识壁垒 (domain knowledge barrier)**</span> 和<span class="hljs-strong">**评估标准的专业化 (specialized evaluation criteria)**</span>。通用judge可能无法理解领域术语的细微差别或专业逻辑的严谨性。构建领域评估流水线的关键步骤首先是<span class="hljs-strong">**联合定义评估维度 (co-define evaluation dimensions)**</span>，与领域专家共同确定如”医疗建议的保守性”、”法律引用的准确性”等维度。其次是<span class="hljs-strong">**构建领域金标准 (domain gold-standard)**</span>，即由专家标注的、具有权威性的参考答案或评判结果集。最后是设计<span class="hljs-strong">**人机协同评估流程 (human-AI collaborative evaluation)**</span>，让AI judge处理初筛，人类专家负责复核边缘案例和最终裁决。
 <span class="hljs-strong">**追问**</span>: 当领域专家对同一回答的评价也存在分歧时（例如，不同流派的医生），如何设计一个能包容合理专家分歧、又能进行有效自动化评估的系统？
 </code></pre>
-</details><h2 id="sec-21">§A 核心论文时间线 / Key Papers Timeline</h2>
+</details><h2 id="sec-25">§A 核心论文时间线 / Key Papers Timeline</h2>
 <ul class="timeline">
 <li><p><strong>2020-09 · MMLU</strong> — Hendrycks et al., ICLR 2021. <a href="https://arxiv.org/abs/2009.03300">arXiv:2009.03300</a> — 57 学科、四选一的多任务知识评测,确立&quot;广覆盖选择题&quot;范式;选项与字母顺序偏置 + 后期被严重污染是其主要软肋。</p>
 </li>
@@ -503,9 +716,17 @@
 </li>
 <li><p><strong>2023-06 · MT-Bench / LLM-as-a-Judge</strong> — Zheng et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2306.05685">arXiv:2306.05685</a> — 多轮对话 judge 评分 + 系统性量化位置/冗长/自我偏好偏置,确立 LLM-as-judge 的方法学基线。</p>
 </li>
+<li><p><strong>2023-07 · WebArena</strong> — Zhou et al., ICLR 2024. <a href="https://arxiv.org/abs/2307.13854">arXiv:2307.13854</a> — 自建网站环境（电商/论坛/地图/CMS）做 agent 评测，程序化验证页面状态，是最早的系统化 agent benchmark 之一。</p>
+</li>
+<li><p><strong>2023-08 · LongBench</strong> — Bai et al., ACL 2024. <a href="https://arxiv.org/abs/2308.14508">arXiv:2308.14508</a> — 21 个数据集、6 大类长上下文任务（单/多文档 QA、摘要、代码、少样本、合成、对话）中英双语评测，揭示长上下文能力不是单一维度。</p>
+</li>
 <li><p><strong>2023-10 · Min-K% Prob</strong> — Shi et al., ICLR 2024. <a href="https://arxiv.org/abs/2310.16789">arXiv:2310.16789</a> — 以样本最低 k% token 概率做预训练数据成员推断,用于检测评测集是否被&quot;见过&quot;(污染探针)。</p>
 </li>
+<li><p><strong>2023-10 · SWE-bench</strong> — Jimenez et al., ICLR 2024. <a href="https://arxiv.org/abs/2310.06770">arXiv:2310.06770</a> — 用真实 GitHub issue → patch → 跑 FAIL_TO_PASS+PASS_TO_PASS 测试评测代码能力，把代码评测从&quot;函数补全&quot;升级到&quot;真实软件工程&quot;，是 2024 年最具影响力的新 benchmark 之一。</p>
+</li>
 <li><p><strong>2023-11 · IFEval</strong> — Zhou et al., arXiv 预印本. <a href="https://arxiv.org/abs/2311.07911">arXiv:2311.07911</a> — 用&quot;可程序化验证&quot;的指令(字数/格式等)做指令遵循评测,无需 judge、客观可复算。</p>
+</li>
+<li><p><strong>2023-11 · GPQA</strong> — Rein et al., NeurIPS 2024 D&amp;B. <a href="https://arxiv.org/abs/2311.12022">arXiv:2311.12022</a> — 研究生级&quot;Google-proof&quot;物理/生物/化学选择题，领域专家仅 65–74%，为推理模型提供了高区分度评测靶。</p>
 </li>
 <li><p><strong>2024-03 · Chatbot Arena</strong> — Chiang et al., ICML 2024. <a href="https://arxiv.org/abs/2403.04132">arXiv:2403.04132</a> — 真人盲投成对对战 + Bradley-Terry/Elo 转排名,海量投票 + 动态新题成为抗污染的真人偏好金标准。</p>
 </li>
@@ -513,7 +734,25 @@
 </li>
 <li><p><strong>2024-04 · Length-Controlled AlpacaEval</strong> — Dubois et al., COLM 2024. <a href="https://arxiv.org/abs/2404.04475">arXiv:2404.04475</a> — 用回归把&quot;长度&quot;从 win-rate 中扣除,显著降低冗长偏置、提升与人类排名的相关性。</p>
 </li>
+<li><p><strong>2024-04 · OSWorld</strong> — Xie et al., NeurIPS 2024 D&amp;B. <a href="https://arxiv.org/abs/2404.07972">arXiv:2404.07972</a> — 在真实操作系统 VM 中评测 agent（LibreOffice/浏览器/文件管理），以屏幕状态+文件系统变化验证任务完成，是目前最真实的 agent 评测但成本极高。</p>
+</li>
 <li><p><strong>2024-06 · LiveBench</strong> — White et al., ICLR 2025. <a href="https://arxiv.org/abs/2406.19314">arXiv:2406.19314</a> — 月度滚动更新 + 客观可验证答案的&quot;抗污染&quot;评测,降低数据泄漏导致的虚高。</p>
+</li>
+<li><p><strong>2024-06 · MMLU-Pro</strong> — Wang et al., arXiv 预印本. <a href="https://arxiv.org/abs/2406.01574">arXiv:2406.01574</a> — MMLU 加强版：10 选 1 + 排除过拟合/污染题，解决 MMLU 天花板效应，强模型间区分度显著提升。</p>
+</li>
+<li><p><strong>2024-06 · Arena-Hard</strong> — Li et al., arXiv 预印本. <a href="https://arxiv.org/abs/2406.11939">arXiv:2406.11939</a> — 从 Chatbot Arena 数据中自动筛选 500 道难题做 GPT-4 pairwise judge，与真人 Elo Spearman ~0.9，快速近似真人偏好。</p>
+</li>
+<li><p><strong>2024-06 · MixEval</strong> — Ni et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2406.06565">arXiv:2406.06565</a> — 从多 benchmark 混合采样、动态加权聚合，用多源混合稀释单 benchmark 权重对抗片面性+污染。</p>
+</li>
+<li><p><strong>2024-04 · RULER</strong> — Hsieh et al., COLM 2024. <a href="https://arxiv.org/abs/2404.06654">arXiv:2404.06654</a> — 多针检索+多跳合成的长上下文压力测试，暴露单针 NIAH 热力图掩盖的有效上下文不足问题。</p>
+</li>
+<li><p><strong>2024-06 · BigCodeBench</strong> — Zhuo et al., arXiv 预印本. <a href="https://arxiv.org/abs/2406.15877">arXiv:2406.15877</a> — 函数级、多样库调用的代码评测，填补 HumanEval（简单函数）到 SWE-bench（全 repo）之间的评测空白。</p>
+</li>
+<li><p><strong>2024-06 · TAU-bench</strong> — Yao et al., arXiv 预印本. <a href="https://arxiv.org/abs/2406.12045">arXiv:2406.12045</a> — 对话式 tool-agent-user 交互评测，以数据库状态比对验证 agent 任务完成，agent 评测的另一个重要维度。</p>
+</li>
+<li><p><strong>2024-08 · SWE-bench Verified</strong> — OpenAI, <a href="https://openai.com/index/introducing-swe-bench-verified/">blog</a>. — 对 SWE-bench 的 500 道题做人工复核：确认 issue 描述质量+测试可靠性，排除噪声让评测信号更干净。</p>
+</li>
+<li><p><strong>2024-08 · LiveCodeBench</strong> — Jain et al., ICLR 2025. <a href="https://arxiv.org/abs/2403.07974">arXiv:2403.07974</a> — 从 LeetCode/AtCoder/Codeforces 新题自动构建评测，按月滚动更新做时间隔离，解决 HumanEval 题量小+过拟合问题。</p>
 </li>
 </ul>
 </main>

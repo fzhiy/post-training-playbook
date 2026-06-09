@@ -140,7 +140,7 @@
 <nav class="top"><a href="index.html">← Study Index</a><a class="lang-toggle" href="cheatsheet-eval-and-judges.html">中文 ⇄</a></nav>
 <header class="hero"><div class="eyebrow">Cheatsheet</div><h1 class="hero-title">Evaluation &amp; LLM-as-Judge</h1><div class="hero-rule"></div></header>
 <div class="layout">
-<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. Three Families of Evaluation</a></li><li class="lv3"><a href="#sec-2">1.1 Benchmark cheat-sheet</a></li><li class="lv3"><a href="#sec-3">1.1a Unbiased pass@k</a></li><li class="lv3"><a href="#sec-4">1.2 Bradley-Terry / Elo: pairwise wins → ranking</a></li><li class="lv2"><a href="#sec-5">2. LLM-as-Judge: How to Use It + Biases</a></li><li class="lv3"><a href="#sec-6">2.1 Position-debiased judge harness (code)</a></li><li class="lv3"><a href="#sec-7">2.2 Measuring judge–human agreement</a></li><li class="lv3"><a href="#sec-8">2.3 Length-controlled win-rate: the regression form</a></li><li class="lv2"><a href="#sec-9">3. Data Contamination</a></li><li class="lv3"><a href="#sec-10">3.1 Types of Contamination</a></li><li class="lv3"><a href="#sec-11">3.2 Detection Methods</a></li><li class="lv3"><a href="#sec-12">3.3 n-gram Deduplication</a></li><li class="lv3"><a href="#sec-13">3.4 Contamination-Resistant Benchmark Design</a></li><li class="lv2"><a href="#sec-14">4. Pitfalls in Preference Evaluation</a></li><li class="lv2"><a href="#sec-15">5. A Practical Evaluation Protocol (Post-Training)</a></li><li class="lv2"><a href="#sec-16">Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-17">L1 Basics</a></li><li class="lv3"><a href="#sec-18">L2 Intermediate</a></li><li class="lv3"><a href="#sec-19">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-20">Extended L3</a></li><li class="lv2"><a href="#sec-21">§A Key Papers Timeline</a></li></ul></nav>
+<nav class="toc"><div class="toc-h">目录 / Contents</div><ul><li class="lv2"><a href="#sec-0">0. TL;DR</a></li><li class="lv2"><a href="#sec-1">1. Three Families of Evaluation</a></li><li class="lv3"><a href="#sec-2">1.1 Benchmark cheat-sheet</a></li><li class="lv3"><a href="#sec-3">1.1a Unbiased pass@k</a></li><li class="lv3"><a href="#sec-4">1.2 Bradley-Terry / Elo: pairwise wins → ranking</a></li><li class="lv3"><a href="#sec-5">1.3 SWE-bench: From Function Completion to Real-World Software Engineering</a></li><li class="lv3"><a href="#sec-6">1.4 Agent Evaluation</a></li><li class="lv3"><a href="#sec-7">1.5 Long-Context Evaluation</a></li><li class="lv2"><a href="#sec-8">2. LLM-as-Judge: How to Use It + Biases</a></li><li class="lv3"><a href="#sec-9">2.1 Position-debiased judge harness (code)</a></li><li class="lv3"><a href="#sec-10">2.2 Measuring judge–human agreement</a></li><li class="lv3"><a href="#sec-11">2.3 Length-controlled win-rate: the regression form</a></li><li class="lv2"><a href="#sec-12">3. Data Contamination</a></li><li class="lv3"><a href="#sec-13">3.1 Types of Contamination</a></li><li class="lv3"><a href="#sec-14">3.2 Detection Methods</a></li><li class="lv3"><a href="#sec-15">3.3 n-gram Deduplication</a></li><li class="lv3"><a href="#sec-16">3.4 Contamination-Resistant Benchmark Design</a></li><li class="lv2"><a href="#sec-17">4. Pitfalls in Preference Evaluation</a></li><li class="lv2"><a href="#sec-18">5. A Practical Evaluation Protocol (Post-Training)</a></li><li class="lv2"><a href="#sec-19">Stratified Follow-ups</a></li><li class="lv3"><a href="#sec-20">L1 Basics</a></li><li class="lv3"><a href="#sec-21">L2 Intermediate</a></li><li class="lv3"><a href="#sec-22">L3 Deep Dive</a></li><li class="lv2"><a href="#sec-23">2024 Frontier Supplement</a></li><li class="lv2"><a href="#sec-24">Extended L3</a></li><li class="lv2"><a href="#sec-25">§A Key Papers Timeline</a></li></ul></nav>
 <main id="out"><blockquote>
 <p>In post-training, <strong>evaluation</strong> is often the real bottleneck: training can run, but whether the model actually improved — or where it regressed — is entirely determined by evaluation. This page covers how to evaluate an aligned model and the pitfalls of various evaluation approaches.
 ⚠️ No concrete scores are listed here (they go stale quickly and are easy to misremember); for specific numbers, refer to official benchmark/leaderboard sources.</p>
@@ -253,7 +253,24 @@
 <td>Programmatic verification (no judge needed)</td>
 <td>Covers only machine-checkable constraints</td>
 </tr>
+<tr>
+<td><strong>GPQA</strong> (Diamond)</td>
+<td>Graduate-level physics/biology/chemistry, designed so that <strong>skilled non-experts with unrestricted web access cannot achieve 100%</strong> (&quot;Google-proof&quot;)</td>
+<td>4-way multiple choice</td>
+<td>Option accuracy</td>
+<td>Domain expert accuracy ~65% (Diamond subset higher, varies by subject); options require expert-level knowledge to distinguish, very high discriminability</td>
+</tr>
+<tr>
+<td><strong>MMLU-Pro</strong></td>
+<td>MMLU strengthened — removes easy/contaminated questions, uses 10-way choice for greater difficulty</td>
+<td>10-way multiple choice</td>
+<td>Option accuracy</td>
+<td>Lower random baseline (10% vs 25%); significantly mitigates MMLU&#39;s ceiling effect</td>
+</tr>
 </tbody></table>
+<p><strong>2024 evolutions of preference / dialogue evals</strong>:</p>
+<p>| <strong>Arena-Hard</strong> | Automatically selects <strong>500 &quot;model-stumping&quot; questions</strong> from Chatbot Arena data, scored by GPT-4 pairwise judge | Win-rate (vs. the reference) | Judge bias (fully inherited) | Spearman ~94.1% with Arena Elo rankings; fast automatic proxy for human preference; hard questions amplify discriminability |
+| <strong>MixEval</strong> | Matches <strong>real web user queries</strong> to existing benchmark items, evaluates with <strong>ground-truth answers</strong> (not a judge), dynamically weighted aggregation | Normalized multi-dimension average | Sampling weights are sensitive; stale contamination from subset components can leak through | Multi-round weight calibration + decontamination filtering, aiming to reflect capability + preference holistically; fundamentally a ground-truth benchmark mixture, not a judge benchmark |</p>
 <h3 id="sec-3">1.1a Unbiased pass@k</h3>
 <p><strong>Naive estimator</strong> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mover accent="true"><mi>p</mi><mo>^</mo></mover><msup><mo stretchy="false">)</mo><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">1-(1-\hat p)^k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span></span></span></span> (<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover accent="true"><mi>p</mi><mo>^</mo></mover><mo>=</mo><mi>c</mi><mi mathvariant="normal">/</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">\hat p=c/n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">c</span><span class="mord">/</span><span class="mord mathnormal">n</span></span></span></span>): for <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>≥</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">k\ge2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8304em;vertical-align:-0.136em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span> it <strong>systematically underestimates</strong> the true pass@k at any finite <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> (Jensen&#39;s inequality: <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mover accent="true"><mi>p</mi><mo>^</mo></mover><msup><mo stretchy="false">)</mo><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">(1-\hat p)^k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span></span></span></span> is convex in <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover accent="true"><mi>p</mi><mo>^</mo></mover></mrow><annotation encoding="application/x-tex">\hat p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span></span></span></span>, so <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="double-struck">E</mi><mo stretchy="false">[</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mover accent="true"><mi>p</mi><mo>^</mo></mover><msup><mo stretchy="false">)</mo><mi>k</mi></msup><mo stretchy="false">]</mo><mo>≥</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><msup><mo stretchy="false">)</mo><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">\mathbb{E}[(1-\hat p)^k]\ge(1-p)^k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathbb">E</span><span class="mopen">[(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">p</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1667em;"><span class="mord">^</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1944em;"><span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span><span class="mclose">]</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0991em;vertical-align:-0.25em;"></span><span class="mord mathnormal">p</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8491em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span></span></span></span></span></span></span></span></span></span></span>); the bias shrinks as <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi></mrow><annotation encoding="application/x-tex">n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">n</span></span></span></span> grows but is never zero; for <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k=1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span>, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi mathvariant="normal">/</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">c/n</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">c</span><span class="mord">/</span><span class="mord mathnormal">n</span></span></span></span> is already unbiased.</p>
 <p><strong>Unbiased estimator</strong> (Chen et al., <a href="https://arxiv.org/abs/2107.03374">arXiv:2107.03374</a> §3): sample <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>≥</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">n\ge k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7719em;vertical-align:-0.136em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≥</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span></span></span></span> candidates per problem, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi></mrow><annotation encoding="application/x-tex">c</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">c</span></span></span></span> pass the unit tests, then</p>
@@ -292,7 +309,167 @@
 <div class="callout callout-info"><div class="callout-label">提示 / Note</div>
 <p>In the batch setting, fitting BT by MLE (logistic regression) over all pairwise results is more stable than per-match Elo and yields <strong>confidence intervals</strong> (Arena uses BT + bootstrap for intervals).</p>
 </div>
-<h2 id="sec-5">2. LLM-as-Judge: How to Use It + Biases</h2>
+<h3 id="sec-5">1.3 SWE-bench: From Function Completion to Real-World Software Engineering</h3>
+<blockquote>
+<p>📎 <strong>Cross-reference</strong>: SWE-bench represents the evolution of code evaluation from &quot;complete a function&quot; to &quot;fix a real bug&quot;. For the unbiased estimator of pass@k, see §1.1a; for the upper-bound analysis of sampling-scaling gains (coverage vs. verifier quality), see <a href="cheatsheet-test-time-scaling-en.html">test-time-scaling §3.3</a>. SWE-bench trajectories are also commonly used as training data for agent SFT/RL (see <a href="cheatsheet-long-horizon-agents-en.html">long-horizon-agents</a>).</p>
+</blockquote>
+<p><strong>SWE-bench</strong> (Jimenez et al., <a href="https://arxiv.org/abs/2310.06770">arXiv:2310.06770</a>, ICLR 2024) upgrades code evaluation from &quot;completing a function&quot; to <strong>&quot;fixing a real GitHub issue&quot;</strong> — one of the most influential new benchmarks in 2024 code evaluation.</p>
+<ul>
+<li><strong>Task</strong>: give the model a <strong>real GitHub issue description</strong> + the corresponding codebase <strong>snapshot</strong> → model generates a <strong>patch</strong> (<code>git diff</code>, potentially touching multiple files and lines)</li>
+<li><strong>Evaluation</strong>: inside a Docker container, apply the patch → run the instance&#39;s associated <strong>FAIL_TO_PASS</strong> and <strong>PASS_TO_PASS</strong> tests → counted as resolved only if both pass</li>
+<li><strong>Scale</strong>: ~2,294 issues across 12 popular Python repositories (Django, Flask, SymPy, scikit-learn, matplotlib, etc.)</li>
+<li><strong>Difficulty</strong>: requires understanding large codebase structure, locating the bug&#39;s file/function, writing cross-file changes — far beyond single-function completion (compare HumanEval&#39;s 164 isolated function problems)</li>
+</ul>
+<p><strong>Key subsets</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Subset</th>
+<th>Description</th>
+<th>Instance count</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SWE-bench Lite</strong></td>
+<td>Curated &quot;easy-to-get-started&quot; subset from the original SWE-bench, for rapid iteration</td>
+<td>~300</td>
+</tr>
+<tr>
+<td><strong>SWE-bench Verified</strong> (OpenAI 2024-08, <a href="https://openai.com/index/introducing-swe-bench-verified/">blog</a>)</td>
+<td>Human review of 500 instances: confirmed issue description quality + test reliability + excluded unreproducible instances; the fixed-up subset</td>
+<td>500</td>
+</tr>
+</tbody></table>
+<p><strong>Key result trajectory</strong> (% resolved; illustration of relative progress only, not a head-to-head comparison):</p>
+<ul>
+<li>2024-03 (original SWE-bench): Devin (Cognition AI) ~13.86% (first to break 10%)</li>
+<li>2024-08 (original SWE-bench): SWE-agent + GPT-4 combination ~18–20%</li>
+<li>2024-10 (Verified subset): Claude 3.5 Sonnet ~49% (then-SOTA)</li>
+<li>Early 2025 (Verified subset): multi-agent systems &gt;50%</li>
+</ul>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>SWE-bench&#39;s core constraint is <strong>evaluation cost</strong> — each instance requires building a full Docker container + running the repo&#39;s test suite, potentially taking 5–30 min per instance.</p>
+</div>
+<p><strong>Three tiers of code evaluation</strong> (HumanEval → BigCodeBench → SWE-bench):</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Benchmark</th>
+<th>Files</th>
+<th>Scoring</th>
+<th>Capability tested</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Single-function completion</td>
+<td>HumanEval, MBPP</td>
+<td>1 file</td>
+<td>Unit-test pass@k</td>
+<td>Basic code generation</td>
+</tr>
+<tr>
+<td>Complex func + library calls</td>
+<td><strong>BigCodeBench</strong> (<a href="https://arxiv.org/abs/2406.15877">arXiv:2406.15877</a>)</td>
+<td>Function-level + diverse library calls</td>
+<td>Unit-test pass@k</td>
+<td>Complex API usage</td>
+</tr>
+<tr>
+<td>Real-world software engineering</td>
+<td><strong>SWE-bench</strong></td>
+<td>Full repo (12 real repositories)</td>
+<td>Apply patch → run original test suite</td>
+<td>Code understanding + localization + editing</td>
+</tr>
+</tbody></table>
+<p><strong>Contamination-resistant complement</strong> — <strong>LiveCodeBench</strong> (Jain et al., <a href="https://arxiv.org/abs/2403.07974">arXiv:2403.07974</a>, ICLR 2025): automatically builds code evaluations from <strong>new</strong> LeetCode/AtCoder/Codeforces problems (temporal isolation), covering diverse tasks including code generation, execution prediction, and test generation, updated monthly on a rolling basis, addressing HumanEval&#39;s small size and overfitting issues.</p>
+<h3 id="sec-6">1.4 Agent Evaluation</h3>
+<blockquote>
+<p>📎 <strong>Cross-reference</strong>: This section focuses on agent <strong>evaluation</strong> (how to tell whether an agent is doing well). For agent training methods (self-evolution RL, tool-use SFT, computer-use recipes), see <a href="cheatsheet-long-horizon-agents-en.html">long-horizon-agents</a>.</p>
+</blockquote>
+<p>Post-training is evolving from &quot;single-turn dialogue&quot; to &quot;multi-step agents&quot;, and evaluation must follow. Agent evaluation is more complex than traditional benchmarks — it requires <strong>simulating real interaction environments</strong> (browsers, file systems, APIs), and success depends on <strong>multi-step decision chains</strong> rather than single-generation quality.</p>
+<p>Three representative agent benchmarks:</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>Environment</th>
+<th>Typical tasks</th>
+<th>Scoring method</th>
+<th>Core limitation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>WebArena</strong> (Zhou et al., <a href="https://arxiv.org/abs/2307.13854">arXiv:2307.13854</a>, ICLR 2024)</td>
+<td>Self-built websites (e-commerce/forum/map/CMS)</td>
+<td>&quot;Find the highest-rated review on a given product and reply&quot;</td>
+<td>Programmatic verification (page state/URL/element presence)</td>
+<td>Self-built environment has limited coverage, not the real internet</td>
+</tr>
+<tr>
+<td><strong>TAU-bench</strong> (Yao et al., <a href="https://arxiv.org/abs/2406.12045">arXiv:2406.12045</a>)</td>
+<td>Conversational tool-agent-user interaction (airline/retail/finance DB)</td>
+<td>&quot;Help the user reschedule the flight to Friday night, window seat, mileage upgrade&quot;</td>
+<td>Database state comparison + pass^k</td>
+<td>Multi-turn dialogue with simulated users; user behavior choices shape evaluation signal</td>
+</tr>
+<tr>
+<td><strong>OSWorld</strong> (Xie et al., <a href="https://arxiv.org/abs/2404.07972">arXiv:2404.07972</a>, NeurIPS 2024 D&amp;B)</td>
+<td>Real OS VMs (Ubuntu/Windows/macOS)</td>
+<td>&quot;Create a table in LibreOffice → export PDF → email it&quot;</td>
+<td>Screen state / file system / window state checks</td>
+<td>Most realistic but most expensive — each task needs a VM snapshot + VNC</td>
+</tr>
+</tbody></table>
+<p><strong>Three distinctive dimensions of agent evaluation</strong> (vs. traditional benchmarks):</p>
+<ol>
+<li><strong>Step-count dependence</strong>: the result is the success rate &quot;given a maximum step budget&quot; — <strong>accuracy-vs-steps curves</strong> carry more information than a single-point number (analogous to test-time scaling&#39;s accuracy-budget curves). The same model&#39;s success rate at 5 steps vs. 30 steps can differ by a factor of several.</li>
+<li><strong>Non-reproducibility</strong>: environment state and tool-call results can vary with network/time — needs Docker/VM snapshots to lock the environment for reproducibility.</li>
+<li><strong>Trajectory quality ≠ success</strong>: a trajectory that &quot;took 20 detour steps to succeed&quot; and one that &quot;finished directly in 3 steps&quot; are equivalent on success rate, but differ by multiples in efficiency and cost — must report <strong>step / token efficiency</strong>.</li>
+</ol>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>The biggest unresolved problem in agent evaluation: <strong>no consistent cross-benchmark ranking</strong> — an agent that is SOTA on WebArena may be mediocre on OSWorld, and vice versa. This reflects the fragmented state of agent evaluation; there is not yet an &quot;Arena for agents&quot;.</p>
+</div>
+<h3 id="sec-7">1.5 Long-Context Evaluation</h3>
+<p>&quot;Claiming 128K/1M support&quot; and &quot;actually using it well&quot; are two different things. Long-context evaluation needs to answer three questions: ① <strong>Can it find it?</strong> (retrieval); ② <strong>Can it understand it?</strong> (reasoning/synthesis); ③ <strong>Can it use it?</strong> (downstream tasks).</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>What it measures</th>
+<th>Context length</th>
+<th>Core finding</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Needle-in-a-Haystack (NIAH)</strong> (Kamradt 2023, <a href="https://github.com/gkamradt/LLMTest_NeedleInAHaystack">GitHub</a>)</td>
+<td>Insert a single fact at a <strong>random position</strong> in a long document → ask the model about that fact</td>
+<td>Extensible to any length</td>
+<td>Most models score near 100% for &quot;needles&quot; at the beginning or end, but <strong>drop significantly in the middle</strong> (U-shaped curve) — position bias also exists in long-context settings</td>
+</tr>
+<tr>
+<td><strong>RULER</strong> (Hsieh et al., <a href="https://arxiv.org/abs/2404.06654">arXiv:2404.06654</a>, COLM 2024)</td>
+<td><strong>Multi-needle</strong> retrieval + aggregation (answers across multiple needles must be synthesized) + multi-hop QA</td>
+<td>4K–128K+</td>
+<td>High scores on single-needle NIAH <strong>do not equal real capability</strong>; under multi-needle + multi-hop tests, many models that &quot;support 128K&quot; have effective context far below the claimed value</td>
+</tr>
+<tr>
+<td><strong>LongBench</strong> (Bai et al., <a href="https://arxiv.org/abs/2308.14508">arXiv:2308.14508</a>, ACL 2024)</td>
+<td>21 datasets across 6 task categories (single/multi-doc QA, summarization, code, few-shot learning, synthetic, dialogue)</td>
+<td>1K–18K bilingual (CN+EN)</td>
+<td>Long-context ability across different tasks <strong>is not a single dimension</strong> — code long-context and summarization long-context are two types of ability, not summarizable by a single scalar</td>
+</tr>
+</tbody></table>
+<p><strong>Key connections between long-context evaluation and post-training</strong>:</p>
+<ul>
+<li><strong>A special form of alignment tax</strong>: long-context ability often <strong>degrades</strong> during RLHF/DPO alignment training — safety/dialogue training data is mostly short-context, causing silent drops in long-context recall. This must be explicitly checked during evaluation.</li>
+<li><strong>The judge&#39;s own long-context capability</strong>: if LLM-as-judge is used to evaluate multi-turn or other long-context outputs, whether the <strong>judge itself</strong> can accurately judge in long contexts is also a factor (§2.2 judge-human agreement does not directly answer this).</li>
+</ul>
+<div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
+<p>&quot;Supports 128K&quot; ≠ &quot;can use all of 128K well&quot;. At minimum, cross-validate with RULER (multi-needle) and LongBench (multi-task) — do not rely on single-needle NIAH heatmaps alone.</p>
+</div>
+<h2 id="sec-8">2. LLM-as-Judge: How to Use It + Biases</h2>
 <blockquote>
 <p>📎 <strong>Cross-reference</strong>: This section focuses on LLM-as-Judge from the perspective of <strong>evaluation practice</strong> (how to select a judge, operational details, benchmark applications). For how LLM-as-Judge biases affect RM training and reward hacking when used as a <strong>RLHF training signal</strong>, see <code>cheatsheet-reward-modeling-eval-en.html §5.2</code>.</p>
 </blockquote>
@@ -305,7 +482,7 @@
 General mitigations: <strong>reference-guided</strong> judging (provide a reference answer), <strong>rubrics / scoring scales</strong>, <strong>multi-judge voting</strong>, and <strong>calibration against human annotations</strong>.</li>
 </ul>
 <p><strong>Formalizing position debiasing:</strong> let the judge&#39;s preference on an ordered pair be <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo><mo>∈</mo><mo stretchy="false">{</mo><mi>A</mi><mo separator="true">,</mo><mi>B</mi><mo stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">J(a,b)\in\{A,B\}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">∈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">{</span><span class="mord mathnormal">A</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mclose">}</span></span></span></span>. With no position bias, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(a,b)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">a</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span><span class="mclose">)</span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>b</mi><mo separator="true">,</mo><mi>a</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(b,a)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0962em;">J</span><span class="mopen">(</span><span class="mord mathnormal">b</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">a</span><span class="mclose">)</span></span></span></span> should pick the <strong>same</strong> answer (consistent). Debiased rule: count a win only if both orders pick the same answer, else call it a <strong>tie</strong> — making position bias an explicit tie rather than letting it leak into the win-rate. Note: AlpacaEval uses a single fixed ordering by default (model response first); MT-Bench pairwise mode uses swap augmentation (average the two orderings) — not all tools apply order averaging.</p>
-<h3 id="sec-6">2.1 Position-debiased judge harness (code)</h3>
+<h3 id="sec-9">2.1 Position-debiased judge harness (code)</h3>
 <pre><code class="hljs language-python"><span class="hljs-comment"># LLM-as-judge: pairwise comparison + position debiasing (order-swap) harness.</span>
 <span class="hljs-comment"># In practice judge() calls a strong model and parses its verdict; here a stub shows the protocol.</span>
 
@@ -333,7 +510,7 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <span class="hljs-built_in">print</span>(judge_debiased(<span class="hljs-string">&quot;q&quot;</span>, <span class="hljs-string">&quot;model&quot;</span>, <span class="hljs-string">&quot;ref&quot;</span>, biased_judge))   <span class="hljs-comment"># -&gt; &#x27;tie&#x27;</span>
 <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;win_rate:&quot;</span>, win_rate([<span class="hljs-string">&quot;q&quot;</span>], [<span class="hljs-string">&quot;model&quot;</span>], [<span class="hljs-string">&quot;ref&quot;</span>], biased_judge))  <span class="hljs-comment"># -&gt; 0.5</span>
 </code></pre>
-<h3 id="sec-7">2.2 Measuring judge–human agreement</h3>
+<h3 id="sec-10">2.2 Measuring judge–human agreement</h3>
 <p>&quot;Calibration / agreement with humans&quot; recurs throughout (the §1 RM row, the mitigations above, Q31), but <strong>raw agreement alone overstates &quot;the real agreement after removing chance&quot;</strong>: when one label dominates, two annotators agree by pure guessing with high probability. <strong>Cohen&#39;s κ</strong> removes this chance agreement:</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>κ</mi><mo>=</mo><mfrac><mrow><msub><mi>p</mi><mi>o</mi></msub><mo>−</mo><msub><mi>p</mi><mi>e</mi></msub></mrow><mrow><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>e</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">\kappa = \frac{p_o - p_e}{1 - p_e}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal">κ</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1408em;vertical-align:-0.8804em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2603em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">e</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">o</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">e</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.8804em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
 <ul>
@@ -356,14 +533,14 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <blockquote>
 <p>More than two annotators (nominal categories): use <strong>Fleiss&#39; κ</strong>; ordinal scores: use <strong>weighted κ</strong> or <strong>Krippendorff&#39;s α</strong> (supports ordinal distances and missing data).</p>
 </blockquote>
-<h3 id="sec-8">2.3 Length-controlled win-rate: the regression form</h3>
+<h3 id="sec-11">2.3 Length-controlled win-rate: the regression form</h3>
 <p>The §1 table lists AlpacaEval 2.0&#39;s debiasing as &quot;regress out length&quot; — concretely (Dubois et al., <a href="https://arxiv.org/abs/2404.04475">arXiv:2404.04475</a>) you fit a <strong>generalized linear model</strong> predicting the judge&#39;s preference, with the <strong>length difference</strong> as an explicit term (simplified form):</p>
 <p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>logit</mtext><mtext> </mtext><mi>P</mi><mo stretchy="false">(</mo><mtext>model</mtext><mo>≻</mo><mtext>ref</mtext><mo stretchy="false">)</mo><mo>=</mo><msub><mi>θ</mi><mi>m</mi></msub><mo>+</mo><mi>γ</mi><mo>⋅</mo><msub><mi mathvariant="normal">Δ</mi><mtext>len</mtext></msub><mo>+</mo><mo>…</mo></mrow><annotation encoding="application/x-tex">\text{logit}\,P(\text{model}\succ\text{ref}) = \theta_m + \gamma\cdot\Delta_{\text{len}} + \dots</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">logit</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="mopen">(</span><span class="mord text"><span class="mord">model</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≻</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">ref</span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">m</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6389em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0556em;">γ</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">Δ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">len</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.123em;"></span><span class="minner">…</span></span></span></span></span></p>
 <p>where <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Δ</mi><mtext>len</mtext></msub></mrow><annotation encoding="application/x-tex">\Delta_{\text{len}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">Δ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">len</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> is the two answers&#39; length difference. To report, set the length term <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Δ</mi><mtext>len</mtext></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\Delta_{\text{len}}=0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord">Δ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">len</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span> and take the expectation over the instruction distribution, giving the <strong>length-controlled win-rate</strong> — intuitively &quot;the win-rate the model should have if both answers were the same length&quot;, removing the &quot;length association&quot; the GLM models.</p>
 <p>⚠️ Note: it removes the <strong>length association the model fits</strong>, so genuine quality signal correlated with length may be removed along with it, and unmodeled style effects are not removed; empirically it markedly improves the Spearman correlation with Chatbot Arena (human Elo) rankings.</p>
-<h2 id="sec-9">3. Data Contamination</h2>
+<h2 id="sec-12">3. Data Contamination</h2>
 <p>The training set contains test-set examples → inflated scores that do not reflect generalization.</p>
-<h3 id="sec-10">3.1 Types of Contamination</h3>
+<h3 id="sec-13">3.1 Types of Contamination</h3>
 <table>
 <thead>
 <tr>
@@ -388,7 +565,7 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <td>Training set does not contain the exact questions, but contains highly related in-distribution samples, causing score inflation</td>
 </tr>
 </tbody></table>
-<h3 id="sec-11">3.2 Detection Methods</h3>
+<h3 id="sec-14">3.2 Detection Methods</h3>
 <ul>
 <li><strong>n-gram / substring overlap</strong>: compute n-gram Jaccard similarity between the training set and the evaluation set; filter above a threshold</li>
 <li><strong>Min-k% Prob (MIA)</strong>: Membership Inference Attack — compute the minimum k% token probability of a test sample under the model; member samples typically have higher minimum token probabilities than non-members (per Shi et al. 2024 and related work; exact effectiveness varies by setting)</li>
@@ -396,37 +573,39 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li><strong>Anomalously low perplexity</strong>: compute perplexity on test samples; if significantly lower than comparable new samples, this suggests the model may have seen them</li>
 <li><strong>Score drop after paraphrase</strong>: semantically rephrase test questions; if the model scores higher on originals than on rephrased versions, this suggests memorization rather than generalization</li>
 </ul>
-<h3 id="sec-12">3.3 n-gram Deduplication</h3>
+<h3 id="sec-15">3.3 n-gram Deduplication</h3>
 <ul>
 <li>Deduplicating within training data (exact + near-dedup) reduces memorization risk and limits contamination propagation to benchmarks</li>
 <li>Common tools: MinHash LSH, suffix array deduplication (per Lee et al. 2022 and related work)</li>
 <li>⚠️ Deduplication is not the same as decontamination: deduplication targets repeated entries within the training set; decontamination (去污染) specifically targets overlap between the training set and the evaluation set</li>
 </ul>
-<h3 id="sec-13">3.4 Contamination-Resistant Benchmark Design</h3>
+<h3 id="sec-16">3.4 Contamination-Resistant Benchmark Design</h3>
 <ul>
 <li><strong>Dynamic / private evaluation sets</strong>: use new questions each evaluation round (e.g., Chatbot Arena&#39;s continuous collection, LiveBench&#39;s monthly updates)</li>
 <li><strong>Programmatically generated questions</strong>: automatically generate questions with verifiable answers (math, code); novelty is guaranteed by the generation procedure</li>
 <li><strong>Temporal isolation</strong>: explicitly report the training data cutoff date and the evaluation set creation date, so readers can assess temporal leakage risk</li>
 <li><strong>Contamination audit reports</strong>: publicly disclose the decontamination pipeline and filtering rates in papers/reports to increase credibility</li>
 </ul>
-<h2 id="sec-14">4. Pitfalls in Preference Evaluation</h2>
+<h2 id="sec-17">4. Pitfalls in Preference Evaluation</h2>
 <ul>
 <li><strong>Goodhart&#39;s Law</strong>: once a benchmark becomes an optimization target, it ceases to be a good measure (leaderboard gaming ≠ genuine improvement).</li>
 <li><strong>Prompt sensitivity</strong>: the same model can score very differently with different prompt templates → fix evaluation prompts, report variance.</li>
 <li><strong>Judge ≠ ground truth</strong>: LLM-judge win-rate only reflects &quot;what another model thinks is good,&quot; not human preference or real-world utility.</li>
 <li><strong>Single-pass accuracy vs. compute budget</strong>: for reasoning models, report accuracy under a given test-time compute budget, not just single-pass accuracy.</li>
 </ul>
-<h2 id="sec-15">5. A Practical Evaluation Protocol (Post-Training)</h2>
+<h2 id="sec-18">5. A Practical Evaluation Protocol (Post-Training)</h2>
 <ol>
-<li><strong>Capability</strong>: GSM8K/MATH (math), HumanEval (code), MMLU (knowledge), IFEval (instruction following).</li>
-<li><strong>Alignment quality</strong>: AlpacaEval / MT-Bench (judge, with position debiasing); Chatbot Arena when necessary.</li>
+<li><strong>Capability</strong>: GSM8K/MATH (math), HumanEval → SWE-bench (code), MMLU/MMLU-Pro/GPQA (knowledge), IFEval (instruction following).</li>
+<li><strong>Alignment quality</strong>: AlpacaEval / MT-Bench / Arena-Hard (judge, with position debiasing); Chatbot Arena when necessary.</li>
 <li><strong>Safety / refusal</strong>: harmful-prompt refusal rate, over-refusal rate.</li>
+<li><strong>Agent</strong>: WebArena / TAU-bench (multi-step interaction, report accuracy-vs-steps curves).</li>
+<li><strong>Long-context</strong>: RULER (multi-needle retrieval) + LongBench (multi-task understanding); don&#39;t rely on single-needle NIAH alone.</li>
 <li><strong>Regression</strong>: compare against baselines to confirm no dimensions degraded (alignment tax).</li>
 <li><strong>Contamination audit</strong> + <strong>multiple seeds/prompts</strong> to report variance.</li>
 </ol>
 <hr>
-<h2 id="sec-16">Stratified Follow-ups</h2>
-<h3 id="sec-17">L1 Basics</h3>
+<h2 id="sec-19">Stratified Follow-ups</h2>
+<h3 id="sec-20">L1 Basics</h3>
 <ol>
 <li>Why is evaluation considered the bottleneck of post-training? What does each of capability benchmarks and preference evaluation measure?</li>
 <li>What is LLM-as-judge? What known biases does it have?</li>
@@ -439,7 +618,7 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li>Why fix the prompt template and report variance over multiple seeds?</li>
 <li>How do IFEval and MMLU fundamentally differ in <em>how</em> they score (programmatic verification vs. option accuracy)?</li>
 </ol>
-<h3 id="sec-18">L2 Intermediate</h3>
+<h3 id="sec-21">L2 Intermediate</h3>
 <ol start="11">
 <li>How is position bias mitigated? Why does &quot;evaluate both orderings and average&quot; work?</li>
 <li>How do AlpacaEval / MT-Bench / Chatbot Arena differ in their evaluation signals (automatic judge vs. human Elo)?</li>
@@ -452,7 +631,7 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li>Why is self-preference bias especially dangerous when using a homologous model as the judge?</li>
 <li>Why does a high judge win-rate not equal stronger human preference? Where do the two systematically diverge?</li>
 </ol>
-<h3 id="sec-19">L3 Deep Dive</h3>
+<h3 id="sec-22">L3 Deep Dive</h3>
 <ol start="21">
 <li>How does Goodhart&#39;s Law manifest in leaderboard gaming? How do you design &quot;gaming-resistant&quot; evaluations?</li>
 <li>How is a reward model evaluated (the RewardBench approach)? What is the relationship between RM evaluation and final policy performance?</li>
@@ -460,7 +639,41 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <li>If online metrics (user retention) conflict with offline evaluation (judge win-rate), which do you trust, and how do you investigate the discrepancy?</li>
 <li>When summarizing a model with a single scalar score, how can it mask Pareto-style regressions like &quot;capability ↑ but safety ↓&quot;? How should evaluation design expose this?</li>
 </ol>
-<h2 id="sec-20">Extended L3</h2>
+<h2 id="sec-23">2024 Frontier Supplement</h2>
+<blockquote>
+<p>The following questions cover the 2024 evaluation frontiers added to this page (SWE-bench, Agent Evaluation, Long-Context Evaluation, GPQA/MMLU-Pro).</p>
+</blockquote>
+<details>
+<summary>Qa. Why is GPQA called "Google-proof"? How does it fundamentally differ from MMLU / MMLU-Pro in discriminability?</summary><pre><code class="hljs"><span class="hljs-comment">**A:** GPQA (Graduate-Level Google-Proof Q&amp;A) questions are **graduate-level** physics/biology/chemistry multiple-choice questions designed by domain experts with the explicit goal that &quot;even a skilled non-expert with unrestricted web access cannot achieve 100% within 30 minutes&quot; (hence &quot;Google-proof&quot;). The fundamental difference from MMLU: ① MMLU&#x27;s human ceiling is high (~90%+), so discriminability is low (strong models cluster near the ceiling); ② GPQA&#x27;s domain expert accuracy is ~65% (varies by subject for Diamond), spreading out model differences. MMLU-Pro mitigates MMLU&#x27;s ceiling effect via 10-way choice (rather than 4-way) + removing overfitted/contaminated questions — it is the stepping stone between MMLU and GPQA.</span>
+
+<span class="hljs-comment">**Follow-up:** Why do reasoning models (o1/R1) often choose GPQA Diamond as a core evaluation?</span>
+Because GPQA requires deep domain knowledge + reasoning (cannot be answered directly by retrieval alone), making it natural <span class="hljs-keyword">for</span> measuring <span class="hljs-string">&quot;whether longer reasoning can compensate for knowledge gaps&quot;</span> — exactly the selling point of reasoning <span class="hljs-keyword">models</span>.
+</code></pre>
+</details><details>
+<summary>Qb. What is the essential difference between the code capability measured by SWE-bench vs. HumanEval? Why is pass@k alone insufficient to describe SWE-bench performance?</summary><pre><code class="hljs">**A:** HumanEval measures **single-function completion** (given signature + docstring → write the function <span class="hljs-keyword">body); </span><span class="hljs-keyword">SWE-bench </span>measures **real-world software engineering** (given a GitHub issue + full codebase → locate the <span class="hljs-keyword">bug </span>→ cross-file patch → pass the <span class="hljs-keyword">instance&#x27;s </span>FAIL_TO_PASS <span class="hljs-keyword">and </span>PASS_TO_PASS tests). Essential <span class="hljs-keyword">difference: </span>① the former tests <span class="hljs-string">&quot;generation&quot;</span><span class="hljs-comment">; the latter tests the compound capability of &quot;understanding + localization + editing&quot;; ② the former has isolated problems; the latter requires understanding cross-file dependencies in a large codebase. pass@k is insufficient to describe SWE-bench performance because each SWE-bench problem has only one correct patch (unlike code generation where you can sample k candidates and check whether one is correct) — pass@k&#x27;s &quot;at least one of k is correct&quot; logic does not apply; SWE-bench uses **% resolved** (associated tests all pass), a single-submission pass/fail.</span>
+
+**Follow-up:** Why is <span class="hljs-keyword">SWE-bench </span>Verified important?
+The <span class="hljs-keyword">original </span><span class="hljs-keyword">SWE-bench </span>had some issues with unclear descriptions <span class="hljs-keyword">or </span>unreliable tests — models could fail due to <span class="hljs-string">&quot;description ambiguity&quot;</span> <span class="hljs-keyword">or </span><span class="hljs-string">&quot;bugs in the tests themselves&quot;</span> rather than lack of capability. The Verified <span class="hljs-keyword">subset </span>(released <span class="hljs-keyword">by </span>OpenAI <span class="hljs-number">2024</span><span class="hljs-number">-08</span>) underwent human review of <span class="hljs-number">500</span> <span class="hljs-keyword">instances </span>to exclude such noise, making the evaluation signal cleaner.
+</code></pre>
+</details><details>
+<summary>Qc. What are the three distinctive challenges of agent evaluation? Why is "success rate" alone insufficient as a metric?</summary><pre><code class="hljs"><span class="hljs-comment">**A:** ① **Step-count dependence**: the same model&#x27;s success rate at a 5-step vs. 30-step budget can differ by multiples — you must report accuracy-vs-steps curves, not single-point numbers. ② **Non-reproducibility**: network/time/environment-state changes cause the same agent to produce different results on two runs — needs Docker/VM snapshots to lock the environment. ③ **Trajectory quality ≠ success**: a 20-detour-step success and a 3-direct-step success are equivalent on success rate, but totally different on efficiency and cost — must also report step / token efficiency. &quot;Success rate&quot; is insufficient because it only answers &quot;did it eventually succeed&quot;, not &quot;at what cost&quot; and &quot;under what step budget&quot; — the latter two are more important for real deployment.
+
+**Follow-up:** What is the biggest unresolved problem in agent evaluation today?
+The lack of consistent cross-benchmark ranking — an agent that is SOTA on WebArena may be mediocre on OSWorld (and vice versa). This reflects the fragmented state of agent evaluation;</span> there is no <span class="hljs-string">&quot;Chatbot Arena for agents&quot;</span> yet.
+</code></pre>
+</details><details>
+<summary>Qd. Why does a good single-needle NIAH heatmap ≠ strong long-context capability? What gaps do RULER and LongBench respectively fill?</summary><pre><code class="hljs">**A:** Single-needle NIAH only tests <span class="hljs-string">&quot;can you find one fact in a pile of irrelevant text&quot;</span> — this is a **necessary but insufficient** condition for<span class="hljs-built_in"> long-context </span>capability. RULER fills the <span class="hljs-string">&quot;multi-needle retrieval + multi-hop aggregation&quot;</span> gap (real usage often requires synthesizing information from multiple locations), exposing many models that score perfectly on single-needle NIAH but collapse on multi-needle. LongBench fills the <span class="hljs-string">&quot;multi-task diversity&quot;</span> gap (21 datasets across 6 categories, spanning summarization, code, few-shot learning, etc.), revealing that<span class="hljs-built_in"> long-context </span>capability is **not a single dimension** — a model may be strong at code<span class="hljs-built_in"> long-context </span>but weak at summarization long-context. The relationship: NIAH = basic retrieval probe, RULER = stress test, LongBench = ecological validity (real-world utility).
+
+**Follow-up:** How to<span class="hljs-built_in"> check </span>whether post-training has damaged<span class="hljs-built_in"> long-context </span>capability?
+Run RU<span class="hljs-class">LER + LongBench once before and once after post-training;</span> RLHF/DPO training data is mostly short-context, so silent degradation of<span class="hljs-built_in"> long-context </span>capability is an often-overlooked form of alignment tax.
+</code></pre>
+</details><details>
+<summary>Qe. How do Arena-Hard and MixEval respectively address the problems of "benchmark overfitting/contamination" and "single-benchmark narrowness"? What limitations remain?</summary><pre><code class="hljs"><span class="hljs-comment">**A:** **Arena-Hard** automatically selects 500 &quot;model-stumping&quot; questions from Chatbot Arena&#x27;s massive human-vote data and uses a GPT-4 pairwise judge — it inherits Arena&#x27;s contamination resistance (dynamic question pool) while compressing evaluation from &quot;crowd voting&quot; into an automatic pipeline, with Spearman ~94.1% against human Elo. Limitations: it fully inherits judge bias, and a fixed set of 500 questions can still be targeted for optimization. **MixEval** matches real web user queries to existing benchmark items, evaluates with ground-truth answers (not a judge), and uses dynamic weighted aggregation — fundamentally a &quot;multi-source benchmark mixture&quot; rather than a judge benchmark. Limitations: sampling weights are sensitive (tuning weights can &quot;change the ranking&quot;), and contamination from stale subset components can leak through.
+
+**Follow-up:** How does this relate to Goodhart&#x27;s Law in §4?
+Both Arena-Hard and MixEval are anti-gaming mechanisms designed under the premise that &quot;once a benchmark becomes an optimization target, it ceases to be a good measure&quot; — the former relies on dynamic + hard-question filtering, the latter on multi-source mixing to dilute any single benchmark&#x27;s weight.
+</span></code></pre>
+</details><h2 id="sec-24">Extended L3</h2>
 <details>
 <summary>Q26. When using LLM-as-judge to evaluate multi-turn, long-context conversations, what are the common difficulties? What methodological improvements exist?</summary><pre><code class="hljs">The core challenge <span class="hljs-keyword">in</span> evaluating multi-turn conversations <span class="hljs-keyword">is</span> <span class="hljs-keyword">that</span> <span class="hljs-keyword">the</span> judge model tends <span class="hljs-keyword">to</span> exhibit **context forgetting** <span class="hljs-keyword">or</span> **<span class="hljs-keyword">local</span> bias** — focusing only <span class="hljs-keyword">on</span> <span class="hljs-keyword">the</span> quality <span class="hljs-keyword">of</span> <span class="hljs-keyword">the</span> most recent one <span class="hljs-keyword">or</span> two turns <span class="hljs-keyword">while</span> <span class="hljs-keyword">ignoring</span> overall conversational coherence <span class="hljs-keyword">and</span> task completion. A key improvement <span class="hljs-keyword">is</span> designing **process-oriented rubrics** <span class="hljs-keyword">that</span> explicitly require evaluating each turn&#x27;s contribution <span class="hljs-keyword">to</span> <span class="hljs-keyword">the</span> final goal, <span class="hljs-keyword">and</span> introducing a **segment summarization** mechanism <span class="hljs-keyword">that</span> forces <span class="hljs-keyword">the</span> judge <span class="hljs-keyword">to</span> <span class="hljs-built_in">summarize</span> <span class="hljs-keyword">before</span> scoring, thereby partially mitigating <span class="hljs-keyword">its</span> short-sightedness.
 **Follow-up**: Beyond improving <span class="hljs-keyword">the</span> rubric, can <span class="hljs-keyword">the</span> evaluation protocol itself be changed <span class="hljs-keyword">to</span> reduce judging difficulty — <span class="hljs-keyword">for</span> example, decomposing <span class="hljs-keyword">it</span> <span class="hljs-keyword">into</span> a series <span class="hljs-keyword">of</span> simpler subtask evaluations?
@@ -489,7 +702,7 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 <summary>Q32. In domain-specific settings (e.g., medical, legal), what unique challenges arise for general-purpose LLM-as-judge evaluation? What are the key steps in building a domain-expert evaluation pipeline?</summary><pre><code class="hljs">The core challenges are the **domain knowledge <span class="hljs-keyword">barrier** </span><span class="hljs-keyword">and </span>the **specialized evaluation criteria** required. A general-purpose <span class="hljs-keyword">judge </span>may not understand the nuances of domain terminology <span class="hljs-keyword">or </span>the rigor of professional logic. Key steps in <span class="hljs-keyword">building </span>a domain evaluation pipeline are, first, **co-defining evaluation <span class="hljs-keyword">dimensions** </span>with domain experts — <span class="hljs-keyword">jointly </span>determining <span class="hljs-keyword">dimensions </span>such as <span class="hljs-string">&quot;conservatism of medical advice&quot;</span> <span class="hljs-keyword">or </span><span class="hljs-string">&quot;accuracy of legal citations.&quot;</span> Second, **<span class="hljs-keyword">building </span>a domain gold standard** — a set of authoritative reference answers <span class="hljs-keyword">or </span><span class="hljs-keyword">judgments </span>annotated <span class="hljs-keyword">by </span>experts. Finally, designing a **human-AI collaborative evaluation process** in which the AI <span class="hljs-keyword">judge </span>handles initial <span class="hljs-keyword">screening </span>while human experts handle edge-case review <span class="hljs-keyword">and </span>final adjudication.
 **Follow-up**: When domain experts themselves <span class="hljs-keyword">disagree </span>on the same response (e.g., physicians from <span class="hljs-keyword">different </span><span class="hljs-keyword">schools </span>of thought), how do you design a system that accommodates reasonable expert <span class="hljs-keyword">disagreement </span>while still enabling effective automated evaluation?
 </code></pre>
-</details><h2 id="sec-21">§A Key Papers Timeline</h2>
+</details><h2 id="sec-25">§A Key Papers Timeline</h2>
 <ul class="timeline">
 <li><p><strong>2020-09 · MMLU</strong> — Hendrycks et al., ICLR 2021. <a href="https://arxiv.org/abs/2009.03300">arXiv:2009.03300</a> — 57-subject four-way multiple-choice knowledge eval; established the &quot;broad-coverage MCQ&quot; paradigm. Its main weaknesses are option/letter-order bias and heavy later-stage contamination.</p>
 </li>
@@ -503,9 +716,17 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 </li>
 <li><p><strong>2023-06 · MT-Bench / LLM-as-a-Judge</strong> — Zheng et al., NeurIPS 2023. <a href="https://arxiv.org/abs/2306.05685">arXiv:2306.05685</a> — Multi-turn dialogue judge scoring plus systematic quantification of position/verbosity/self-preference bias; set the methodological baseline for LLM-as-judge.</p>
 </li>
+<li><p><strong>2023-07 · WebArena</strong> — Zhou et al., ICLR 2024. <a href="https://arxiv.org/abs/2307.13854">arXiv:2307.13854</a> — Self-built web environment (e-commerce/forum/map/CMS) for agent evaluation with programmatic verification of page state; one of the earliest systematic agent benchmarks.</p>
+</li>
+<li><p><strong>2023-08 · LongBench</strong> — Bai et al., ACL 2024. <a href="https://arxiv.org/abs/2308.14508">arXiv:2308.14508</a> — 21 datasets across 6 task categories (single/multi-doc QA, summarization, code, few-shot, synthetic, dialogue) in a bilingual (CN+EN) benchmark, revealing that long-context ability is not a single dimension.</p>
+</li>
 <li><p><strong>2023-10 · Min-K% Prob</strong> — Shi et al., ICLR 2024. <a href="https://arxiv.org/abs/2310.16789">arXiv:2310.16789</a> — Uses a sample&#39;s lowest k% token probabilities for pretraining-data membership inference, probing whether an eval set has been &quot;seen&quot; (contamination probe).</p>
 </li>
+<li><p><strong>2023-10 · SWE-bench</strong> — Jimenez et al., ICLR 2024. <a href="https://arxiv.org/abs/2310.06770">arXiv:2310.06770</a> — Evaluates code capability via real GitHub issues → patch → run FAIL_TO_PASS+PASS_TO_PASS tests, upgrading code evaluation from &quot;function completion&quot; to &quot;real-world software engineering&quot;; one of the most influential new benchmarks of 2024.</p>
+</li>
 <li><p><strong>2023-11 · IFEval</strong> — Zhou et al., arXiv preprint. <a href="https://arxiv.org/abs/2311.07911">arXiv:2311.07911</a> — Instruction-following eval built on programmatically verifiable instructions (word count / format), requiring no judge and objectively recomputable.</p>
+</li>
+<li><p><strong>2023-11 · GPQA</strong> — Rein et al., NeurIPS 2024 D&amp;B. <a href="https://arxiv.org/abs/2311.12022">arXiv:2311.12022</a> — Graduate-level &quot;Google-proof&quot; physics/biology/chemistry multiple-choice questions; domain experts score only 65–74%, providing a high-discriminability evaluation target for reasoning models.</p>
 </li>
 <li><p><strong>2024-03 · Chatbot Arena</strong> — Chiang et al., ICML 2024. <a href="https://arxiv.org/abs/2403.04132">arXiv:2403.04132</a> — Human blind pairwise battles converted to rankings via Bradley-Terry/Elo; massive votes plus fresh prompts make it the contamination-resistant human-preference gold standard.</p>
 </li>
@@ -513,7 +734,25 @@ General mitigations: <strong>reference-guided</strong> judging (provide a refere
 </li>
 <li><p><strong>2024-04 · Length-Controlled AlpacaEval</strong> — Dubois et al., COLM 2024. <a href="https://arxiv.org/abs/2404.04475">arXiv:2404.04475</a> — Regresses &quot;length&quot; out of win-rate, substantially reducing verbosity bias and improving correlation with human rankings.</p>
 </li>
+<li><p><strong>2024-04 · OSWorld</strong> — Xie et al., NeurIPS 2024 D&amp;B. <a href="https://arxiv.org/abs/2404.07972">arXiv:2404.07972</a> — Evaluates agents in real OS VMs (LibreOffice/browser/file management), verifying task completion via screen state + file system changes; the most realistic agent benchmark but extremely expensive.</p>
+</li>
 <li><p><strong>2024-06 · LiveBench</strong> — White et al., ICLR 2025. <a href="https://arxiv.org/abs/2406.19314">arXiv:2406.19314</a> — Monthly rolling updates with objective, verifiable answers for contamination-resistant evaluation, reducing inflation from data leakage.</p>
+</li>
+<li><p><strong>2024-06 · MMLU-Pro</strong> — Wang et al., arXiv preprint. <a href="https://arxiv.org/abs/2406.01574">arXiv:2406.01574</a> — MMLU strengthened: 10-way choice + removal of overfitted/contaminated questions, addressing MMLU&#39;s ceiling effect with significantly improved discriminability among strong models.</p>
+</li>
+<li><p><strong>2024-06 · Arena-Hard</strong> — Li et al., arXiv preprint. <a href="https://arxiv.org/abs/2406.11939">arXiv:2406.11939</a> — Automatically selects 500 hard questions from Chatbot Arena data for GPT-4 pairwise judging, with Spearman ~0.9 against human Elo; fast automatic proxy for human preference.</p>
+</li>
+<li><p><strong>2024-06 · MixEval</strong> — Ni et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2406.06565">arXiv:2406.06565</a> — Mixed sampling from multiple benchmarks with dynamic weighted aggregation, using multi-source mixing to dilute individual benchmark weight against narrowness + contamination.</p>
+</li>
+<li><p><strong>2024-04 · RULER</strong> — Hsieh et al., COLM 2024. <a href="https://arxiv.org/abs/2404.06654">arXiv:2404.06654</a> — Multi-needle retrieval + multi-hop synthesis as a long-context stress test, exposing the effective-context inadequacy masked by single-needle NIAH heatmaps.</p>
+</li>
+<li><p><strong>2024-06 · BigCodeBench</strong> — Zhuo et al., arXiv preprint. <a href="https://arxiv.org/abs/2406.15877">arXiv:2406.15877</a> — Function-level code evaluation with diverse library calls, filling the evaluation gap between HumanEval (simple functions) and SWE-bench (full repo).</p>
+</li>
+<li><p><strong>2024-06 · TAU-bench</strong> — Yao et al., arXiv preprint. <a href="https://arxiv.org/abs/2406.12045">arXiv:2406.12045</a> — Conversational tool-agent-user interaction benchmark, verifying agent task completion via database state comparison; another important dimension of agent evaluation.</p>
+</li>
+<li><p><strong>2024-08 · SWE-bench Verified</strong> — OpenAI, <a href="https://openai.com/index/introducing-swe-bench-verified/">blog</a>. — Human review of 500 SWE-bench instances: confirmed issue description quality + test reliability, excluding noise to produce a cleaner evaluation signal.</p>
+</li>
+<li><p><strong>2024-08 · LiveCodeBench</strong> — Jain et al., ICLR 2025. <a href="https://arxiv.org/abs/2403.07974">arXiv:2403.07974</a> — Automatically constructs code evaluations from new LeetCode/AtCoder/Codeforces problems, with monthly rolling updates for temporal isolation, addressing HumanEval&#39;s small size and overfitting.</p>
 </li>
 </ul>
 </main>
