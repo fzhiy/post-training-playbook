@@ -47,12 +47,71 @@ def grpo_loss(logp, logp_old, logp_ref, rewards, mask, group_size,
 - 也 critic-free:样本 $i$ 的 baseline = **其余 $G-1$ 个样本奖励的均值**,REINFORCE 式梯度。
 - 比 PPO 简单(无 clip/critic),RLHF 上与 PPO 竞争。与 GRPO 的差异在 baseline 构造(留一 vs 组内标准化)与是否 clip。
 
+**from-scratch 实现**(留一 baseline + REINFORCE 梯度):
+
+```python
+import torch
+
+def rloo_loss(logp, rewards, mask, group_size):
+    """RLOO:REINFORCE + leave-one-out baseline。rewards 已按 prompt 分组。
+    logp: (B, T) 逐 token logprob; rewards: (B,) 每条回答的标量奖励; mask: (B, T) 有效 token。"""
+    r = rewards.view(-1, group_size)                        # (n_prompts, G)
+    # 留一 baseline:样本 i 的 baseline = 其余 G-1 个奖励的均值
+    # 等价于 (sum(r) - r_i) / (G - 1)
+    baseline = (r.sum(1, keepdim=True) - r) / (group_size - 1)
+    adv = r - baseline                                      # (n_prompts, G) REINFORCE 优势
+    adv = adv.reshape(-1, 1)                                # (B, 1)
+    seq_logp = (logp * mask).sum(1)                         # (B,) 每条回答的总 log 概率
+    loss = -(seq_logp * adv.squeeze()).mean()               # REINFORCE:最小化负对数似然×优势
+    return loss
+# RLOO 与 GRPO 的核心差异:
+# 1. baseline 用留一均值(G-1 个)而非组内全体均值(G 个含自身)
+# 2. 不做 std 归一化——奖励尺度直接反映优势
+# 3. 不做 clip——纯 REINFORCE 无 PPO 式重要性采样修正
+```
+
 ## 4. DAPO — 让 GRPO 在 long-CoT 下不崩 / Decoupled-clip & Dynamic-sAmpling PO
 ByteDance 2025 开源配方,针对长链推理 RL 的四个改动:
 1. **Clip-Higher**:上、下裁剪 $\epsilon$ **解耦**、抬高上界 → 给低概率 token 上升空间,**防熵塌缩**(policy 过早变确定、停止探索)。
 2. **Dynamic Sampling**:丢掉「一组全对 / 全错」的 prompt(组内优势恒 0、无梯度),保证每个 batch 都有效。
 3. **Token-level loss**:按 **token** 而非 **序列** 平均,避免长回答的梯度被稀释(长 CoT 关键)。
 4. **Overlong reward shaping**:对超长回答软惩罚,稳住训练。
+
+**from-scratch 实现**(在 GRPO 代码基础上改三处):
+
+```python
+def dapo_loss(logp, logp_old, logp_ref, rewards, mask, group_size,
+              clip_low=0.2, clip_high=0.28, beta=0.0):
+    """DAPO:在 GRPO 上改三处——clip-higher + token-level loss + 可选去 KL。
+    beta=0.0 对应 DAPO 原始论文去掉 KL 的做法。"""
+    # --- 同 GRPO 的优势计算 ---
+    r = rewards.view(-1, group_size)
+    adv = (r - r.mean(1, keepdim=True)) / (r.std(1, keepdim=True) + 1e-6)
+    adv = adv.reshape(-1, 1)
+
+    # --- 改动 1:Clip-Higher — 上下界解耦 ---
+    ratio = torch.exp(logp - logp_old)
+    surr1 = ratio * adv
+    # 上界 clip_high 高于下界 clip_low → 给低概率 token 上升空间
+    surr2 = torch.clamp(ratio, 1 - clip_low, 1 + clip_high) * adv
+    policy = torch.min(surr1, surr2)
+
+    # --- 改动 2:Token-level loss — 所有 token 等权 ---
+    logr = logp_ref - logp
+    kl = torch.exp(logr) - logr - 1
+    per_tok = policy - beta * kl
+    # 除以 total_tokens 而非 per-sequence average
+    total_tokens = mask.sum().clamp(min=1)            # ∑|o_i|
+    loss = -(per_tok * mask).sum() / total_tokens      # token-level 平均
+
+    # --- 改动 3 (未在代码体现,由外层实现):Dynamic Sampling ---
+    # 丢掉组内奖励全部相同(全对/全错)的 prompt → 保证每个 batch 有有效梯度
+
+    return loss
+# 对比 GRPO:① ε 对称→非对称(clip_high > clip_low);
+# ② 1/|o_i| 长度归一化→1/∑|o_i| token 级归一化;
+# ③ dynamic sampling 在 batch 构造时过滤,不在 loss 里。
+```
 
 ## 5. Dr.GRPO — 修 GRPO 的优化偏置 / GRPO Done Right
 - 指出 GRPO 两处**偏置**:优势里的 **std 归一化**(放大题目难易不平衡)+ loss 里的 **1/回答长度** 归一化(偏好「更长的错误回答」)。
@@ -95,6 +154,16 @@ $$J_\text{GSPO}(\theta)=\mathbb{E}\!\left[\frac{1}{G}\sum_{i=1}^G\min\!\big(s_i\
 > ⚠️ GMPO([arXiv:2507.20673](https://arxiv.org/abs/2507.20673))认为序列级 clip「过于激进」、丢失梯度信息,主张 token 级 clip + 几何平均加权;两者各有取舍,尚无定论。
 
 **CISPO**(MiniMax,[arXiv:2506.13585](https://arxiv.org/abs/2506.13585),2025-06)从另一角度修 clip 截断梯度:不 clip 概率比率(那会让越界 token 梯度归零),而是 clip **标量 IS 权重**本身、保留所有 token 的梯度。论文报告在 Qwen2.5-32B 上对比 DAPO 约 2× 训练加速。GSPO 在序列级做单元匹配,CISPO 在 token 级保梯度完整 —— 是修复 GRPO clip 的两条互补路线。
+
+### 5.6 GMPO — token 级 clip + 几何平均权重 / Group Mean Policy Optimization
+
+**GMPO**(Zhao et al.,[arXiv:2507.20673](https://arxiv.org/abs/2507.20673),2025-07,"Geometric-Mean Policy Optimization")认为 GSPO 的序列级 clip "过于激进,丢弃了 token 级的精细梯度"。它用**几何平均替换算术平均**做组内奖励聚合,而非 GSPO 的序列级比率——论文称在数学推理上优于 GRPO。GSPO vs GMPO vs CISPO 的核心分歧在于 **"clip 的粒度单元应该是什么"**——序列(认为 token 级漂移是假信号)、token(认为序列级丢信息)、标量权重(认为 clip 概率比率本身就是错的)。三方互不承认对方的前提,目前是 2025 该方向最活跃的理论争议。
+
+| 方法 | clip 粒度 | 比率定义 | 核心改动 |
+|------|------|------|------|
+| **GSPO** | 序列级 | $s_i=(\pi_\theta/\pi_{old})^{1/\vert y_i\vert}$ | 整条序列一起 clip |
+| **GMPO** | token 级 | $w_{i,t}=\pi_\theta/\pi_{old}$ | token 级 clip + 几何平均加权降方差 |
+| **CISPO** | token 级(标量) | 标量 IS 权重(非概率比率) | clip 权重本身,不 clip 概率比率 |
 
 ```python
 import torch
@@ -154,24 +223,121 @@ print(f"GSPO 截断 {gspo_clip}/3 条序列 (eps_l={eps_l}, eps_r={eps_r})")
 - **Self-Rewarding LM**:模型当自己的 judge 产偏好数据、迭代偏好优化,减少人工标注依赖。
 - **SPIN(self-play)**:用模型自己旧输出当「负样本」做对抗式微调。风险:自我偏好被放大。
 
+## 9. 算法选型速查 / Algorithm cheat-sheet
+
+| 场景 | 推荐 | 理由 |
+|------|------|------|
+| 可验证域(math/code)、追求简洁、算力充足 | **GRPO** | 无 critic 开销，组内相对优势干净；DeepSeek 系主力，生态最好 |
+| 可验证域 + 长 CoT + 怕熵塌缩 | **DAPO** | clip-higher 防崩 + token-level loss + dynamic sampling；ByteDance 开源 |
+| 可验证域 + 想要更无偏的估计 | **Dr.GRPO** | 去掉 std 和长度归一化偏置；token 更省、回答不虚长 |
+| MoE 训练、需序列级稳定 | **GSPO** | 序列级 IS 比率 + 紧 proximal 约束；Qwen3 用，对路由漂移鲁棒 |
+| 不可验证域(对话/写作质量)、奖励嘈杂 | **PPO** | critic 通过 TD 学习平滑噪声；GAE 提供 per-token 信号；最稳但最贵 |
+| 开放域 + 对噪声鲁棒性要求高 | **RLOO** | 留一 baseline 无偏；比 PPO 简单但非可验证域上比 GRPO 更稳(无 std 放大噪声) |
+| 资源受限(小模型/少 GPU) | **蒸馏 SFT** | R1-Distill 证明小模型自身 RL 不如吃大模型轨迹；SFT 便宜稳定 |
+
+> 📝 核心原则:**奖励信号干净 → critic-free(GRPO 系)；奖励信号嘈杂/稀疏 → critic-based(PPO)；小模型/资源受限 → 蒸馏。**
+
 ---
 
 ## 分层面试题 / Stratified follow-ups
 
 ### L1 基础
-- GRPO 相比 PPO 省了什么?「组内相对优势」具体怎么算?
-- RLVR 的奖励从哪来?为什么能缓解 reward hacking?它的局限是什么?
+
+<details>
+<summary>Q1: GRPO 相比 PPO 省了什么？「组内相对优势」具体怎么算？</summary>
+
+**答：** GRPO 省掉了 **critic（value network）**——从 PPO 的四模型（actor + critic + ref + RM）减为三模型（actor + ref + RM），节省一份模型参数的显存和 value 训练开销。组内相对优势：对每个 prompt 采样 $G$ 个回答得奖励 $r_1..r_G$，用**组内均值替换 value baseline + 标准差缩放**：
+$$A_i = \frac{r_i - \mathrm{mean}(r)}{\mathrm{std}(r) + \varepsilon}$$
+直觉：$\mathrm{mean}(r)$ 是该 prompt 下"平均能拿多少分"的 MC 估计——用它当 baseline 扣掉题目难度影响；$\mathrm{std}(r)$ 缩放保证不同 prompt 的优势在同一尺度。为什么能省 critic？因为可验证域（math exact-match、code 单测）的奖励信号干净稳定，无需学 value function 去估计"这个状态将来能拿多少分"。
+
+> **追问：** 如果奖励有噪声（如对话质量 RM 打分），组内平均还能当 baseline 吗？
+> 能但效果打折扣——噪声大时 $\mathrm{mean}(r)$ 的方差大，组内对比的信号被稀释；PPO 的 critic 通过 TD 学习平滑噪声反而更稳。这也是为什么 GRPO 主线选可验证域（见 §6）。
+
+</details>
+
+<details>
+<summary>Q2: RLVR 的奖励从哪来？为什么能缓解 reward hacking？它的局限是什么？</summary>
+
+**答：** RLVR 的奖励来自**规则 / 验证器**而非学习的神经 RM：数学用 exact-match（最终答案比对标准答案）、代码用 unit test pass/fail、格式用正则检查。缓解 reward hacking 的原因是：**规则验证器 ≈ ground truth**——它不存在"学会了长=好"这类神经 RM 的系统偏置，几乎不可被 hack（仍有格式 gaming、重复 token 骗 length 奖励等，但比神经 RM 干净得多）。局限：**只适用于可验证域**（math/code/可机检格式）——开放域（写作质量、对话 helpfulness、安全性）没有规则化验证器，仍需神经 RM 或 LLM-as-judge。R1 主线正是利用了这一特性：在可验证域用 RLVR 做主训练，通用域另用 helpful/harmless RM 做阶段 4 对齐。
+
+> **追问：** 格式奖励（如"答案放在 \boxed{} 里给 +0.1"）是 RLVR 还是神经 RM？
+> 是 RLVR——格式是正则可检的硬规则。但实践中格式奖励容易变成 reward hack 目标（模型学会输出 \boxed{错误答案} 骗格式分），需要仔细调权重。
+
+</details>
 
 ### L2 进阶
-- long-CoT RL 里「token-level vs sequence-level」loss 为什么有区别?(长回答梯度被稀释)
-- GRPO 用 std 归一化优势会引入什么偏置?Dr.GRPO 怎么修?
-- DAPO 的 clip-higher 解决什么问题?熵塌缩是什么、为什么坏?
+
+<details>
+<summary>Q3: long-CoT RL 里「token-level vs sequence-level」loss 为什么有区别？</summary>
+
+**答：** **Sequence-level loss**（GRPO 原始写法）：$L = \frac{1}{N}\sum_i \frac{1}{|o_i|}\sum_t \ell_{i,t}$——先对每条序列内按 token 平均，再对序列平均。问题：长回答的每个 token 贡献的梯度被 $|o_i|$ 稀释（$|o_i|$ 大则单 token 梯度小），导致长推理链的早期关键步骤几乎收不到信号。**Token-level loss**（DAPO 改法）：$L = \frac{1}{\sum_i |o_i|}\sum_i\sum_t \ell_{i,t}$——所有 token 等权，每个 token 贡献同等梯度。**在 long-CoT RL 中 token-level 是必须的**——否则模型会被诱导"少写 token 拿同样的奖励"，压缩推理链长度。Dr.GRPO 进一步指出：$1/|o_i|$ 不仅稀释长回答的正确 token，还**系统性地偏好长的错误回答**（错误回答长 → 每个错误 token 的惩罚被稀释 → 看起来 loss 更小），是优化偏置的重要来源。
+
+> **追问：** token-level loss 会不会反过来让短正确回答拿过高梯度导致训练不稳定？
+> 会——短正确回答的每个 token 梯度更大，实践中需配合 gradient clipping 和合适的 LR 调度来控制。
+
+</details>
+
+<details>
+<summary>Q4: GRPO 用 std 归一化优势会引入什么偏置？Dr.GRPO 怎么修？</summary>
+
+**答：** Std 归一化让不同 prompt 的优势被缩放到同一尺度——但引入两种偏置：① **难度偏置**：组内方差小的 prompt（如全对/全错，std→0）优势被人工放大（除以一个很小的数），这些 prompt 在 batch 中"嗓门更大"；② **与长度归一化的交互偏置**：std 缩放 + $1/|o_i|$ 长度归一化叠加，让优化方向偏向"更长但更差的回答"（长的错误回答在两重操作下梯度更"好看"）。**Dr.GRPO 的修复**：① 去掉 std 除法——只用 $A_i = r_i - \mathrm{mean}(r)$，保留 baseline 的方差缩减效果、去掉缩放偏置；② 去掉 $1/|o_i|$ 长度归一化——改用常数归一化（如除以最大长度或不用归一化），消除对长错误回答的系统性偏好。代价：优势的绝对尺度因 prompt 而异，需配合合适的 LR 调度。论文称修复后 token 更省、回答不虚长。
+
+> **追问：** 去掉 std 后，难度跨度大的 prompt（简单题奖励 0-1，难题奖励 0-10）怎么处理？
+> 可以对奖励做全局归一化（如 batch-level z-score）或 reward clipping——但这是另一层设计选择，独立于 GRPO 的组内 baseline 构造。
+
+</details>
+
+<details>
+<summary>Q5: DAPO 的 clip-higher 解决什么问题？熵塌缩是什么、为什么坏？</summary>
+
+**答：** **熵塌缩（entropy collapse）**：策略过早变得**确定性过高**（某些 token 概率→1，其他→0），导致不再探索新的推理路径——模型被"锁"在当前策略里。**PPO 对称 clip 如何造成熵塌缩**：clip 范围 $[1-\varepsilon, 1+\varepsilon]$ 对 importance ratio $\rho=\pi_\theta/\pi_{old}$ 对称限制。但对**新学到的低概率推理 token**（如回溯、换路的特定 token 序列），初始概率极低，在正优势下 $\rho$ 从远小于 1 往上走——上界 $1+\varepsilon$ 很快 clip 住了这些 token 的提升空间。与此同时，高概率 token（如"所以"、"因此"等连接词）的 $\rho\approx1$，clip 对它们几乎没影响。结果：**低概率创新 token 的上升通道被对称封顶，高概率 token 相对愈加固化**。**Clip-higher 的解**：解耦上下界、抬高上界（如 $\varepsilon_{low}=0.2, \varepsilon_{high}=0.28$），给低概率 token 留出上升空间，维持探索。
+
+> **追问：** 除了 clip-higher，还有什么防熵塌缩的手段？
+> 添加 entropy bonus（奖励里加 $+\lambda H(\pi)$）、温度退火（训练前期用高温度鼓励探索）、EMA reference（用 SFT checkpoint 做慢滑锚定）。DAPO 选择 clip-higher 是因为它最轻量、不改奖励信号。
+
+</details>
 
 ### L3 深挖
-- 推一遍:GRPO 的优势为何可视为「用组内均值近似 value baseline」?偏差/方差怎么权衡?
-- 为什么 dynamic sampling(丢全对/全错组)能提效?和 curriculum / 难度采样什么关系?
-- 测试时扩展对「能力是否训练即得」的范式意味着什么?推理 RL 与「纯 SFT 蒸馏长 CoT」的取舍?
-- critic-free(GRPO/RLOO)在什么情况下反而不如带 value 的 PPO?
+
+<details>
+<summary>Q6: 推一遍：GRPO 的优势为何可视为「用组内均值近似 value baseline」？偏差/方差怎么权衡？</summary>
+
+**答：** 设 $V(s) = \mathbb{E}[r|s]$ 是给定状态（prompt）下的期望奖励。GRPO 的组内均值 $\hat\mu=\frac{1}{G}\sum_i r_i$ 是 $V$ 的 **MC 估计**——当 $G\to\infty$ 时 $\hat\mu\to V(s)$。去中心化的优势 $r_i-\hat\mu$ 就是在用 MC baseline 做方差缩减——保留 REINFORCE 的无偏梯度同时减少方差。**偏差-方差谱系**：① $G$ 小时，$\hat\mu$ 的 MC 方差高（baseline 自身噪声大），优势估计波动大，但均值仍是**无偏**的（不系统偏移）；② std 归一化引入**轻微偏差**（除以 $\hat\sigma$ 改变 $A_i$ 的期望值），但大幅降方差（保护梯度尺度稳定），GRPO 选择了这端的权衡；③ Dr.GRPO 去掉 std→退回无偏的 $r_i-\hat\mu$，方差更大，需要用更大 $G$ 或更保守 LR 补偿；④ PPO 的 value baseline $\hat V(s)$ 是**有偏**的（函数近似误差），但通过 TD 学习能持续改进估计质量。所以在奖励干净 + $G$ 够大的可验证域，critic-free 的无偏 baseline 就够；在奖励嘈杂 + 长轨迹的开放域，PPO 的有偏但低方差的 critic 更稳。
+
+> **追问：** 能否把 GRPO 和 PPO 的 baseline 取加权混合？
+> 理论上可行（ensemble baseline），但实践中几乎没人这样做——因为两种 baseline 的训练范式不同（critic-free vs critic-based），混合的工程代价高且收益不明确。
+
+</details>
+
+<details>
+<summary>Q7: 为什么 dynamic sampling（丢全对/全错组）能提效？和 curriculum / 难度采样什么关系？</summary>
+
+**答：** 全对/全错组所有样本奖励相同 → $A_i\equiv0$ → **零梯度**，只消耗算力不做任何参数更新。dynamic sampling 丢掉它们不只是省算力，更是**保证每个 batch 都有有效的梯度信号**，防止优化被零梯度 batch 干扰。与 curriculum learning 的关系：两者都筛选训练样本的难度，但**方向相反**——curriculum 是"从易到难"的预设难度顺序，dynamic sampling 是根据**模型当前能力**实时筛题：全对的题太易（模型已会）、全错的题太难（模型还不会），过滤后保留"模型刚好会但不确定"的难度带——本质上是**在线难度滤波（online difficulty filtering）**。
+
+> **追问：** 如果 batch 里大部分 prompt 都被过滤（训练后期难度收敛），怎么办？
+> 降采样频率而非完全丢弃——把所有"无效 prompt"的采样率降低而非清零；或扩充 prompt 库增加新题。DAPO 的做法是前者。
+
+</details>
+
+<details>
+<summary>Q8: 推理 RL 与「纯 SFT 蒸馏长 CoT」的取舍？R1-Distill 的结论意味着什么？</summary>
+
+**答：** 推理 RL（GRPO + RLVR）：让模型**自己探索**如何有效使用更多 token（反思、验算、换路），在训练过程里习得长推理行为。蒸馏（SFT from teacher traces）：直接模仿"老师已经想好的"推理轨迹。各自的优劣：① 推理 RL 上限更高——能发现蒸馏数据里**没有**的推理模式（R1-Zero 的自发反思/验算证明这一点），但训练不稳定、只在可验证域有效；② 蒸馏更便宜稳定、适用面广（任何域只要有 teacher 轨迹即可），但上限受 teacher 质量限制（"老师不会的，学生也学不会"）。**R1-Distill 的核心结论**：**蒸馏 > 在小模型上直接 RL**——小模型自身 RL 探索不动（在如此大的搜索空间里，小模型的初始化不够好、组内多样性差），不如直接吃大模型的推理轨迹。这不是说蒸馏绝对优于 RL——而是在**大模型做 RL + 小模型蒸馏**的组合里，分工明确：大模型负责探索、小模型负责学习探索结果。
+
+> **追问：** 这个结论对学术界的资源受限研究有何启示？
+> 如果只有小算力，优先走蒸馏路线（用开源强大的推理模型产轨迹 → SFT 给小模型），而不是在小模型上从头跑 GRPO——性价比更高。
+
+</details>
+
+<details>
+<summary>Q9: critic-free（GRPO / RLOO）在什么情况下反而不如带 value 的 PPO？</summary>
+
+**答：** Critic-free 方法的前提是"**奖励信号干净 + 组内对比有效**"。四个失效场景：① **奖励噪声大**（如对话质量 RM 打分波动大）：无 value 做时序平滑，组内 z-score 放大噪声，梯度方向不可靠；② **组内多样性差**：采样 Temperature 太低或模型过拟合时，G 条回答几乎相同 → std→0 → 优势估计崩溃（除以 0）——PPO 的 critic 不受采样多样性的影响；③ **稀疏奖励 + 长轨迹**：只给最终答案对/错（0/1），中间 1000 个 token 都没有信号——GRPO 只能靠最终奖励的组内对比，PPO 的 GAE 通过 TD 把未来奖励逐步反传、给每个 token 提供更平滑的 per-token 信号；④ **非平稳奖励分布**：神经 RM 随训练本身也在变化时，PPO 的 critic 能适应奖励分布漂移，critic-free 的组内 baseline 只能反映当前 batch。简记：**可验证域=critic-free 最优，非可验证域/长轨迹/噪声环境=PPO 更稳**。
+
+> **追问：** 是否可能在"可验证域 + 稀疏奖励"场景里引入轻量 critic 做混合？
+> 这是一个开放研究问题——轻量 critic（如从 PRM 初始化、只做结果级 value 估计）可能为每组提供跨 prompt 的全局 baseline，在保持 critic-free 简单性的同时改善稀疏奖励。目前还没有标准做法。
+
+</details>
 
 
 ## 更多 L3 深挖 / Extended L3
@@ -251,6 +417,26 @@ print(f"GSPO 截断 {gspo_clip}/3 条序列 (eps_l={eps_l}, eps_r={eps_r})")
 
 **A:** Standard PPO 的对称 clip $[1-\epsilon, 1+\epsilon]$ 作用于 importance ratio $\rho=\pi_\theta/\pi_{\theta_{old}}$。关键洞察：在长 CoT 中，模型已经习得的高概率 token（如常见推理连接词）的 $\rho$ 接近 1，对称 clip 对它们影响小；但**新学到的低概率推理模式**（如回溯、自我纠正的特定 token 序列）初始概率极低，当正优势 $A>0$ 时 $\rho$ 从小于 1 往上走，上界 $1+\epsilon$ 很快就 clip 住了——这些 token 的提升空间被硬性封顶。与此同时，当负优势 $A<0$ 时，下界 $1-\epsilon$ 同样限制了高概率 token 的下降，但高概率 token 的空间本身就大，下降余量充足。因此对称 clip 在信息几何上造成了**不对称的学习动态**：高概率 token 的"下降通道"比低概率 token 的"上升通道"更宽。Clip-higher 通过抬高上界打破了这个不对称。
   **追问:** 除了解耦 clip bound，是否可以从 trust region 的角度出发（如用 KL 约束代替 hard clip），来更优雅地解决这个问题？这在长 CoT 场景下的计算代价如何？
+
+</details>
+
+<details>
+<summary>Q: 走一遍 DeepSeek-R1 的完整训练流程（四阶段）。每一步为什么放在这个位置？能否调换顺序？</summary>
+
+**A:** R1 的四阶段顺序是精心设计的，不是随意堆叠：
+
+1. **冷启动 SFT**（→可读性基础）：直接用 base model 跑 RL 会产生 R1-Zero 的问题——长 CoT 方向对但答案不可读、中英混杂。先用少量高质量 long-CoT 样本做 SFT 打"格式/语言"的底，让后续 RL 在一个"会好好说话"的策略上起步。
+
+2. **推理 RL**（→推理能力核心）：在不加对话偏好的情况下，用 GRPO + RLVR（规则奖励）专注拉推理能力。为什么放在偏好 RL 之前？如果先做偏好对齐再做推理 RL，偏好 RL 可能压制探索（KL 锚定"安全但平庸"的策略），推理 RL 需要大探索空间。
+
+3. **拒绝采样 SFT**（→知识蒸馏+能力固化）：用阶段 2 的策略大量采样，筛出推理正确 + 格式规整的轨迹做 SFT（R1 论文使用的 SFT 数据约 80 万条，含推理与通用混合）。这一步的作用是：① 把 RL 探索出的好的推理模式"固化"回 SFT 分布，为下一阶段的通用 RL 提供稳定起点；② 产出大量高质量推理数据供蒸馏（R1-Distill 正是用此阶段产出的数据，经后处理做 SFT）。
+
+4. **全场景 RL**（→通用对齐）：最后在所有 prompt（推理+通用）上跑 RL——可验证域用规则奖励，通用域用 helpful/harmless RM。放在最后是为了在"推理已够好"的基础上只做微调式的偏好对齐，不对推理能力伤筋动骨。
+
+**能否调换顺序？** 阶段 2 和 3 交替（SFT→RL→SFT→RL）是核心创新；R1 论文描述了两轮交替的多阶段设计，阶段 1 和 2 不可交换（RL 前必须打可读性基础，否则 R1-Zero 的语言混杂问题复现）。阶段 4 必须放最后（偏好对齐会压制探索，放前面会锁死推理 RL 的探索空间）。
+
+> **追问：** 如果只有一轮交替（去掉阶段 3-4），效果会差多少？
+> R1 论文没有直接报这个消融，但从 R1-Zero（只有 RL 无 SFT）的效果看，去掉阶段 1 会严重损害可读性；去掉阶段 3-4 则缺少通用对齐，推理能力强但对话体验差——本质上是 R1-Zero + 冷启动 SFT 的组合，实用性打折扣。
 
 </details>
 

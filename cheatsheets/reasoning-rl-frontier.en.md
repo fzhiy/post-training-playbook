@@ -50,6 +50,29 @@ def grpo_loss(logp, logp_old, logp_ref, rewards, mask, group_size,
 - Also critic-free: the baseline for sample $i$ = **the mean reward of the other $G-1$ samples**, REINFORCE-style gradient.
 - Simpler than PPO (no clip / critic), competitive with PPO on RLHF. Difference from GRPO lies in baseline construction (leave-one-out vs. within-group standardization) and whether clipping is applied.
 
+**From-scratch implementation** (leave-one-out baseline + REINFORCE gradient):
+
+```python
+import torch
+
+def rloo_loss(logp, rewards, mask, group_size):
+    """RLOO: REINFORCE + leave-one-out baseline. rewards are grouped by prompt.
+    logp: (B, T) per-token logprob; rewards: (B,) scalar reward per response; mask: (B, T) valid tokens."""
+    r = rewards.view(-1, group_size)                        # (n_prompts, G)
+    # Leave-one-out baseline: sample i's baseline = mean of the other G-1 rewards
+    # Equivalent to (sum(r) - r_i) / (G - 1)
+    baseline = (r.sum(1, keepdim=True) - r) / (group_size - 1)
+    adv = r - baseline                                      # (n_prompts, G) REINFORCE advantage
+    adv = adv.reshape(-1, 1)                                # (B, 1)
+    seq_logp = (logp * mask).sum(1)                         # (B,) total log-prob per response
+    loss = -(seq_logp * adv.squeeze()).mean()               # REINFORCE: minimize -log-likelihood × advantage
+    return loss
+# Core differences between RLOO and GRPO:
+# 1. Baseline uses leave-one-out mean (G-1 samples) rather than full-group mean (G samples including self)
+# 2. No std normalization — reward magnitude directly reflects advantage
+# 3. No clipping — pure REINFORCE without PPO-style importance-sampling correction
+```
+
 ## 4. DAPO — keeping GRPO stable under long-CoT / Decoupled-clip & Dynamic-sAmpling PO
 
 ByteDance 2025 open-source recipe — four modifications targeting long-chain reasoning RL:
@@ -57,6 +80,43 @@ ByteDance 2025 open-source recipe — four modifications targeting long-chain re
 2. **Dynamic Sampling**: discard prompts where the entire group is correct or entirely wrong (within-group advantage is always 0, yielding zero gradient), ensuring every batch contributes useful signal.
 3. **Token-level loss**: average by **token** rather than by **sequence**, preventing the gradient of long responses from being diluted (critical for long CoT).
 4. **Overlong reward shaping**: soft penalty for excessively long responses, stabilizing training.
+
+**From-scratch implementation** (three changes on top of the GRPO code):
+
+```python
+def dapo_loss(logp, logp_old, logp_ref, rewards, mask, group_size,
+              clip_low=0.2, clip_high=0.28, beta=0.0):
+    """DAPO: three changes on GRPO — clip-higher + token-level loss + optional KL removal.
+    beta=0.0 matches DAPO's original recipe of dropping KL."""
+    # --- Same advantage computation as GRPO ---
+    r = rewards.view(-1, group_size)
+    adv = (r - r.mean(1, keepdim=True)) / (r.std(1, keepdim=True) + 1e-6)
+    adv = adv.reshape(-1, 1)
+
+    # --- Change 1: Clip-Higher — decoupled upper/lower bounds ---
+    ratio = torch.exp(logp - logp_old)
+    surr1 = ratio * adv
+    # Upper bound clip_high > lower bound clip_low → room for low-prob tokens to rise
+    surr2 = torch.clamp(ratio, 1 - clip_low, 1 + clip_high) * adv
+    policy = torch.min(surr1, surr2)
+
+    # --- Change 2: Token-level loss — all tokens weighted equally ---
+    logr = logp_ref - logp
+    kl = torch.exp(logr) - logr - 1
+    per_tok = policy - beta * kl
+    # Divide by total_tokens, not per-sequence average
+    total_tokens = mask.sum().clamp(min=1)            # ∑|o_i|
+    loss = -(per_tok * mask).sum() / total_tokens      # token-level average
+
+    # --- Change 3 (not in code, handled by data loader): Dynamic Sampling ---
+    # Discard prompts where all rewards in the group are identical (all-correct / all-wrong)
+    # → guarantees every batch carries effective gradient
+
+    return loss
+# Compare to GRPO: ① ε symmetric→asymmetric (clip_high > clip_low);
+# ② per-sequence 1/|o_i| → per-token 1/∑|o_i| normalization;
+# ③ dynamic sampling filters at batch construction, not in the loss.
+```
 
 ## 5. Dr.GRPO — fixing GRPO's optimization bias / GRPO Done Right
 
@@ -100,6 +160,16 @@ The whole sequence is either used or clipped as a unit — a single token's rout
 > ⚠️ GMPO ([arXiv:2507.20673](https://arxiv.org/abs/2507.20673)) argues sequence-level clipping is "too aggressive" and discards gradient information, advocating token-level clipping with geometric-mean weighting instead; the two trade off differently and there is no settled verdict yet.
 
 **CISPO** (MiniMax, [arXiv:2506.13585](https://arxiv.org/abs/2506.13585), 2025-06) attacks the clip-zeroes-gradients problem from another angle: instead of clipping the probability ratio (which zeroes the gradient of out-of-range tokens), it clips the **scalar IS weight** itself while keeping every token's gradient. The paper reports ~2× training speedup over DAPO on Qwen2.5-32B. GSPO does unit-matching at the sequence level, CISPO preserves gradient integrity at the token level — two complementary ways to repair GRPO's clipping.
+
+### 5.6 GMPO — token-level clip + geometric-mean weighting / Group Mean Policy Optimization
+
+**GMPO** (Zhao et al., [arXiv:2507.20673](https://arxiv.org/abs/2507.20673), 2025-07, "Geometric-Mean Policy Optimization") argues that GSPO's sequence-level clipping is "too aggressive, discarding fine-grained token-level gradients." It replaces GRPO's arithmetic mean with a **geometric mean** of token-level rewards, rather than GSPO's sequence-level ratio — the paper reports improvements over GRPO on math reasoning. The core disagreement among GSPO vs. GMPO vs. CISPO is **"what should be the unit of clipping granularity"** — sequence (arguing token-level drift is a spurious signal), token (arguing sequence-level loses information), scalar weight (arguing that clipping the probability ratio itself is the wrong thing to clip). Each side rejects the others' premises; this is the most active theoretical debate in this direction as of 2025.
+
+| Method | Clip granularity | Ratio definition | Core change |
+|------|------|------|------|
+| **GSPO** | Sequence-level | $s_i=(\pi_\theta/\pi_{old})^{1/\vert y_i\vert}$ | Clip the whole sequence together |
+| **GMPO** | Token-level | $w_{i,t}=\pi_\theta/\pi_{old}$ | Token-level clip + geometric-mean weighting to reduce variance |
+| **CISPO** | Token-level (scalar) | Scalar IS weight (not probability ratio) | Clip the weight itself, not the probability ratio |
 
 ```python
 import torch
@@ -163,24 +233,121 @@ Chains the GRPO + RLVR pieces above into a full pipeline. R1 is not "RL all the 
 - **Self-Rewarding LM**: the model acts as its own judge to generate preference data and iteratively applies preference optimization, reducing dependence on human annotation.
 - **SPIN (self-play)**: the model's own previous outputs serve as "negative samples" for adversarial fine-tuning. Risk: self-preference gets amplified.
 
+## 9. Algorithm cheat-sheet
+
+| Scenario | Recommended | Why |
+|------|------|------|
+| Verifiable domain (math/code), want simplicity, enough compute | **GRPO** | No critic overhead, clean group-relative advantage; DeepSeek's mainstay, best ecosystem |
+| Verifiable domain + long CoT + fear entropy collapse | **DAPO** | clip-higher prevents collapse + token-level loss + dynamic sampling; ByteDance open-source |
+| Verifiable domain + want a more unbiased estimator | **Dr.GRPO** | Removes std and length-norm biases; better token efficiency, no artificial response lengthening |
+| MoE training, need sequence-level stability | **GSPO** | Sequence-level IS ratio + tight proximal constraint; used for Qwen3, robust to routing drift |
+| Non-verifiable domain (dialogue/writing quality), noisy rewards | **PPO** | Critic smooths noise through TD learning; GAE provides per-token signal; most stable but most expensive |
+| Open domain + need robustness to reward noise | **RLOO** | Leave-one-out baseline is unbiased; simpler than PPO but more stable than GRPO in non-verifiable domains (no std to amplify noise) |
+| Resource-constrained (small model / few GPUs) | **Distill SFT** | R1-Distill proved small-model RL loses to consuming large-model traces; SFT is cheap and stable |
+
+> 📝 Core principle: **clean reward signal → critic-free (GRPO family); noisy / sparse reward signal → critic-based (PPO); small model / resource-constrained → distillation.**
+
 ---
 
 ## Stratified follow-ups
 
 ### L1 Fundamentals
-- What does GRPO save compared to PPO? How exactly is the "group-relative advantage" computed?
-- Where does RLVR's reward come from? Why does it mitigate reward hacking? What are its limitations?
 
-### L2 Advanced
-- In long-CoT RL, why does "token-level vs. sequence-level" loss matter? (Gradient dilution for long responses.)
-- What bias does std normalization of the advantage introduce in GRPO? How does Dr.GRPO fix it?
-- What problem does DAPO's clip-higher solve? What is entropy collapse and why is it harmful?
+<details>
+<summary>Q1: What does GRPO save compared to PPO? How exactly is the "group-relative advantage" computed?</summary>
+
+**A:** GRPO drops the **critic (value network)** — from PPO's four models (actor + critic + ref + RM) down to three (actor + ref + RM), saving the memory of one model's parameters and the training cost of the value function. Group-relative advantage: for each prompt, sample $G$ responses to obtain rewards $r_1..r_G$, then use the **within-group mean as a value-baseline substitute + standard deviation scaling**:
+$$A_i = \frac{r_i - \mathrm{mean}(r)}{\mathrm{std}(r) + \varepsilon}$$
+Intuition: $\mathrm{mean}(r)$ is an MC estimate of "how many points this prompt earns on average" — using it as the baseline factors out problem-difficulty effects; $\mathrm{std}(r)$ scaling keeps advantages from different prompts on the same scale. Why can the critic be dropped? Because rewards in verifiable domains (math exact-match, code unit tests) are clean and stable — no need to learn a value function to estimate "how many points this state will earn in the future."
+
+> **Follow-up:** If rewards are noisy (e.g., dialogue-quality RM scores), can the within-group mean still serve as a baseline?
+> Yes but with reduced effectiveness — when noise is high, the MC variance of $\mathrm{mean}(r)$ is large, diluting the within-group comparison signal; PPO's critic smooths noise through TD learning and is more stable. This is precisely why the GRPO mainline chooses verifiable domains (see §6).
+
+</details>
+
+<details>
+<summary>Q2: Where does RLVR's reward come from? Why does it mitigate reward hacking? What are its limitations?</summary>
+
+**A:** RLVR's reward comes from **rules / verifiers** rather than a learned neural RM: math uses exact-match (compare the final answer to the ground truth), code uses unit test pass/fail, format uses regex checks. It mitigates reward hacking because: **a rule-based verifier ≈ ground truth** — it does not suffer from systematic biases like "learned that long = good" which plague neural RMs, and is nearly impossible to hack (format gaming and repeated-token exploits for length rewards remain, but are much cleaner than neural RM issues). Limitation: **only applicable to verifiable domains** (math/code/machine-checkable formats) — open-ended domains (writing quality, dialogue helpfulness, safety) have no rule-based verifier and still require neural RMs or LLM-as-judge. The R1 mainline exploits exactly this property: RLVR does the heavy lifting in verifiable domains; a helpful/harmless RM handles general alignment in stage 4.
+
+> **Follow-up:** Is a format reward (e.g., "+0.1 for putting the answer in \boxed{}") RLVR or a neural RM?
+> It is RLVR — the format is a hard regex-checkable rule. But in practice format rewards easily become a reward-hack target (the model learns to output \boxed{wrong answer} to farm the format points), so the weight must be tuned carefully.
+
+</details>
+
+### L2 Intermediate
+
+<details>
+<summary>Q3: In long-CoT RL, why does "token-level vs. sequence-level" loss matter?</summary>
+
+**A:** **Sequence-level loss** (GRPO's original formulation): $L = \frac{1}{N}\sum_i \frac{1}{|o_i|}\sum_t \ell_{i,t}$ — average within each sequence first, then average across sequences. The problem: each token in a long response contributes a gradient diluted by $|o_i|$ (large $|o_i|$ means tiny per-token gradient), so the early critical steps of a long reasoning chain receive almost no signal. **Token-level loss** (DAPO's fix): $L = \frac{1}{\sum_i |o_i|}\sum_i\sum_t \ell_{i,t}$ — all tokens have equal weight, each token contributes an equal gradient. **In long-CoT RL token-level is required** — otherwise the model is induced to "write fewer tokens for the same reward", compressing reasoning chains. Dr.GRPO notes further: $1/|o_i|$ not only dilutes correct tokens in long responses, but also **systematically favors long wrong responses** (a long wrong response has each wrong token's penalty diluted → the loss looks smaller), a key source of optimization bias.
+
+> **Follow-up:** Won't token-level loss conversely give short correct responses disproportionately large gradients, causing training instability?
+> Yes — each token in a short correct response gets a larger gradient; in practice this requires gradient clipping and an appropriate LR schedule to control.
+
+</details>
+
+<details>
+<summary>Q4: What bias does std normalization of the advantage introduce in GRPO? How does Dr.GRPO fix it?</summary>
+
+**A:** Std normalization scales the advantages from different prompts to the same range — but it introduces two biases: ① **Difficulty bias**: prompts with small within-group variance (e.g., all-correct / all-wrong, std→0) have their advantages artificially inflated (divided by a tiny number), giving these prompts a louder voice in the batch; ② **Interaction bias with length normalization**: std scaling combined with $1/|o_i|$ length normalization makes the optimization drift toward "longer but worse responses" (a long wrong response undergoes two operations that make its gradient look "nicer"). **Dr.GRPO's fixes**: ① Remove the std division — use just $A_i = r_i - \mathrm{mean}(r)$, keeping the baseline's variance reduction while removing the scaling bias; ② Remove the $1/|o_i|$ length normalization — replace it with constant normalization (e.g., divide by max length, or no normalization), eliminating the systematic preference for long wrong responses. The cost: the absolute magnitude of advantages varies by prompt, requiring a suitable LR schedule. The paper claims this yields better token efficiency and no artificial response-length inflation.
+
+> **Follow-up:** After removing std, how do you handle prompts spanning very different difficulty levels (easy: rewards 0–1, hard: rewards 0–10)?
+> Apply global reward normalization (e.g., batch-level z-score) or reward clipping — but this is a separate design choice, orthogonal to GRPO's within-group baseline construction.
+
+</details>
+
+<details>
+<summary>Q5: What problem does DAPO's clip-higher solve? What is entropy collapse and why is it harmful?</summary>
+
+**A:** **Entropy collapse**: the policy becomes **excessively deterministic** too early (some token probabilities → 1, others → 0), causing it to stop exploring new reasoning paths — the model gets "locked" into its current policy. **How PPO's symmetric clip causes entropy collapse**: the clip range $[1-\varepsilon, 1+\varepsilon]$ symmetrically constrains the importance ratio $\rho=\pi_\theta/\pi_{old}$. But for **newly learned low-probability reasoning tokens** (e.g., specific token sequences for backtracking or switching approaches), the initial probability is extremely low, so under a positive advantage $\rho$ rises from far below 1 — and the upper bound $1+\varepsilon$ quickly caps the growth of these tokens. Meanwhile, high-probability tokens (connective words like "therefore", "so") have $\rho\approx1$ and are barely affected by the clip. The result: **the upward channel for low-probability innovative tokens is symmetrically capped, while high-probability tokens become further entrenched**. **Clip-higher's solution**: decouple the upper and lower bounds and raise the upper bound (e.g., $\varepsilon_{low}=0.2, \varepsilon_{high}=0.28$), leaving room for low-probability tokens to rise and maintaining exploration.
+
+> **Follow-up:** Besides clip-higher, what other methods prevent entropy collapse?
+> Add an entropy bonus (reward $+\lambda H(\pi)$), temperature annealing (high temperature early in training to encourage exploration), EMA reference (slow-anchor against the SFT checkpoint). DAPO chose clip-higher because it is the lightest weight and does not alter the reward signal.
+
+</details>
 
 ### L3 Deep Dive
-- Derive: why can GRPO's advantage be seen as "approximating the value baseline with the within-group mean"? How are bias and variance balanced?
-- Why does dynamic sampling (discarding all-correct / all-wrong groups) improve efficiency? What is its relationship to curriculum / difficulty sampling?
-- What does test-time scaling imply for the paradigm of "capabilities are acquired at training time"? What are the trade-offs between reasoning RL and "pure SFT distillation of long CoT"?
-- Under what conditions does critic-free (GRPO / RLOO) actually underperform value-based PPO?
+
+<details>
+<summary>Q6: Derive: why can GRPO's advantage be seen as "approximating the value baseline with the within-group mean"? How are bias and variance balanced?</summary>
+
+**A:** Let $V(s) = \mathbb{E}[r|s]$ be the expected reward given the state (prompt). GRPO's within-group mean $\hat\mu=\frac{1}{G}\sum_i r_i$ is an **MC estimate** of $V$ — as $G\to\infty$, $\hat\mu\to V(s)$. The centered advantage $r_i-\hat\mu$ is exactly doing variance reduction with an MC baseline — keeping the unbiased gradient of REINFORCE while reducing variance. **The bias–variance spectrum**: ① When $G$ is small, the MC variance of $\hat\mu$ is high (the baseline itself is noisy), the advantage estimate fluctuates more, but the mean remains **unbiased** (no systematic shift); ② std normalization introduces **mild bias** (dividing by $\hat\sigma$ shifts the expected value of $A_i$), but substantially reduces variance (protecting gradient-scale stability); GRPO chooses this end of the trade-off; ③ Dr.GRPO removes std → returns to the unbiased $r_i-\hat\mu$, with higher variance, requiring larger $G$ or a more conservative LR as compensation; ④ PPO's value baseline $\hat V(s)$ is **biased** (function approximation error), but continually improves its estimate quality through TD learning. Thus in verifiable domains with clean rewards and sufficiently large $G$, critic-free's unbiased baseline suffices; in noisy-reward, long-trajectory open-ended domains, PPO's biased but lower-variance critic is more stable.
+
+> **Follow-up:** Can you take a weighted blend of GRPO's and PPO's baselines?
+> In principle yes (an ensemble baseline), but in practice virtually nobody does this — the two baselines require different training paradigms (critic-free vs. critic-based), and the engineering cost of the blend is high for unclear gain.
+
+</details>
+
+<details>
+<summary>Q7: Why does dynamic sampling (discarding all-correct / all-wrong groups) improve efficiency? What is its relationship to curriculum / difficulty sampling?</summary>
+
+**A:** In an all-correct or all-wrong group, all samples have the same reward → $A_i\equiv0$ → **zero gradient**, purely consuming compute with no parameter update. Dynamic sampling discarding them not only saves compute but **guarantees every batch carries effective gradient signal**, preventing optimization from being disrupted by zero-gradient batches. Relation to curriculum learning: both filter training samples by difficulty, but in **opposite directions** — curriculum is a preset "easy → hard" ordering of difficulty, while dynamic sampling filters in real time based on the **model's current capability**: all-correct prompts are too easy (the model already knows them), all-wrong prompts are too hard (the model still can't do them), leaving the difficulty band where "the model can just barely do them but isn't certain" — essentially **online difficulty filtering**. DAPO's dynamic sampling discards prompts with group accuracy 0 or 1 and resamples until the batch is filled.
+
+> **Follow-up:** What if most prompts in a batch are filtered out (difficulty converges late in training)?
+> Down-sample the frequency rather than fully discarding — lower the sampling rate of all "ineffective prompts" without zeroing them out; or expand the prompt pool with new problems. DAPO takes the former approach.
+
+</details>
+
+<details>
+<summary>Q8: The trade-offs between reasoning RL and "pure SFT distillation of long CoT"? What does the R1-Distill conclusion imply?</summary>
+
+**A:** Reasoning RL (GRPO + RLVR): lets the model **explore on its own** how to use more tokens effectively (reflection, re-checking, switching approaches), acquiring long-reasoning behaviors during training. Distillation (SFT from teacher traces): directly imitates reasoning traces that "the teacher already thought through." Their respective pros and cons: ① Reasoning RL has a higher ceiling — it can discover reasoning patterns **not present** in distillation data (R1-Zero's spontaneous reflection/re-checking proves this), but training is unstable and only works in verifiable domains; ② Distillation is cheaper, more stable, and broadly applicable (any domain with teacher traces works), but the ceiling is capped by teacher quality ("the teacher can't teach what it doesn't know"). **R1-Distill's core conclusion**: **distillation > running RL directly on small models** — small models can't explore effectively on their own (in such a vast search space, the small model's initialization isn't good enough and within-group diversity is poor), so directly consuming the large model's reasoning traces wins. This doesn't mean distillation is absolutely better than RL — rather, in the **large-model-does-RL + small-model-distills** combo, the division of labor is clear: the large model explores, the small model learns the exploration results.
+
+> **Follow-up:** What does this conclusion imply for resource-constrained academic research?
+> If you have only modest compute, prioritize the distillation route (use a strong open-source reasoning model to produce traces → SFT into a small model), rather than running GRPO from scratch on the small model — the cost-effectiveness ratio is far higher.
+
+</details>
+
+<details>
+<summary>Q9: Under what conditions does critic-free (GRPO / RLOO) actually underperform value-based PPO?</summary>
+
+**A:** Critic-free methods assume "**clean reward signal + effective within-group comparison**." Four failure modes: ① **Noisy rewards** (e.g., dialogue-quality RM scores with high fluctuation): lacking a value function for temporal smoothing, within-group z-score amplifies noise, and the gradient direction becomes unreliable; ② **Poor within-group diversity**: when the sampling temperature is too low or the model is overfitted, the G responses are nearly identical → std→0 → the advantage estimate collapses (division by zero) — PPO's critic is unaffected by sampling diversity; ③ **Sparse rewards + long trajectories**: only the final answer's correctness (0/1) is given, with no signal for the 1000 intermediate tokens — GRPO can only rely on the final reward's within-group contrast, while PPO's GAE back-propagates future rewards step by step via TD, providing a smoother per-token signal; ④ **Non-stationary reward distributions**: when the neural RM itself is changing during training, PPO's critic can adapt to reward-distribution drift, while critic-free's within-group baseline only reflects the current batch. Mnemonic: **verifiable domains = critic-free is optimal; non-verifiable domains / long trajectories / noisy environments = PPO is more stable**.
+
+> **Follow-up:** Could you introduce a lightweight critic as a hybrid in "verifiable domain + sparse reward" settings?
+> This is an open research question — a lightweight critic (e.g., initialized from a PRM, doing only outcome-level value estimation) could provide a cross-prompt global baseline for each group, improving sparse-reward settings while retaining critic-free simplicity. There is no standard approach yet.
+
+</details>
 
 
 ## Extended L3
@@ -260,6 +427,26 @@ Chains the GRPO + RLVR pieces above into a full pipeline. R1 is not "RL all the 
 
 **A:** Standard PPO's symmetric clip $[1-\epsilon, 1+\epsilon]$ acts on the importance ratio $\rho=\pi_\theta/\pi_{\theta_{old}}$. The key insight: in long CoT, already high-probability tokens (e.g., common reasoning connectives) have $\rho$ close to 1, so the symmetric clip barely affects them; but **newly learned low-probability reasoning patterns** (e.g., specific token sequences for backtracking or self-correction) start at very low probability, and when the advantage is positive $A>0$, $\rho$ rises from below 1 — and hits the upper bound $1+\epsilon$ quickly, hard-capping the growth of these tokens. Meanwhile, when $A<0$, the lower bound $1-\epsilon$ equally limits the decline of high-probability tokens, but high-probability tokens have ample room to decrease anyway. Therefore the symmetric clip creates an **asymmetric learning dynamic** in information-geometric terms: the "downward channel" for high-probability tokens is wider than the "upward channel" for low-probability tokens. Clip-higher breaks this asymmetry by raising the upper bound.
   **Follow-up:** Apart from decoupling the clip bounds, is it possible to address this problem more elegantly from a trust-region perspective (e.g., using a KL constraint instead of a hard clip)? What is the computational cost of doing so in the long-CoT setting?
+
+</details>
+
+<details>
+<summary>Q: Walk through DeepSeek-R1's full training pipeline (four stages). Why is each stage where it is? Could the order be swapped?</summary>
+
+**A:** R1's four-stage ordering is carefully designed, not an arbitrary stack:
+
+1. **Cold-start SFT** (→ readability foundation): Running RL directly from a base model produces R1-Zero's problems — long-CoT direction is correct but answers are unreadable and mix Chinese with English. First, fine-tune on a small set of high-quality long-CoT samples to lay a "format / language" foundation, so subsequent RL starts from a policy that "speaks properly."
+
+2. **Reasoning RL** (→ core reasoning capability): Without adding dialogue preferences, use GRPO + RLVR (rule rewards) to focus on pulling up reasoning ability. Why before preference RL? If you do preference alignment first and reasoning RL later, preference RL may suppress exploration (KL anchors to a "safe but mediocre" policy), and reasoning RL needs a large exploration space.
+
+3. **Rejection-sampling SFT** (→ knowledge distillation + capability consolidation): Heavily sample from the stage-2 policy, filter for reasoning-correct + format-clean traces, then SFT on them (the R1 paper uses ~800k SFT samples, a mixture of reasoning and general). This step: ① "bakes" the good reasoning patterns discovered by RL back into the SFT distribution, providing a stable starting point for the next stage's general RL; ② produces a large quantity of high-quality reasoning data for distillation (R1-Distill uses the data produced by this stage, post-processed for SFT).
+
+4. **All-scenario RL** (→ general alignment): Finally run RL over all prompts (reasoning + general) — rule rewards for verifiable domains, helpful/harmless RM for general domains. Placed last so that preference alignment is a light touch-up on top of "reasoning is already good enough," without damaging reasoning capability.
+
+**Could the order be swapped?** The alternation of stages 2 and 3 (SFT→RL→SFT→RL) is the core innovation; the R1 paper describes this multi-stage design with two rounds of alternation. Stages 1 and 2 cannot be swapped (must lay the readability foundation before RL, otherwise R1-Zero's language-mixing problem recurs). Stage 4 must be last (preference alignment suppresses exploration; placing it earlier would lock down reasoning RL's exploration space).
+
+> **Follow-up:** What if you kept only one alternation (dropped stages 3–4)?
+> The R1 paper doesn't directly report this ablation, but looking at R1-Zero (RL only, no SFT): dropping stage 1 severely damages readability; dropping stages 3–4 leaves strong reasoning but poor dialogue experience — essentially R1-Zero + cold-start SFT, which is usable but falls short on practical utility.
 
 </details>
 
