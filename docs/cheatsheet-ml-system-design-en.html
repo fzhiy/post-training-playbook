@@ -2319,6 +2319,24 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 </li>
 <li><p><strong>2024-02 · KIVI</strong> — Liu et al., ICML 2024. <a href="https://arxiv.org/abs/2402.02750">arXiv:2402.02750</a> — Asymmetric 2-bit quantization for the KV cache: quantizes keys per-channel and values per-token (matching their distinct outlier distributions), cutting <strong>peak memory (incl. model weights) ~2.6×</strong> in long-context inference (KV itself 16-bit→2-bit, ~8× in theory) with near-lossless accuracy.</p>
 </li>
+<li><p><strong>2023-07 · FlashAttention-2</strong> — Dao, ICLR 2024. <a href="https://arxiv.org/abs/2307.08691">arXiv:2307.08691</a> — Rewrote FA1&#39;s CUDA kernels; reduced non-matmul FLOPs, improved warp-level parallelism, and raised occupancy for 2–3× end-to-end training/inference speedup on A100; integrated into vLLM/HF/PyTorch SDPA.</p>
+</li>
+<li><p><strong>2023-08 · SARATHI (Chunked Prefill)</strong> — Agrawal et al., Microsoft Research, preprint. <a href="https://arxiv.org/abs/2308.16369">arXiv:2308.16369</a> — Splits a single prefill into chunks interleaved with decode batches, letting compute-bound prefill and memory-bound decode share a GPU, eliminating decode-only bubbles without degrading time-to-first-token latency.</p>
+</li>
+<li><p><strong>2023-12 · SGLang (RadixAttention)</strong> — Zheng et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2312.07104">arXiv:2312.07104</a> — Organizes KV cache as a radix tree for zero-compute reuse of arbitrary-length prefixes, paired with cache-aware scheduling; up to 6.4× throughput vs vLLM; later HiCache extends this to a GPU/CPU/distributed three-tier cache.</p>
+</li>
+<li><p><strong>2024-01 · DistServe</strong> — Zhong et al., OSDI 2024. <a href="https://arxiv.org/abs/2401.09670">arXiv:2401.09670</a> — First formal argument for disaggregating prefill and decode onto separate GPUs: independent parallel strategies per phase, KV cache migration over NVLINK; maximum request rate 2.0–5.7× vs vLLM.</p>
+</li>
+<li><p><strong>2024-07 · FlashAttention-3</strong> — Shah et al., NeurIPS 2024. <a href="https://arxiv.org/abs/2407.08608">arXiv:2407.08608</a> — Hardware-software co-design for H100: asynchronous warp scheduling + low-precision FP8 + block quantization; reaches 1.3 PFLOPs/s on H100 (~35% of FP16 theoretical peak, 2–3× vs FA2).</p>
+</li>
+<li><p><strong>2024-07 · Mooncake</strong> — Qin et al., Moonshot AI / Kimi, preprint. <a href="https://arxiv.org/abs/2407.00079">arXiv:2407.00079</a> — Engineers prefill/decode disaggregation into production with a KV-cache-centric architecture: GPU/CPU/SSD shared pool + RDMA high-speed transfer; handles ~75% more requests within SLO at Kimi&#39;s scale; Transfer Engine integrated into vLLM.</p>
+</li>
+<li><p><strong>2024-08 · Marlin</strong> — Frantar et al., IST-DasLab, preprint. <a href="https://arxiv.org/abs/2408.11743">arXiv:2408.11743</a> — Aggressively optimized FP16×INT4 GEMM kernel for GPTQ INT4 weights: algebraic reordering keeps all SMs busy; near-flat latency from batch 1–16; up to 2.8× vs FP16 in end-to-end vLLM inference; Sparse-Marlin extends to 2:4 sparsity.</p>
+</li>
+<li><p><strong>2024-11 · MoNTA</strong> — preprint. <a href="https://arxiv.org/abs/2411.00662">arXiv:2411.00662</a> — Network-topology-aware parallel-strategy optimization for MoE expert parallelism: 8× all-to-all communication speedup, 13% end-to-end latency improvement.</p>
+</li>
+<li><p><strong>2025-03 · Speculative MoE</strong> — preprint. <a href="https://arxiv.org/abs/2503.04398">arXiv:2503.04398</a> — Speculative token-expert routing prediction to reduce all-to-all communication in MoE inference; 1.58–6.54× throughput over DeepSpeed-MoE.</p>
+</li>
 </ul>
 </main>
 </div>

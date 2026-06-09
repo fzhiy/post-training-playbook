@@ -1818,3 +1818,21 @@ MLA 的优势：可以在保持较多 Q head 数的同时大幅压缩 cache（he
 - **2023-09 · PagedAttention / vLLM** — Kwon et al., SOSP 2023. [arXiv:2309.06180](https://arxiv.org/abs/2309.06180) — 借鉴操作系统虚拟内存分页管理 KV cache:把 KV 切成非连续的块按需分配,消除碎片与预留浪费,支持前缀共享,使服务吞吐大幅提升。
 
 - **2024-02 · KIVI** — Liu et al., ICML 2024. [arXiv:2402.02750](https://arxiv.org/abs/2402.02750) — 面向 KV cache 的非对称 2-bit 量化:key 沿通道维、value 沿 token 维分别量化(契合各自离群分布),在长上下文推理中把**峰值显存（含模型权重）降低约 2.6×**（KV 本身 16-bit→2-bit、理论压缩 8×）而精度近无损。
+
+- **2023-07 · FlashAttention-2** — Dao, ICLR 2024. [arXiv:2307.08691](https://arxiv.org/abs/2307.08691) — 重写 FA1 的 CUDA 实现，通过减少非矩阵乘 FLOPs、改进 warp 级并行分配、提升 occupancy，在 A100 上端到端 2–3× 加速训练/推理；被 vLLM/HF/PyTorch SDPA 集成。
+
+- **2023-08 · SARATHI (Chunked Prefill)** — Agrawal et al., Microsoft Research, preprint. [arXiv:2308.16369](https://arxiv.org/abs/2308.16369) — 将单个 prefill 切割成 chunk 与 decode batch 交替执行，让 compute-bound prefill 和 memory-bound decode 共享 GPU，消除 decode-only 的空泡，首 token 延迟不劣化。
+
+- **2023-12 · SGLang (RadixAttention)** — Zheng et al., NeurIPS 2024. [arXiv:2312.07104](https://arxiv.org/abs/2312.07104) — 用基数树组织 KV cache 实现任意粒度前缀零计算复用，配合缓存感知调度，对比 vLLM 吞吐最高 6.4×；后续 HiCache 扩展为 GPU/CPU/分布式三级缓存。
+
+- **2024-01 · DistServe** — Zhong et al., OSDI 2024. [arXiv:2401.09670](https://arxiv.org/abs/2401.09670) — 首次正式论证 prefill/decode 解耦到不同 GPU：独立配置并行策略、KV cache 通过 NVLINK 迁移，最大请求速率达 vLLM 的 2.0–5.7×。
+
+- **2024-07 · FlashAttention-3** — Shah et al., NeurIPS 2024. [arXiv:2407.08608](https://arxiv.org/abs/2407.08608) — 针对 H100 从硬件-软件协同设计：异步 warp 调度 + 低精度 FP8 + block quantization，H100 上达 1.3 PFLOPs/s (~35% FP16 理论峰值、FA2 的 2–3×)。
+
+- **2024-07 · Mooncake** — Qin et al., Moonshot AI / Kimi, preprint. [arXiv:2407.00079](https://arxiv.org/abs/2407.00079) — 将 prefill/decode 解耦工程化为生产系统，引入以 KV cache 为中心的架构：GPU/CPU/SSD 共享池 + RDMA 高速传输，Kimi 万级并发下 SLO 内处理约 75% 更多请求；Transfer Engine 已集成入 vLLM。
+
+- **2024-08 · Marlin** — Frantar et al., IST-DASLab, preprint. [arXiv:2408.11743](https://arxiv.org/abs/2408.11743) — 面向 GPTQ INT4 权重的极致优化 FP16×INT4 GEMM 内核：通过代数重排让所有 SM 同时忙碌，batch 1–16 延迟近平坦，集成 vLLM 最高 2.8× vs FP16；Sparse-Marlin 扩展支持 2:4 稀疏。
+
+- **2024-11 · MoNTA** — preprint. [arXiv:2411.00662](https://arxiv.org/abs/2411.00662) — 面向 MoE 专家并行的网络拓扑感知并行策略择优：All-to-All 通信 8× 加速、端到端 13% 延迟改善。
+
+- **2025-03 · Speculative MoE** — preprint. [arXiv:2503.04398](https://arxiv.org/abs/2503.04398) — 推测式 token-expert 路由预判减少 MoE 推理的 all-to-all 通信，吞吐 1.58–6.54× vs DeepSpeed-MoE。
