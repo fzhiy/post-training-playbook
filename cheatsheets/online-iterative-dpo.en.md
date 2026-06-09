@@ -54,6 +54,35 @@ Almost all differences between online preference-optimization methods fall on tw
 
 > 🚨 The three **compound and amplify inside the iterative loop**: this is exactly why §6 stresses "refresh the RM each round / add a chosen-NLL anchor / control length."
 
+**From-scratch implementation**: batch-level DPO loss with mask, β, and reference logps (interview hand-tear standard):
+
+```python
+import torch
+import torch.nn.functional as F
+
+def dpo_loss(logp, logp_ref, mask, beta=0.1):
+    """DPO loss (batch version with mask, interview hand-tear standard).
+    logp/logp_ref: (B, T) per-token log-prob under π_θ and π_ref
+    mask: (B, T) valid tokens (excludes padding); first half of B is chosen, second half rejected
+    Returns a scalar loss."""
+    # seq logp: total log-prob per sequence
+    seq_logp   = (logp * mask).sum(dim=1)      # (B,) π_θ
+    seq_logp_r = (logp_ref * mask).sum(dim=1)  # (B,) π_ref
+    # Split back into chosen / rejected (first B/2 are chosen)
+    B = logp.shape[0] // 2
+    logp_c, logp_r_c = seq_logp[:B], seq_logp_r[:B]       # chosen
+    logp_j, logp_r_j = seq_logp[B:], seq_logp_r[B:]       # rejected
+    # Implicit reward difference β·[(log π_c/π_ref_c) - (log π_j/π_ref_j)]
+    log_ratio_diff = beta * ((logp_c - logp_r_c) - (logp_j - logp_r_j))
+    loss = -F.logsigmoid(log_ratio_diff).mean()            # -log σ(Δ)
+    return loss
+# Key points:
+# ① logp_ref for both chosen and rejected must be computed under π_ref, not π_θ
+# ② β controls how strongly to learn from preferences (large = conservative, small = aggressive)
+# ③ This is the base DPO formulation; the iterative version simply calls this loss with fresh pairs each round
+# ④ Variants: IPO (loss = (log_ratio_diff - 1/(2β))²), KTO (single-sample, no pairs needed)
+```
+
 ### 2.2 Online vs offline: where the performance gap comes from (Tang et al. 2024)
 
 **Tang et al.** (["Understanding the Performance Gap between Online and Offline Alignment Algorithms"](https://arxiv.org/abs/2405.08448), [arXiv:2405.08448](https://arxiv.org/abs/2405.08448), preprint) ran a set of **controlled empirical / mechanistic studies** (experiments + ablations, not a theorem proof), systematically asking "why is online consistently better than offline":

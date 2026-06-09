@@ -52,6 +52,35 @@
 
 > 🚨 三者会在**迭代回路里叠加放大**:这正是 §6 强调"每轮刷新 RM / 加 chosen-NLL 锚 / 控长度"的原因。
 
+**from-scratch 实现**:带 mask、β、reference logps 的 batch 级 DPO loss(面试手撕口径):
+
+```python
+import torch
+import torch.nn.functional as F
+
+def dpo_loss(logp, logp_ref, mask, beta=0.1):
+    """DPO loss(带 mask 的 batch 版,面试手撕标准写法)。
+    logp/logp_ref: (B, T) π_θ 与 π_ref 下的逐 token log-prob
+    mask: (B, T) 有效 token(排除 padding),B 的前半为 chosen、后半为 rejected
+    返回标量 loss。"""
+    # seq logp:每条序列的总对数概率
+    seq_logp   = (logp * mask).sum(dim=1)      # (B,) π_θ
+    seq_logp_r = (logp_ref * mask).sum(dim=1)  # (B,) π_ref
+    # 拆回 chosen / rejected(前 B/2 为 chosen)
+    B = logp.shape[0] // 2
+    logp_c, logp_r_c = seq_logp[:B], seq_logp_r[:B]       # chosen
+    logp_j, logp_r_j = seq_logp[B:], seq_logp_r[B:]       # rejected
+    # 隐式奖励差 β·[(log π_c/π_ref_c) - (log π_j/π_ref_j)]
+    log_ratio_diff = beta * ((logp_c - logp_r_c) - (logp_j - logp_r_j))
+    loss = -F.logsigmoid(log_ratio_diff).mean()            # -log σ(Δ)
+    return loss
+# 关键点:
+# ① chosen 与 rejected 的 logp_ref 必须用 π_ref 算,不是 π_θ(旧策略)
+# ② β 控制从偏好里学的强度(大=保守/贴 ref,小=激进/易过优化)
+# ③ 这是 DPO 的基础写法;迭代版只需每轮用新的(chosen,rejected)对调用此 loss
+# ④ 变体:IPO(loss = (log_ratio_diff - 1/(2β))²)、KTO(单样本,不需成对)
+```
+
 ### 2.2 在线 vs 离线:性能差距从何而来 (Tang et al. 2024)
 
 **Tang et al.**(["Understanding the Performance Gap between Online and Offline Alignment Algorithms"](https://arxiv.org/abs/2405.08448), [arXiv:2405.08448](https://arxiv.org/abs/2405.08448), preprint)做了一组**受控实证 / 机制研究**(实验+消融,非定理证明),系统追问"在线为何稳定优于离线":
