@@ -275,6 +275,55 @@
 <li>❌ <strong>标注成本极高</strong>：需要专家逐步判断</li>
 <li>❌ 步骤边界定义 (step delineation) 本身有歧义</li>
 </ul>
+<p><strong>from-scratch 实现</strong>:PRM = backbone + 步级隐状态池化 + 步级标量头,对每步独立打分;训练可用 MC rollout 标签或人工步标:</p>
+<details class="code-fold"><summary>45 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
+<span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProcessRewardModel</span>(nn.Module):
+    <span class="hljs-string">&quot;&quot;&quot;PRM:对推理过程的每一步打出标量分数。
+    输入 [prompt + 前 i 步],从最后 token 池化给该步打分。&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, backbone, hidden</span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.backbone = backbone
+        <span class="hljs-variable language_">self</span>.head = nn.Linear(hidden, <span class="hljs-number">1</span>, bias=<span class="hljs-literal">False</span>)    <span class="hljs-comment"># 步级标量头</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, input_ids, attn_mask, step_boundaries</span>):
+        <span class="hljs-string">&quot;&quot;&quot;step_boundaries: list[list[int]] 每样本的步边界下标(不含 0)。
+        返回每步的奖励,pad 到 (B, max_steps)。&quot;&quot;&quot;</span>
+        h = <span class="hljs-variable language_">self</span>.backbone(input_ids, attn_mask)          <span class="hljs-comment"># (B, T, H)</span>
+        B = h.size(<span class="hljs-number">0</span>)
+        all_rewards = []
+        <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(B):
+            rew = []
+            <span class="hljs-keyword">for</span> end <span class="hljs-keyword">in</span> step_boundaries[i]:               <span class="hljs-comment"># end:该步最后 token 的位置</span>
+                rew.append(<span class="hljs-variable language_">self</span>.head(h[i, end]))         <span class="hljs-comment"># (1,) 池化该位置</span>
+            all_rewards.append(torch.stack(rew))
+        <span class="hljs-comment"># pad 对齐不同样本的步数</span>
+        rewards = nn.utils.rnn.pad_sequence(all_rewards, batch_first=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># (B, S, 1)</span>
+        <span class="hljs-keyword">return</span> rewards.squeeze(-<span class="hljs-number">1</span>)                       <span class="hljs-comment"># (B, S)</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">prm_step_loss</span>(<span class="hljs-params">step_scores, step_labels</span>):
+    <span class="hljs-string">&quot;&quot;&quot;step_scores: (B, S) PRM 每步分; step_labels: (B, S) 每步标签(0/1 或软标签)。
+    逐步二分类交叉熵,仅有效步参与(标签 ≥0)。&quot;&quot;&quot;</span>
+    mask = step_labels &gt;= <span class="hljs-number">0</span>                              <span class="hljs-comment"># 有效步(标签≥0 才参与)</span>
+    loss = F.binary_cross_entropy_with_logits(
+        step_scores[mask], step_labels[mask].<span class="hljs-built_in">float</span>())
+    <span class="hljs-keyword">return</span> loss
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">aggregate_steps_to_sequence</span>(<span class="hljs-params">step_scores, mode=<span class="hljs-string">&#x27;prod&#x27;</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;把步级分数聚合成整条轨迹分,用于 BoN 重排或搜索。
+    mode: &#x27;prod&#x27;(乘积,Lightman 主选)/&#x27;min&#x27;(最小值,Math-Shepherd)/&#x27;last&#x27;。&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">if</span> mode == <span class="hljs-string">&#x27;prod&#x27;</span>:
+        <span class="hljs-keyword">return</span> step_scores.sigmoid().prod(dim=<span class="hljs-number">1</span>)         <span class="hljs-comment"># 各步正确率乘积</span>
+    <span class="hljs-keyword">elif</span> mode == <span class="hljs-string">&#x27;min&#x27;</span>:
+        <span class="hljs-keyword">return</span> step_scores.sigmoid().<span class="hljs-built_in">min</span>(dim=<span class="hljs-number">1</span>).values   <span class="hljs-comment"># 最弱步决定全局</span>
+    <span class="hljs-keyword">elif</span> mode == <span class="hljs-string">&#x27;last&#x27;</span>:
+        <span class="hljs-keyword">return</span> step_scores[:, -<span class="hljs-number">1</span>].sigmoid()              <span class="hljs-comment"># 只看最后一步(近似 ORM)</span>
+</code></pre></details>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>与 ORM 代码(§1.2)的关键差异:PRM 需额外传入<code>step_boundaries</code>,且对<strong>每个步骤</strong>独立打分;ORM 只对整条序列的末 token 池化一次。训练标签:MC rollout 软标签(见 §2.4)或 PRM800K 式人工标签。</p>
+</div>
 <h3 id="sec-10">2.3 对比表 (Comparison Table)</h3>
 <table>
 <thead>

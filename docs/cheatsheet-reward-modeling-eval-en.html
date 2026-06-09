@@ -275,6 +275,55 @@
 <li>❌ <strong>Very high annotation cost</strong>: requires expert-level step-by-step judgments</li>
 <li>❌ Step boundary definition (step delineation) is inherently ambiguous</li>
 </ul>
+<p><strong>From-scratch implementation</strong>: PRM = backbone + step-level hidden-state pooling + step-level scalar head, scoring each step independently; trained with MC rollout labels or human step annotations:</p>
+<details class="code-fold"><summary>45 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-keyword">import</span> torch
+<span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn
+<span class="hljs-keyword">import</span> torch.nn.functional <span class="hljs-keyword">as</span> F
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">ProcessRewardModel</span>(nn.Module):
+    <span class="hljs-string">&quot;&quot;&quot;PRM: assign a scalar score to each step of the reasoning process.
+    Input [prompt + first i steps], pool from the last token to score that step.&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, backbone, hidden</span>):
+        <span class="hljs-built_in">super</span>().__init__()
+        <span class="hljs-variable language_">self</span>.backbone = backbone
+        <span class="hljs-variable language_">self</span>.head = nn.Linear(hidden, <span class="hljs-number">1</span>, bias=<span class="hljs-literal">False</span>)    <span class="hljs-comment"># step-level scalar head</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, input_ids, attn_mask, step_boundaries</span>):
+        <span class="hljs-string">&quot;&quot;&quot;step_boundaries: list[list[int]] per-sample step boundary indices (excludes 0).
+        Returns per-step rewards, padded to (B, max_steps).&quot;&quot;&quot;</span>
+        h = <span class="hljs-variable language_">self</span>.backbone(input_ids, attn_mask)          <span class="hljs-comment"># (B, T, H)</span>
+        B = h.size(<span class="hljs-number">0</span>)
+        all_rewards = []
+        <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(B):
+            rew = []
+            <span class="hljs-keyword">for</span> end <span class="hljs-keyword">in</span> step_boundaries[i]:               <span class="hljs-comment"># end: position of the step&#x27;s last token</span>
+                rew.append(<span class="hljs-variable language_">self</span>.head(h[i, end]))         <span class="hljs-comment"># (1,) pool that position</span>
+            all_rewards.append(torch.stack(rew))
+        <span class="hljs-comment"># pad to align across samples with differing step counts</span>
+        rewards = nn.utils.rnn.pad_sequence(all_rewards, batch_first=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># (B, S, 1)</span>
+        <span class="hljs-keyword">return</span> rewards.squeeze(-<span class="hljs-number">1</span>)                       <span class="hljs-comment"># (B, S)</span>
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">prm_step_loss</span>(<span class="hljs-params">step_scores, step_labels</span>):
+    <span class="hljs-string">&quot;&quot;&quot;step_scores: (B, S) PRM per-step scores; step_labels: (B, S) per-step labels (0/1 or soft).
+    Per-step binary cross-entropy; only valid steps (labels ≥ 0) contribute.&quot;&quot;&quot;</span>
+    mask = step_labels &gt;= <span class="hljs-number">0</span>                              <span class="hljs-comment"># valid steps only</span>
+    loss = F.binary_cross_entropy_with_logits(
+        step_scores[mask], step_labels[mask].<span class="hljs-built_in">float</span>())
+    <span class="hljs-keyword">return</span> loss
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">aggregate_steps_to_sequence</span>(<span class="hljs-params">step_scores, mode=<span class="hljs-string">&#x27;prod&#x27;</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;Aggregate step-level scores into a whole-trajectory score for BoN reranking or search.
+    mode: &#x27;prod&#x27; (product, Lightman&#x27;s choice) / &#x27;min&#x27; (Math-Shepherd) / &#x27;last&#x27;.&quot;&quot;&quot;</span>
+    <span class="hljs-keyword">if</span> mode == <span class="hljs-string">&#x27;prod&#x27;</span>:
+        <span class="hljs-keyword">return</span> step_scores.sigmoid().prod(dim=<span class="hljs-number">1</span>)         <span class="hljs-comment"># product of per-step correctness probs</span>
+    <span class="hljs-keyword">elif</span> mode == <span class="hljs-string">&#x27;min&#x27;</span>:
+        <span class="hljs-keyword">return</span> step_scores.sigmoid().<span class="hljs-built_in">min</span>(dim=<span class="hljs-number">1</span>).values   <span class="hljs-comment"># weakest step decides the whole</span>
+    <span class="hljs-keyword">elif</span> mode == <span class="hljs-string">&#x27;last&#x27;</span>:
+        <span class="hljs-keyword">return</span> step_scores[:, -<span class="hljs-number">1</span>].sigmoid()              <span class="hljs-comment"># only the last step (approximates ORM)</span>
+</code></pre></details>
+<div class="callout callout-info"><div class="callout-label">提示 / Note</div>
+<p>Key difference from the ORM code (§1.2): PRM requires an extra <code>step_boundaries</code> argument and scores <strong>each step</strong> independently; ORM only pools the final token once for the whole sequence. Training labels: MC rollout soft labels (see §2.4) or PRM800K-style human labels.</p>
+</div>
 <h3 id="sec-10">2.3 Comparison Table</h3>
 <table>
 <thead>

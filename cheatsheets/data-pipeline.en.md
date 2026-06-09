@@ -318,6 +318,51 @@ Order data by **difficulty/length/quality** and feed it easy-to-hard, which ofte
 
 Score samples with **perplexity, reward-model scores, heuristic rules, or classifiers** and drop low-quality ones — but beware the filter's own bias (e.g. preferring long text) leaking into the data.
 
+```python
+# Quality filter pipeline: multi-layer filters screen samples in tiers;
+# low-quality samples are eliminated at different stages.
+# In practice all thresholds must be ablated per domain; over-filtering harms coverage and diversity.
+def quality_filter(samples, ppl_model=None, rm=None, heuristic_rules=None):
+    """samples: list[{'text': str, ...}]; returns samples that pass all filters.
+    Filter layers: ① heuristic rules → ② PPL threshold → ③ RM score → ④ (optional) classifier."""
+    passed = []
+    for s in samples:
+        t = s['text']
+        # ① Heuristic: empty / too short / too long / excessive n-gram repetition → discard
+        if not t or len(t) < 20:
+            continue
+        words = t.split()
+        if len(words) > 2048:                               # too long (tune threshold by task)
+            continue
+        # Repetition check: most frequent 4-gram fraction > 30% → suspected template / filler
+        from collections import Counter
+        ngrams = Counter(zip(*(words[i:] for i in range(4))))
+        if ngrams and ngrams.most_common(1)[0][1] / len(words) > 0.3:
+            continue
+        # ② PPL threshold: per-token perplexity moderate (too low = memorized, too high = gibberish)
+        if ppl_model is not None:
+            ppl = ppl_model.perplexity(t)
+            if not (5 < ppl < 500):                          # tune thresholds per domain
+                continue
+        # ③ RM / quality model scoring: drop low-scoring samples
+        if rm is not None:
+            score = rm.score(t).item()
+            if score < 0.0:                                  # RM threshold (tune per domain)
+                continue
+        # ④ Custom heuristic rules (e.g. must contain keywords, format checks, etc.)
+        if heuristic_rules is not None:
+            if not heuristic_rules(t):
+                continue
+        passed.append(s)
+    return passed
+# Key design choices:
+# - PPL thresholds: too high → miss hard-but-valid long-tail samples; too low → admit repetitive/filler data
+# - RM threshold: too low → valid samples of different style wrongly killed; too high → filter is toothless
+# - Filter ordering: cheap heuristics first (save PPL/RM inference), expensive model-based ones later
+# - Anti-bias monitoring: periodically check the distribution of filtered samples by domain/length/source
+#   to prevent systematic over-filtering of any group
+```
+
 > ⚠️ Mixing and curriculum are largely **empirical** and require ablation against the target capabilities. Two common anti-patterns: ① **an overly narrow source mix / over-deduplication** → capability collapse, loss of diversity; ② **blindly piling on one high-scoring domain** → other capabilities regress (catastrophic forgetting), see [continual-post-training](cheatsheet-continual-post-training-en.html).
 
 ---

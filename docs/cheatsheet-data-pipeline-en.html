@@ -439,6 +439,49 @@ production logs          Magpie / synth textbooks    format normalize         pe
 </ul>
 <h3 id="sec-28">6.4 Quality filtering</h3>
 <p>Score samples with <strong>perplexity, reward-model scores, heuristic rules, or classifiers</strong> and drop low-quality ones — but beware the filter&#39;s own bias (e.g. preferring long text) leaking into the data.</p>
+<details class="code-fold"><summary>43 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-comment"># Quality filter pipeline: multi-layer filters screen samples in tiers;</span>
+<span class="hljs-comment"># low-quality samples are eliminated at different stages.</span>
+<span class="hljs-comment"># In practice all thresholds must be ablated per domain; over-filtering harms coverage and diversity.</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">quality_filter</span>(<span class="hljs-params">samples, ppl_model=<span class="hljs-literal">None</span>, rm=<span class="hljs-literal">None</span>, heuristic_rules=<span class="hljs-literal">None</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;samples: list[{&#x27;text&#x27;: str, ...}]; returns samples that pass all filters.
+    Filter layers: ① heuristic rules → ② PPL threshold → ③ RM score → ④ (optional) classifier.&quot;&quot;&quot;</span>
+    passed = []
+    <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> samples:
+        t = s[<span class="hljs-string">&#x27;text&#x27;</span>]
+        <span class="hljs-comment"># ① Heuristic: empty / too short / too long / excessive n-gram repetition → discard</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> t <span class="hljs-keyword">or</span> <span class="hljs-built_in">len</span>(t) &lt; <span class="hljs-number">20</span>:
+            <span class="hljs-keyword">continue</span>
+        words = t.split()
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(words) &gt; <span class="hljs-number">2048</span>:                               <span class="hljs-comment"># too long (tune threshold by task)</span>
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># Repetition check: most frequent 4-gram fraction &gt; 30% → suspected template / filler</span>
+        <span class="hljs-keyword">from</span> collections <span class="hljs-keyword">import</span> Counter
+        ngrams = Counter(<span class="hljs-built_in">zip</span>(*(words[i:] <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">4</span>))))
+        <span class="hljs-keyword">if</span> ngrams <span class="hljs-keyword">and</span> ngrams.most_common(<span class="hljs-number">1</span>)[<span class="hljs-number">0</span>][<span class="hljs-number">1</span>] / <span class="hljs-built_in">len</span>(words) &gt; <span class="hljs-number">0.3</span>:
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># ② PPL threshold: per-token perplexity moderate (too low = memorized, too high = gibberish)</span>
+        <span class="hljs-keyword">if</span> ppl_model <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            ppl = ppl_model.perplexity(t)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> (<span class="hljs-number">5</span> &lt; ppl &lt; <span class="hljs-number">500</span>):                          <span class="hljs-comment"># tune thresholds per domain</span>
+                <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># ③ RM / quality model scoring: drop low-scoring samples</span>
+        <span class="hljs-keyword">if</span> rm <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            score = rm.score(t).item()
+            <span class="hljs-keyword">if</span> score &lt; <span class="hljs-number">0.0</span>:                                  <span class="hljs-comment"># RM threshold (tune per domain)</span>
+                <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># ④ Custom heuristic rules (e.g. must contain keywords, format checks, etc.)</span>
+        <span class="hljs-keyword">if</span> heuristic_rules <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> heuristic_rules(t):
+                <span class="hljs-keyword">continue</span>
+        passed.append(s)
+    <span class="hljs-keyword">return</span> passed
+<span class="hljs-comment"># Key design choices:</span>
+<span class="hljs-comment"># - PPL thresholds: too high → miss hard-but-valid long-tail samples; too low → admit repetitive/filler data</span>
+<span class="hljs-comment"># - RM threshold: too low → valid samples of different style wrongly killed; too high → filter is toothless</span>
+<span class="hljs-comment"># - Filter ordering: cheap heuristics first (save PPL/RM inference), expensive model-based ones later</span>
+<span class="hljs-comment"># - Anti-bias monitoring: periodically check the distribution of filtered samples by domain/length/source</span>
+<span class="hljs-comment">#   to prevent systematic over-filtering of any group</span>
+</code></pre></details>
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p>Mixing and curriculum are largely <strong>empirical</strong> and require ablation against the target capabilities. Two common anti-patterns: ① <strong>an overly narrow source mix / over-deduplication</strong> → capability collapse, loss of diversity; ② <strong>blindly piling on one high-scoring domain</strong> → other capabilities regress (catastrophic forgetting), see <a href="cheatsheet-continual-post-training-en.html">continual-post-training</a>.</p>
 </div>

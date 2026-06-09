@@ -436,6 +436,47 @@
 </ul>
 <h3 id="sec-28">6.4 质量过滤</h3>
 <p>用<strong>困惑度、奖励模型分、启发式规则、分类器</strong>给样本打分,丢弃低质;但要警惕过滤器自身的偏置(如偏好长文本)被带入数据。</p>
+<details class="code-fold"><summary>41 行 / lines</summary><pre><code class="hljs language-python"><span class="hljs-comment"># 质量过滤 pipeline:多层过滤器梯次筛选,低质样本在不同阶段被剔除。</span>
+<span class="hljs-comment"># 实践中各阈值需按域做消融;过度过滤会损失覆盖度与多样性。</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">quality_filter</span>(<span class="hljs-params">samples, ppl_model=<span class="hljs-literal">None</span>, rm=<span class="hljs-literal">None</span>, heuristic_rules=<span class="hljs-literal">None</span></span>):
+    <span class="hljs-string">&quot;&quot;&quot;samples: list[{&#x27;text&#x27;: str, ...}];返回通过所有过滤的样本。
+    过滤层:① 启发式规则 → ② PPL 门限 → ③ RM 分 → ④ (可选)分类器。&quot;&quot;&quot;</span>
+    passed = []
+    <span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> samples:
+        t = s[<span class="hljs-string">&#x27;text&#x27;</span>]
+        <span class="hljs-comment"># ① 启发式:空/过短/过长/过多重复 n-gram → 剔除</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> t <span class="hljs-keyword">or</span> <span class="hljs-built_in">len</span>(t) &lt; <span class="hljs-number">20</span>:
+            <span class="hljs-keyword">continue</span>
+        words = t.split()
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(words) &gt; <span class="hljs-number">2048</span>:                               <span class="hljs-comment"># 过长截断(阈值按任务调)</span>
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># 重复度检查:最高频 4-gram 占比 &gt; 30% → 疑似模板/注水</span>
+        <span class="hljs-keyword">from</span> collections <span class="hljs-keyword">import</span> Counter
+        ngrams = Counter(<span class="hljs-built_in">zip</span>(*(words[i:] <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">4</span>))))
+        <span class="hljs-keyword">if</span> ngrams <span class="hljs-keyword">and</span> ngrams.most_common(<span class="hljs-number">1</span>)[<span class="hljs-number">0</span>][<span class="hljs-number">1</span>] / <span class="hljs-built_in">len</span>(words) &gt; <span class="hljs-number">0.3</span>:
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># ② PPL 门限:token 级困惑度适中(太低=背答案,太高=乱码)</span>
+        <span class="hljs-keyword">if</span> ppl_model <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            ppl = ppl_model.perplexity(t)
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> (<span class="hljs-number">5</span> &lt; ppl &lt; <span class="hljs-number">500</span>):                          <span class="hljs-comment"># 阈值按域调</span>
+                <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># ③ RM/质量模型打分:滤掉低分样本</span>
+        <span class="hljs-keyword">if</span> rm <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            score = rm.score(t).item()
+            <span class="hljs-keyword">if</span> score &lt; <span class="hljs-number">0.0</span>:                                  <span class="hljs-comment"># RM 分阈值(按域调)</span>
+                <span class="hljs-keyword">continue</span>
+        <span class="hljs-comment"># ④ 自定义启发式规则(如必须含特定关键词、格式检查等)</span>
+        <span class="hljs-keyword">if</span> heuristic_rules <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> heuristic_rules(t):
+                <span class="hljs-keyword">continue</span>
+        passed.append(s)
+    <span class="hljs-keyword">return</span> passed
+<span class="hljs-comment"># 关键设计选择:</span>
+<span class="hljs-comment"># - PPL 门限:太高→漏掉困难但有效的长尾样本;太低→混入重复/灌水数据</span>
+<span class="hljs-comment"># - RM 阈值:过低→有效但风格不同的样本被错杀;过高→过滤形同虚设</span>
+<span class="hljs-comment"># - 过滤器顺序:廉价启发式优先(省 PPL/RM 推理),昂贵模型级后置</span>
+<span class="hljs-comment"># - 反偏置监控:定期检查被过滤样本在各域/长度/来源上的分布,防系统性偏杀</span>
+</code></pre></details>
 <div class="callout callout-warn"><div class="callout-label">注意 / Caution</div>
 <p>配比与课程在很大程度上是<strong>经验性的</strong>,需按目标能力做消融。两个常见反模式:① <strong>来源过单一/过度去重</strong> → 能力坍缩、多样性丢失;② <strong>盲目堆某一高分域</strong> → 其他能力退化(灾难性遗忘),见 <a href="cheatsheet-continual-post-training.html">continual-post-training</a>。</p>
 </div>

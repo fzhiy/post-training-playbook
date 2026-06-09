@@ -146,6 +146,56 @@ Output: per-step reward r_step(i)
 - ❌ **Very high annotation cost**: requires expert-level step-by-step judgments
 - ❌ Step boundary definition (step delineation) is inherently ambiguous
 
+**From-scratch implementation**: PRM = backbone + step-level hidden-state pooling + step-level scalar head, scoring each step independently; trained with MC rollout labels or human step annotations:
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ProcessRewardModel(nn.Module):
+    """PRM: assign a scalar score to each step of the reasoning process.
+    Input [prompt + first i steps], pool from the last token to score that step."""
+    def __init__(self, backbone, hidden):
+        super().__init__()
+        self.backbone = backbone
+        self.head = nn.Linear(hidden, 1, bias=False)    # step-level scalar head
+
+    def forward(self, input_ids, attn_mask, step_boundaries):
+        """step_boundaries: list[list[int]] per-sample step boundary indices (excludes 0).
+        Returns per-step rewards, padded to (B, max_steps)."""
+        h = self.backbone(input_ids, attn_mask)          # (B, T, H)
+        B = h.size(0)
+        all_rewards = []
+        for i in range(B):
+            rew = []
+            for end in step_boundaries[i]:               # end: position of the step's last token
+                rew.append(self.head(h[i, end]))         # (1,) pool that position
+            all_rewards.append(torch.stack(rew))
+        # pad to align across samples with differing step counts
+        rewards = nn.utils.rnn.pad_sequence(all_rewards, batch_first=True)  # (B, S, 1)
+        return rewards.squeeze(-1)                       # (B, S)
+
+def prm_step_loss(step_scores, step_labels):
+    """step_scores: (B, S) PRM per-step scores; step_labels: (B, S) per-step labels (0/1 or soft).
+    Per-step binary cross-entropy; only valid steps (labels ≥ 0) contribute."""
+    mask = step_labels >= 0                              # valid steps only
+    loss = F.binary_cross_entropy_with_logits(
+        step_scores[mask], step_labels[mask].float())
+    return loss
+
+def aggregate_steps_to_sequence(step_scores, mode='prod'):
+    """Aggregate step-level scores into a whole-trajectory score for BoN reranking or search.
+    mode: 'prod' (product, Lightman's choice) / 'min' (Math-Shepherd) / 'last'."""
+    if mode == 'prod':
+        return step_scores.sigmoid().prod(dim=1)         # product of per-step correctness probs
+    elif mode == 'min':
+        return step_scores.sigmoid().min(dim=1).values   # weakest step decides the whole
+    elif mode == 'last':
+        return step_scores[:, -1].sigmoid()              # only the last step (approximates ORM)
+```
+> 📝 Key difference from the ORM code (§1.2): PRM requires an extra `step_boundaries` argument and scores **each step** independently; ORM only pools the final token once for the whole sequence. Training labels: MC rollout soft labels (see §2.4) or PRM800K-style human labels.
+
 ### 2.3 Comparison Table
 
 | Dimension | ORM (Outcome Reward) | PRM (Process Reward) |

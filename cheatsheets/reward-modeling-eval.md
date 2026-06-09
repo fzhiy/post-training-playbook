@@ -146,6 +146,56 @@ $$\mathcal{L}_{\text{DPO}} = -\mathbb{E}\left[\log\sigma\!\left(\beta\log\frac{\
 - ❌ **标注成本极高**：需要专家逐步判断
 - ❌ 步骤边界定义 (step delineation) 本身有歧义
 
+**from-scratch 实现**:PRM = backbone + 步级隐状态池化 + 步级标量头,对每步独立打分;训练可用 MC rollout 标签或人工步标:
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ProcessRewardModel(nn.Module):
+    """PRM:对推理过程的每一步打出标量分数。
+    输入 [prompt + 前 i 步],从最后 token 池化给该步打分。"""
+    def __init__(self, backbone, hidden):
+        super().__init__()
+        self.backbone = backbone
+        self.head = nn.Linear(hidden, 1, bias=False)    # 步级标量头
+
+    def forward(self, input_ids, attn_mask, step_boundaries):
+        """step_boundaries: list[list[int]] 每样本的步边界下标(不含 0)。
+        返回每步的奖励,pad 到 (B, max_steps)。"""
+        h = self.backbone(input_ids, attn_mask)          # (B, T, H)
+        B = h.size(0)
+        all_rewards = []
+        for i in range(B):
+            rew = []
+            for end in step_boundaries[i]:               # end:该步最后 token 的位置
+                rew.append(self.head(h[i, end]))         # (1,) 池化该位置
+            all_rewards.append(torch.stack(rew))
+        # pad 对齐不同样本的步数
+        rewards = nn.utils.rnn.pad_sequence(all_rewards, batch_first=True)  # (B, S, 1)
+        return rewards.squeeze(-1)                       # (B, S)
+
+def prm_step_loss(step_scores, step_labels):
+    """step_scores: (B, S) PRM 每步分; step_labels: (B, S) 每步标签(0/1 或软标签)。
+    逐步二分类交叉熵,仅有效步参与(标签 ≥0)。"""
+    mask = step_labels >= 0                              # 有效步(标签≥0 才参与)
+    loss = F.binary_cross_entropy_with_logits(
+        step_scores[mask], step_labels[mask].float())
+    return loss
+
+def aggregate_steps_to_sequence(step_scores, mode='prod'):
+    """把步级分数聚合成整条轨迹分,用于 BoN 重排或搜索。
+    mode: 'prod'(乘积,Lightman 主选)/'min'(最小值,Math-Shepherd)/'last'。"""
+    if mode == 'prod':
+        return step_scores.sigmoid().prod(dim=1)         # 各步正确率乘积
+    elif mode == 'min':
+        return step_scores.sigmoid().min(dim=1).values   # 最弱步决定全局
+    elif mode == 'last':
+        return step_scores[:, -1].sigmoid()              # 只看最后一步(近似 ORM)
+```
+> 📝 与 ORM 代码(§1.2)的关键差异:PRM 需额外传入`step_boundaries`,且对**每个步骤**独立打分;ORM 只对整条序列的末 token 池化一次。训练标签:MC rollout 软标签(见 §2.4)或 PRM800K 式人工标签。
+
 ### 2.3 对比表 (Comparison Table)
 
 | 维度 | ORM (结果奖励) | PRM (过程奖励) |

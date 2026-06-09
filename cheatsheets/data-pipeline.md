@@ -315,6 +315,49 @@ def sample_domain(weights, rng):
 
 用**困惑度、奖励模型分、启发式规则、分类器**给样本打分,丢弃低质;但要警惕过滤器自身的偏置(如偏好长文本)被带入数据。
 
+```python
+# 质量过滤 pipeline:多层过滤器梯次筛选,低质样本在不同阶段被剔除。
+# 实践中各阈值需按域做消融;过度过滤会损失覆盖度与多样性。
+def quality_filter(samples, ppl_model=None, rm=None, heuristic_rules=None):
+    """samples: list[{'text': str, ...}];返回通过所有过滤的样本。
+    过滤层:① 启发式规则 → ② PPL 门限 → ③ RM 分 → ④ (可选)分类器。"""
+    passed = []
+    for s in samples:
+        t = s['text']
+        # ① 启发式:空/过短/过长/过多重复 n-gram → 剔除
+        if not t or len(t) < 20:
+            continue
+        words = t.split()
+        if len(words) > 2048:                               # 过长截断(阈值按任务调)
+            continue
+        # 重复度检查:最高频 4-gram 占比 > 30% → 疑似模板/注水
+        from collections import Counter
+        ngrams = Counter(zip(*(words[i:] for i in range(4))))
+        if ngrams and ngrams.most_common(1)[0][1] / len(words) > 0.3:
+            continue
+        # ② PPL 门限:token 级困惑度适中(太低=背答案,太高=乱码)
+        if ppl_model is not None:
+            ppl = ppl_model.perplexity(t)
+            if not (5 < ppl < 500):                          # 阈值按域调
+                continue
+        # ③ RM/质量模型打分:滤掉低分样本
+        if rm is not None:
+            score = rm.score(t).item()
+            if score < 0.0:                                  # RM 分阈值(按域调)
+                continue
+        # ④ 自定义启发式规则(如必须含特定关键词、格式检查等)
+        if heuristic_rules is not None:
+            if not heuristic_rules(t):
+                continue
+        passed.append(s)
+    return passed
+# 关键设计选择:
+# - PPL 门限:太高→漏掉困难但有效的长尾样本;太低→混入重复/灌水数据
+# - RM 阈值:过低→有效但风格不同的样本被错杀;过高→过滤形同虚设
+# - 过滤器顺序:廉价启发式优先(省 PPL/RM 推理),昂贵模型级后置
+# - 反偏置监控:定期检查被过滤样本在各域/长度/来源上的分布,防系统性偏杀
+```
+
 > ⚠️ 配比与课程在很大程度上是**经验性的**,需按目标能力做消融。两个常见反模式:① **来源过单一/过度去重** → 能力坍缩、多样性丢失;② **盲目堆某一高分域** → 其他能力退化(灾难性遗忘),见 [continual-post-training](cheatsheet-continual-post-training.html)。
 
 ---
